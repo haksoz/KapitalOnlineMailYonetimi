@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+    display: none !important;
+}
+
+/* Masaüstü sol menü: opak arka plan (Tailwind yedeği) */
+@media (min-width: 1024px) {
+    .layout-desktop-sidebar,
+    .layout-desktop-sidebar .min-h-full {
+        background-color: #1e293b;
+    }
+}
+
+/* Mobil: body scroll kilidi sidebar açıkken */
+@media (max-width: 1023px) {
+    body.overflow-hidden {
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+    }
+}
