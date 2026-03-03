@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SupplierInvoice extends Model
 {
     protected $fillable = [
-        'supplier_id',
+        'cari_id',
         'fatura_no',
         'fatura_tarihi',
         'donem_ay',
@@ -43,9 +43,9 @@ class SupplierInvoice extends Model
         ];
     }
 
-    public function supplier(): BelongsTo
+    public function cari(): BelongsTo
     {
-        return $this->belongsTo(Supplier::class);
+        return $this->belongsTo(Cari::class);
     }
 
     public function invoiceItems(): HasMany

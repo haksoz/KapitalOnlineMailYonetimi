@@ -9,7 +9,15 @@ class ServiceProvider extends Model
 {
     protected $table = 'service_providers';
 
-    protected $fillable = ['name', 'code'];
+    protected $fillable = [
+        'name',
+        'code',
+        'service_types',
+    ];
+
+    protected $casts = [
+        'service_types' => 'array',
+    ];
 
     public function products(): HasMany
     {

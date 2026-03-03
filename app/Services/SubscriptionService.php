@@ -17,9 +17,9 @@ class SubscriptionService
         return $this->subscriptionRepository->getActiveList($perPage);
     }
 
-    public function getByCompany(int $companyId, int $perPage = 15): LengthAwarePaginator
+    public function getByCustomerCari(int $cariId, int $perPage = 15): LengthAwarePaginator
     {
-        return $this->subscriptionRepository->getByCompany($companyId, $perPage);
+        return $this->subscriptionRepository->getByCustomerCari($cariId, $perPage);
     }
 
     public function findBySozlesmeNo(string $sozlesmeNo): ?Subscription

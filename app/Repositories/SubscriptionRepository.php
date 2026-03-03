@@ -13,11 +13,11 @@ class SubscriptionRepository implements SubscriptionRepositoryInterface
         return Subscription::find($id);
     }
 
-    public function getByCompany(int $companyId, int $perPage = 15): LengthAwarePaginator
+    public function getByCustomerCari(int $cariId, int $perPage = 15): LengthAwarePaginator
     {
         return Subscription::query()
-            ->where('company_id', $companyId)
-            ->with(['company', 'product', 'supplier', 'serviceProvider'])
+            ->where('customer_cari_id', $cariId)
+            ->with(['customerCari', 'providerCari', 'product', 'serviceProvider'])
             ->latest('baslangic_tarihi')
             ->paginate($perPage);
     }
@@ -26,7 +26,7 @@ class SubscriptionRepository implements SubscriptionRepositoryInterface
     {
         return Subscription::query()
             ->where('sozlesme_no', $sozlesmeNo)
-            ->with(['company', 'product', 'supplier'])
+            ->with(['customerCari', 'providerCari', 'product'])
             ->first();
     }
 
@@ -34,7 +34,12 @@ class SubscriptionRepository implements SubscriptionRepositoryInterface
     {
         return Subscription::query()
             ->where('durum', Subscription::DURUM_ACTIVE)
-            ->with(['company:id,name,code', 'product:id,name,stock_code', 'supplier:id,name'])
+            ->with([
+                'customerCari:id,name,short_name,uuid',
+                'providerCari:id,name,short_name,uuid',
+                'product:id,name,stock_code',
+                'serviceProvider:id,name,code',
+            ])
             ->latest('baslangic_tarihi')
             ->paginate($perPage);
     }

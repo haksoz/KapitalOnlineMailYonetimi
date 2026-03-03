@@ -1,0 +1,63 @@
+<x-app-layout>
+    <x-slot name="header">
+        <div class="flex items-center gap-2">
+            <a href="{{ route('caris.index') }}" class="text-gray-500 hover:text-gray-700">&larr;</a>
+            <h1 class="text-xl font-semibold text-gray-800">Cari Düzenle</h1>
+        </div>
+    </x-slot>
+
+    <x-flash-messages />
+
+    <div class="bg-white rounded-xl shadow-sm p-6 max-w-xl">
+        <form action="{{ route('caris.update', $cari) }}" method="POST">
+            @csrf
+            @method('PATCH')
+
+            <div class="space-y-4">
+                <div>
+                    <x-input-label for="name" value="Ad / Ünvan *" />
+                    <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $cari->name)" required autofocus />
+                </div>
+
+                <div>
+                    <x-input-label for="short_name" value="Kısa Ad / Ünvan" />
+                    <x-text-input id="short_name" name="short_name" type="text" class="mt-1 block w-full" :value="old('short_name', $cari->short_name)" />
+                    <p class="mt-1 text-xs text-gray-500">Tablolarda kullanılacak kısa ad. Boş bırakılırsa tam ad gösterilir.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <x-input-label for="country_code" value="Ülke Kodu" />
+                        <x-text-input id="country_code" name="country_code" type="text" class="mt-1 block w-full uppercase" maxlength="2" :value="old('country_code', $cari->country_code ?? 'TR')" />
+                        <p class="mt-1 text-xs text-gray-500">ISO 2 haneli ülke kodu (TR, DE, US vb.)</p>
+                    </div>
+
+                    <div>
+                        <x-input-label for="tax_number" value="Vergi / Kimlik No" />
+                        <x-text-input id="tax_number" name="tax_number" type="text" class="mt-1 block w-full" :value="old('tax_number', $cari->tax_number)" />
+                        <p class="mt-1 text-xs text-gray-500">VKN, VAT, EIN vb. boş bırakılabilir.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <x-input-label for="cari_type" value="Cari Tipi" />
+                    <select id="cari_type" name="cari_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                        @php
+                            $currentType = old('cari_type', $cari->cari_type);
+                        @endphp
+                        <option value="">Seçilmedi</option>
+                        <option value="customer" @selected($currentType === 'customer')>Müşteri</option>
+                        <option value="supplier" @selected($currentType === 'supplier')>Tedarikçi</option>
+                        <option value="both" @selected($currentType === 'both')>Müşteri + Tedarikçi</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-3">
+                <x-primary-button>Güncelle</x-primary-button>
+                <a href="{{ route('caris.index') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">İptal</a>
+            </div>
+        </form>
+    </div>
+</x-app-layout>
+

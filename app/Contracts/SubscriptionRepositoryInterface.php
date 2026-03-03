@@ -9,7 +9,7 @@ interface SubscriptionRepositoryInterface
 {
     public function find(int $id): ?Subscription;
 
-    public function getByCompany(int $companyId, int $perPage = 15): LengthAwarePaginator;
+    public function getByCustomerCari(int $cariId, int $perPage = 15): LengthAwarePaginator;
 
     public function getBySozlesmeNo(string $sozlesmeNo): ?Subscription;
 

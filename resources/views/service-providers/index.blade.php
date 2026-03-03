@@ -17,6 +17,7 @@
                     <tr>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kod</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hizmet Tipleri</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
                     </tr>
                 </thead>
@@ -25,6 +26,16 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ $serviceProvider->name }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{{ $serviceProvider->code ?? '—' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                @if (!empty($serviceProvider->service_types))
+                                    @php
+                                        $labels = ['mail' => 'Mail', 'domain' => 'Domain', 'hosting' => 'Hosting', 'other' => 'Diğer'];
+                                    @endphp
+                                    {{ implode(', ', array_map(fn($t) => $labels[$t] ?? $t, $serviceProvider->service_types)) }}
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
                                 <a href="{{ route('service-providers.edit', $serviceProvider) }}" class="text-slate-600 hover:text-slate-900 font-medium">Düzenle</a>
                                 <form action="{{ route('service-providers.destroy', $serviceProvider) }}" method="POST" class="inline-block ml-3" onsubmit="return confirm('Bu servis sağlayıcıyı silmek istediğinize emin misiniz?');">
@@ -36,7 +47,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500">Henüz servis sağlayıcı eklenmemiş.</td>
+                            <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-500">Henüz servis sağlayıcı eklenmemiş.</td>
                         </tr>
                     @endforelse
                 </tbody>

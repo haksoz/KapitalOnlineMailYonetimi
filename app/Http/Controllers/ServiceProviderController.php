@@ -4,8 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\ServiceProvider;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class ServiceProviderController extends Controller
 {
@@ -28,8 +29,11 @@ class ServiceProviderController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:64'],
+            'code' => ['nullable', 'string', 'max:64', Rule::unique('service_providers', 'code')],
+            'service_types' => ['nullable', 'array'],
+            'service_types.*' => ['string', 'max:50'],
         ]);
+        $validated['service_types'] = $request->input('service_types', []);
 
         ServiceProvider::create($validated);
 
@@ -45,8 +49,11 @@ class ServiceProviderController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:64'],
+            'code' => ['nullable', 'string', 'max:64', Rule::unique('service_providers', 'code')->ignore($serviceProvider->id)],
+            'service_types' => ['nullable', 'array'],
+            'service_types.*' => ['string', 'max:50'],
         ]);
+        $validated['service_types'] = $request->input('service_types', []);
 
         $serviceProvider->update($validated);
 

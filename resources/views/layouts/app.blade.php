@@ -27,10 +27,14 @@
                     <div class="pt-4 pb-2">
                         <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Master Veriler</p>
                     </div>
-                    <a href="{{ route('companies.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('companies.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Müşteriler</a>
-                    <a href="{{ route('suppliers.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('suppliers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Tedarikçiler</a>
+                    <a href="{{ route('caris.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('caris.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Cariler</a>
                     <a href="{{ route('service-providers.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('service-providers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Servis Sağlayıcılar</a>
                     <a href="{{ route('products.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('products.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Ürünler</a>
+                    <a href="{{ route('exchange-rates.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('exchange-rates.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Kurlar</a>
+                    <div class="pt-4 pb-2">
+                        <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Abonelikler</p>
+                    </div>
+                    <a href="{{ route('subscriptions.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('subscriptions.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Abonelikler</a>
                 </nav>
             </div>
         </aside>
@@ -52,10 +56,12 @@
             <nav class="flex-1 overflow-y-auto overscroll-contain py-4 px-3 space-y-0.5" role="navigation">
                 <a href="{{ route('dashboard') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('dashboard') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Dashboard</a>
                 <div class="pt-4 pb-2"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Master Veriler</p></div>
-                <a href="{{ route('companies.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('companies.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Müşteriler</a>
-                <a href="{{ route('suppliers.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('suppliers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Tedarikçiler</a>
+                <a href="{{ route('caris.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('caris.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Cariler</a>
                 <a href="{{ route('service-providers.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('service-providers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Servis Sağlayıcılar</a>
                 <a href="{{ route('products.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('products.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Ürünler</a>
+                <a href="{{ route('exchange-rates.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('exchange-rates.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Kurlar</a>
+                <div class="pt-4 pb-2"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Abonelikler</p></div>
+                <a href="{{ route('subscriptions.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('subscriptions.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Abonelikler</a>
             </nav>
         </aside>
 

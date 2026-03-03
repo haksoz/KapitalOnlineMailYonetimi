@@ -20,16 +20,19 @@ class Subscription extends Model
     public const FATURALAMA_YEARLY = 'yearly';
 
     protected $fillable = [
-        'company_id',
+        'customer_cari_id',
+        'provider_cari_id',
         'service_provider_id',
         'product_id',
-        'supplier_id',
         'sozlesme_no',
         'baslangic_tarihi',
         'bitis_tarihi',
         'taahhut_tipi',
         'faturalama_periyodu',
         'durum',
+        'auto_renew',
+        'usd_birim_alis',
+        'usd_birim_satis',
     ];
 
     protected function casts(): array
@@ -37,12 +40,20 @@ class Subscription extends Model
         return [
             'baslangic_tarihi' => 'date',
             'bitis_tarihi' => 'date',
+            'auto_renew' => 'boolean',
+            'usd_birim_alis' => 'decimal:4',
+            'usd_birim_satis' => 'decimal:4',
         ];
     }
 
-    public function company(): BelongsTo
+    public function customerCari(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Cari::class, 'customer_cari_id');
+    }
+
+    public function providerCari(): BelongsTo
+    {
+        return $this->belongsTo(Cari::class, 'provider_cari_id');
     }
 
     public function serviceProvider(): BelongsTo
@@ -55,13 +66,13 @@ class Subscription extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function supplier(): BelongsTo
-    {
-        return $this->belongsTo(Supplier::class);
-    }
-
     public function invoiceItems(): HasMany
     {
         return $this->hasMany(InvoiceItem::class);
+    }
+
+    public function monthlyProjections(): HasMany
+    {
+        return $this->hasMany(SubscriptionMonthlyProjection::class);
     }
 }

@@ -18,8 +18,32 @@
                     <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $serviceProvider->name)" required autofocus />
                 </div>
                 <div>
-                    <x-input-label for="code" value="Kod" />
-                    <x-text-input id="code" name="code" type="text" class="mt-1 block w-full" :value="old('code', $serviceProvider->code)" />
+                    <x-input-label for="code" value="Kod (kısa ad)" />
+                    <x-text-input id="code" name="code" type="text" class="mt-1 block w-full lowercase" :value="old('code', $serviceProvider->code)" />
+                    <p class="mt-1 text-xs text-gray-500">Örn: microsoft, hostinger, godaddy (benzersiz kısa kod).</p>
+                </div>
+                <div>
+                    <x-input-label value="Hizmet Tipleri" />
+                    @php $currentTypes = old('service_types', $serviceProvider->service_types ?? []); @endphp
+                    <p class="mt-1 text-xs text-gray-500 mb-2">Bu sağlayıcının sunduğu hizmet türlerini işaretleyin (birden fazla seçilebilir).</p>
+                    <div class="mt-2 space-y-2">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="service_types[]" value="mail" {{ in_array('mail', $currentTypes) ? 'checked' : '' }} class="rounded border-gray-300 text-slate-600 focus:ring-slate-500">
+                            <span class="text-sm text-gray-700">Mail</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer block">
+                            <input type="checkbox" name="service_types[]" value="domain" {{ in_array('domain', $currentTypes) ? 'checked' : '' }} class="rounded border-gray-300 text-slate-600 focus:ring-slate-500">
+                            <span class="text-sm text-gray-700">Domain</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer block">
+                            <input type="checkbox" name="service_types[]" value="hosting" {{ in_array('hosting', $currentTypes) ? 'checked' : '' }} class="rounded border-gray-300 text-slate-600 focus:ring-slate-500">
+                            <span class="text-sm text-gray-700">Hosting</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 cursor-pointer block">
+                            <input type="checkbox" name="service_types[]" value="other" {{ in_array('other', $currentTypes) ? 'checked' : '' }} class="rounded border-gray-300 text-slate-600 focus:ring-slate-500">
+                            <span class="text-sm text-gray-700">Diğer</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="mt-6 flex gap-3">
