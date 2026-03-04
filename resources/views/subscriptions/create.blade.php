@@ -49,6 +49,10 @@
                     </select>
                 </div>
                 <div>
+                    <x-input-label for="quantity" value="Ürün adeti *" />
+                    <x-text-input id="quantity" name="quantity" type="number" min="1" class="mt-1 block w-full" :value="old('quantity', 1)" required />
+                </div>
+                <div>
                     <x-input-label for="sozlesme_no" value="Sözleşme no (tedarikçi abonelik no) *" />
                     <x-text-input id="sozlesme_no" name="sozlesme_no" type="text" class="mt-1 block w-full" :value="old('sozlesme_no')" required />
                 </div>

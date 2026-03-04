@@ -50,6 +50,11 @@
                     </select>
                 </div>
                 <div>
+                    <x-input-label value="Ürün adeti" />
+                    <p class="mt-1 text-sm font-medium text-gray-900">{{ $subscription->quantity ?? 1 }}</p>
+                    <a href="{{ route('subscriptions.show-update-quantity', $subscription) }}" class="text-sm text-slate-600 hover:text-slate-900 font-medium">Adet güncelle</a>
+                </div>
+                <div>
                     <x-input-label for="sozlesme_no" value="Sözleşme no (tedarikçi abonelik no) *" />
                     <x-text-input id="sozlesme_no" name="sozlesme_no" type="text" class="mt-1 block w-full" :value="old('sozlesme_no', $subscription->sozlesme_no)" required />
                 </div>

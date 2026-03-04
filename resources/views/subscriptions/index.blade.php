@@ -43,7 +43,9 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tedarikçi</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ürün</th>
+                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Adet</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başlangıç</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bitiş</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Otomatik</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
@@ -56,7 +58,9 @@
                             <td class="px-4 py-3 text-sm text-gray-700">{{ $sub->customerCari?->short_name ?: $sub->customerCari?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700">{{ $sub->providerCari?->short_name ?: $sub->providerCari?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $sub->product?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">{{ $sub->quantity ?? 1 }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ $sub->baslangic_tarihi?->format('d.m.Y') ?? '—' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ $sub->bitis_tarihi?->format('d.m.Y') ?? '—' }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 @php
                                     $durumLabels = ['active' => 'Aktif', 'cancelled' => 'İptal', 'pending' => 'Beklemede'];
@@ -78,7 +82,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">Henüz abonelik eklenmemiş.</td>
+                            <td colspan="10" class="px-4 py-8 text-center text-sm text-gray-500">Henüz abonelik eklenmemiş.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -24,6 +24,7 @@ class Subscription extends Model
         'provider_cari_id',
         'service_provider_id',
         'product_id',
+        'quantity',
         'sozlesme_no',
         'baslangic_tarihi',
         'bitis_tarihi',
@@ -74,5 +75,10 @@ class Subscription extends Model
     public function monthlyProjections(): HasMany
     {
         return $this->hasMany(SubscriptionMonthlyProjection::class);
+    }
+
+    public function quantityChanges(): HasMany
+    {
+        return $this->hasMany(SubscriptionQuantityChange::class)->orderByDesc('effective_date')->orderByDesc('created_at');
     }
 }

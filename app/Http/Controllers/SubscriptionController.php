@@ -6,7 +6,9 @@ use App\Models\Cari;
 use App\Models\Product;
 use App\Models\ServiceProvider;
 use App\Models\Subscription;
+use App\Models\SubscriptionQuantityChange;
 use App\Services\SubscriptionProjectionService;
+use App\Services\SubscriptionRenewalService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +17,8 @@ use Illuminate\View\View;
 class SubscriptionController extends Controller
 {
     public function __construct(
-        protected SubscriptionProjectionService $projectionService
+        protected SubscriptionProjectionService $projectionService,
+        protected SubscriptionRenewalService $renewalService
     ) {}
 
     public function index(Request $request): View
@@ -64,6 +67,7 @@ class SubscriptionController extends Controller
             'provider_cari_id' => ['nullable', 'exists:caris,id'],
             'service_provider_id' => ['nullable', 'exists:service_providers,id'],
             'product_id' => ['nullable', 'exists:products,id'],
+            'quantity' => ['required', 'integer', 'min:1'],
             'sozlesme_no' => ['required', 'string', 'max:64'],
             'baslangic_tarihi' => ['required', 'date'],
             'bitis_tarihi' => ['nullable', 'date'],
@@ -76,6 +80,13 @@ class SubscriptionController extends Controller
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
 
+        if (empty($validated['bitis_tarihi'])) {
+            $validated['bitis_tarihi'] = $this->renewalService->computeInitialEndDate(
+                Carbon::parse($validated['baslangic_tarihi']),
+                $validated['taahhut_tipi']
+            )->format('Y-m-d');
+        }
+
         Subscription::create($validated);
 
         return redirect()->route('subscriptions.index')->with('success', 'Abonelik eklendi.');
@@ -83,9 +94,48 @@ class SubscriptionController extends Controller
 
     public function show(Subscription $subscription): View
     {
-        $subscription->load(['customerCari', 'providerCari', 'product', 'serviceProvider', 'monthlyProjections' => fn ($q) => $q->orderByDesc('year')->orderByDesc('month')]);
+        $subscription->load([
+            'customerCari', 'providerCari', 'product', 'serviceProvider',
+            'monthlyProjections' => fn ($q) => $q->orderByDesc('year')->orderByDesc('month'),
+            'quantityChanges',
+        ]);
 
         return view('subscriptions.show', compact('subscription'));
+    }
+
+    public function showUpdateQuantity(Subscription $subscription): View
+    {
+        return view('subscriptions.update-quantity', compact('subscription'));
+    }
+
+    public function updateQuantity(Request $request, Subscription $subscription): RedirectResponse
+    {
+        $validated = $request->validate([
+            'new_quantity' => ['required', 'integer', 'min:1'],
+            'effective_date' => ['required', 'date'],
+        ]);
+
+        $previousQuantity = (int) $subscription->quantity;
+        $newQuantity = (int) $validated['new_quantity'];
+
+        if ($newQuantity === $previousQuantity) {
+            return redirect()
+                ->route('subscriptions.show', $subscription)
+                ->with('info', 'Adet değişmedi.');
+        }
+
+        SubscriptionQuantityChange::create([
+            'subscription_id' => $subscription->id,
+            'previous_quantity' => $previousQuantity,
+            'new_quantity' => $newQuantity,
+            'effective_date' => $validated['effective_date'],
+        ]);
+
+        $subscription->update(['quantity' => $newQuantity]);
+
+        return redirect()
+            ->route('subscriptions.show', $subscription)
+            ->with('success', 'Ürün adeti güncellendi.');
     }
 
     public function edit(Subscription $subscription): View
@@ -120,6 +170,13 @@ class SubscriptionController extends Controller
             'usd_birim_satis' => ['nullable', 'numeric', 'min:0'],
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
+
+        if (empty($validated['bitis_tarihi'])) {
+            $validated['bitis_tarihi'] = $this->renewalService->computeInitialEndDate(
+                Carbon::parse($validated['baslangic_tarihi']),
+                $validated['taahhut_tipi']
+            )->format('Y-m-d');
+        }
 
         $subscription->update($validated);
 
