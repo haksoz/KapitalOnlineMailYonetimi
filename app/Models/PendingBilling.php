@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class PendingBilling extends Model
+{
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_INVOICED = 'invoiced';
+    public const STATUS_CANCELLED = 'cancelled';
+
+    protected $table = 'pending_billings';
+
+    protected $fillable = [
+        'subscription_id',
+        'period_start',
+        'period_end',
+        'status',
+        'expected_alis_tl',
+        'expected_satis_tl',
+        'exchange_rate_used',
+        'amounts_updated_at',
+        'supplier_invoice_number',
+        'supplier_invoice_date',
+        'actual_alis_tl',
+        'actual_satis_tl',
+        'fee_difference_tl',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'period_start' => 'date',
+            'period_end' => 'date',
+            'expected_alis_tl' => 'decimal:2',
+            'expected_satis_tl' => 'decimal:2',
+            'exchange_rate_used' => 'decimal:6',
+            'amounts_updated_at' => 'datetime',
+            'supplier_invoice_date' => 'date',
+            'actual_alis_tl' => 'decimal:2',
+            'actual_satis_tl' => 'decimal:2',
+            'fee_difference_tl' => 'decimal:2',
+        ];
+    }
+
+    public function subscription(): BelongsTo
+    {
+        return $this->belongsTo(Subscription::class);
+    }
+
+    public function salesInvoiceLine(): HasOne
+    {
+        return $this->hasOne(SalesInvoiceLine::class, 'pending_billing_id');
+    }
+}

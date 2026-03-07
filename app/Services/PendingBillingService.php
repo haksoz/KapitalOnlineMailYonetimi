@@ -1,0 +1,216 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\ExchangeRate;
+use App\Models\PendingBilling;
+use App\Models\Subscription;
+use Carbon\Carbon;
+
+class PendingBillingService
+{
+    /**
+     * Tek bir ödeme bekleyen kaydının beklenen alış/satış TL tutarlarını güncel kur ile günceller.
+     * Kur verilmezse bugünkü USD efektif satış (forex_selling) kullanılır.
+     *
+     * @return bool Güncelleme yapıldıysa true (kur ve abonelik verisi yeterliyse)
+     */
+    public function refreshAmountsForRecord(PendingBilling $pendingBilling, ?float $rate = null): bool
+    {
+        if ($pendingBilling->status !== PendingBilling::STATUS_PENDING) {
+            return false;
+        }
+
+        if ($rate === null) {
+            $usd = ExchangeRate::where('currency_code', 'USD')
+                ->where('effective_date', Carbon::today()->toDateString())
+                ->first();
+            if ($usd?->forex_selling !== null && $usd->forex_selling !== '') {
+                $rate = (float) $usd->forex_selling;
+            } else {
+                $usdLast = ExchangeRate::where('currency_code', 'USD')
+                    ->whereNotNull('forex_selling')
+                    ->orderByDesc('effective_date')
+                    ->first();
+                $rate = $usdLast?->forex_selling !== null && $usdLast->forex_selling !== '' ? (float) $usdLast->forex_selling : null;
+            }
+        }
+
+        if ($rate === null) {
+            return false;
+        }
+
+        $subscription = $pendingBilling->subscription;
+        if ($subscription->usd_birim_alis === null) {
+            return false;
+        }
+
+        $quantity = (int) $subscription->quantity;
+        $alisKdvHaric = (float) $subscription->usd_birim_alis * $quantity * $rate;
+        $satisTl = null;
+        if ((float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {
+            $satisTl = $alisKdvHaric * ((float) $subscription->usd_birim_satis / (float) $subscription->usd_birim_alis);
+        }
+
+        $pendingBilling->update([
+            'expected_alis_tl' => $alisKdvHaric,
+            'expected_satis_tl' => $satisTl,
+            'exchange_rate_used' => $rate,
+            'amounts_updated_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Beklemedeki (pending) tüm kayıtların beklenen alış/satış tutarlarını bugünkü kur ile günceller.
+     *
+     * @return int Güncellenen kayıt sayısı
+     */
+    public function refreshAllPendingAmounts(): int
+    {
+        $usd = ExchangeRate::where('currency_code', 'USD')
+            ->where('effective_date', Carbon::today()->toDateString())
+            ->first();
+        if ($usd?->forex_selling !== null && $usd->forex_selling !== '') {
+            $rate = (float) $usd->forex_selling;
+        } else {
+            $usdLast = ExchangeRate::where('currency_code', 'USD')
+                ->whereNotNull('forex_selling')
+                ->orderByDesc('effective_date')
+                ->first();
+            $rate = $usdLast?->forex_selling !== null && $usdLast->forex_selling !== '' ? (float) $usdLast->forex_selling : null;
+        }
+
+        if ($rate === null) {
+            return 0;
+        }
+
+        $pending = PendingBilling::where('status', PendingBilling::STATUS_PENDING)
+            ->with('subscription')
+            ->get();
+
+        $updated = 0;
+        foreach ($pending as $pb) {
+            if ($this->refreshAmountsForRecord($pb, $rate)) {
+                $updated++;
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Abonelik oluşturulduğunda ilk dönemi ödeme bekleyenlere ekler.
+     * Koşul: baslangic_tarihi <= period_start < bitis_tarihi (ilk dönem için sağlanır).
+     */
+    public function addFirstPeriodForSubscription(Subscription $subscription): ?PendingBilling
+    {
+        $subscription->refresh();
+        $baslangic = $subscription->baslangic_tarihi;
+        $bitis = $subscription->bitis_tarihi;
+
+        if (! $baslangic || ! $bitis) {
+            return null;
+        }
+
+        $periodStart = $baslangic->copy();
+        if ($periodStart->gte($bitis)) {
+            return null;
+        }
+
+        if (PendingBilling::where('subscription_id', $subscription->id)->where('period_start', $periodStart->toDateString())->exists()) {
+            return null;
+        }
+
+        $periodEnd = $this->computePeriodEnd($periodStart, $subscription->faturalama_periyodu);
+
+        return PendingBilling::create([
+            'subscription_id' => $subscription->id,
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd,
+            'status' => PendingBilling::STATUS_PENDING,
+        ]);
+    }
+
+    /**
+     * Verilen tarihte dönem başı gelen aktif abonelikler için havuza kayıt ekler.
+     * Dönem başı = aboneliğin baslangic_tarihi günü; aylık/yıllık faturalama_periyodu.
+     * Koşul: baslangic_tarihi <= period_start < bitis_tarihi.
+     *
+     * @return int Eklenen kayıt sayısı
+     */
+    public function enqueueDuePeriods(Carbon $onDate): int
+    {
+        $day = $onDate->day;
+        $year = $onDate->year;
+        $month = $onDate->month;
+
+        $subscriptions = Subscription::query()
+            ->where('durum', Subscription::DURUM_ACTIVE)
+            ->whereNotNull('bitis_tarihi')
+            ->whereNotNull('baslangic_tarihi')
+            ->get();
+
+        $added = 0;
+
+        foreach ($subscriptions as $subscription) {
+            $billingDay = $subscription->baslangic_tarihi->day;
+            if ($billingDay !== $day) {
+                continue;
+            }
+
+            $periodStart = null;
+            if ($subscription->faturalama_periyodu === Subscription::FATURALAMA_MONTHLY) {
+                $periodStart = Carbon::createFromDate($year, $month, $day);
+            } elseif ($subscription->faturalama_periyodu === Subscription::FATURALAMA_YEARLY) {
+                if ($subscription->baslangic_tarihi->month !== $month) {
+                    continue;
+                }
+                $periodStart = Carbon::createFromDate($year, $month, $day);
+            } else {
+                continue;
+            }
+
+            $baslangic = $subscription->baslangic_tarihi;
+            $bitis = $subscription->bitis_tarihi;
+            if ($periodStart->lt($baslangic) || $periodStart->gte($bitis)) {
+                continue;
+            }
+
+            $exists = PendingBilling::where('subscription_id', $subscription->id)
+                ->where('period_start', $periodStart->toDateString())
+                ->exists();
+            if ($exists) {
+                continue;
+            }
+
+            $periodEnd = $this->computePeriodEnd($periodStart, $subscription->faturalama_periyodu);
+
+            PendingBilling::create([
+                'subscription_id' => $subscription->id,
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'status' => PendingBilling::STATUS_PENDING,
+            ]);
+            $added++;
+        }
+
+        return $added;
+    }
+
+    /**
+     * Dönem başlangıcına göre dönem bitiş tarihi (son gün).
+     */
+    public function computePeriodEnd(Carbon $periodStart, string $faturalamaPeriyodu): Carbon
+    {
+        $copy = $periodStart->copy();
+        if ($faturalamaPeriyodu === Subscription::FATURALAMA_MONTHLY) {
+            $copy->addMonth()->subDay();
+        } else {
+            $copy->addYear()->subDay();
+        }
+
+        return $copy;
+    }
+}

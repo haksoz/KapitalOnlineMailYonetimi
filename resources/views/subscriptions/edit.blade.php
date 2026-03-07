@@ -98,6 +98,11 @@
                         <p class="mt-1 text-xs text-gray-500">Değiştirilmediği sürece abonelikte sabit kalır.</p>
                     </div>
                 </div>
+                <div class="max-w-xs">
+                    <x-input-label for="vat_rate" value="KDV (%) *" />
+                    <x-text-input id="vat_rate" name="vat_rate" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full" :value="old('vat_rate', $subscription->vat_rate ?? 20)" required />
+                    <p class="mt-1 text-xs text-gray-500">Siparişlerde kullanılır.</p>
+                </div>
                 <div>
                     <x-input-label for="durum" value="Durum *" />
                     <select id="durum" name="durum" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" required>

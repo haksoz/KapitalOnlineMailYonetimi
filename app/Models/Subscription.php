@@ -34,6 +34,7 @@ class Subscription extends Model
         'auto_renew',
         'usd_birim_alis',
         'usd_birim_satis',
+        'vat_rate',
     ];
 
     protected function casts(): array
@@ -44,6 +45,7 @@ class Subscription extends Model
             'auto_renew' => 'boolean',
             'usd_birim_alis' => 'decimal:4',
             'usd_birim_satis' => 'decimal:4',
+            'vat_rate' => 'decimal:2',
         ];
     }
 
@@ -80,5 +82,10 @@ class Subscription extends Model
     public function quantityChanges(): HasMany
     {
         return $this->hasMany(SubscriptionQuantityChange::class)->orderByDesc('effective_date')->orderByDesc('created_at');
+    }
+
+    public function pendingBillings(): HasMany
+    {
+        return $this->hasMany(PendingBilling::class)->orderByDesc('period_start');
     }
 }

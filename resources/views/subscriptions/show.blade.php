@@ -63,6 +63,10 @@
                     <dt class="text-gray-500">USD birim satış (sabit)</dt>
                     <dd class="font-medium text-gray-900">{{ $subscription->usd_birim_satis !== null ? number_format((float) $subscription->usd_birim_satis, 4, ',', '.') : '—' }}</dd>
                 </div>
+                <div>
+                    <dt class="text-gray-500">KDV (%)</dt>
+                    <dd class="font-medium text-gray-900">{{ $subscription->vat_rate !== null ? number_format((float) $subscription->vat_rate, 2, ',', '.') : '20' }}%</dd>
+                </div>
             </dl>
         </div>
 

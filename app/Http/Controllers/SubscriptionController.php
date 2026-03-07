@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ServiceProvider;
 use App\Models\Subscription;
 use App\Models\SubscriptionQuantityChange;
+use App\Services\PendingBillingService;
 use App\Services\SubscriptionProjectionService;
 use App\Services\SubscriptionRenewalService;
 use Carbon\Carbon;
@@ -18,7 +19,8 @@ class SubscriptionController extends Controller
 {
     public function __construct(
         protected SubscriptionProjectionService $projectionService,
-        protected SubscriptionRenewalService $renewalService
+        protected SubscriptionRenewalService $renewalService,
+        protected PendingBillingService $pendingBillingService
     ) {}
 
     public function index(Request $request): View
@@ -77,8 +79,12 @@ class SubscriptionController extends Controller
             'auto_renew' => ['nullable', 'boolean'],
             'usd_birim_alis' => ['nullable', 'numeric', 'min:0'],
             'usd_birim_satis' => ['nullable', 'numeric', 'min:0'],
+            'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
+        if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
+            $validated['vat_rate'] = 20;
+        }
 
         if (empty($validated['bitis_tarihi'])) {
             $validated['bitis_tarihi'] = $this->renewalService->computeInitialEndDate(
@@ -87,7 +93,8 @@ class SubscriptionController extends Controller
             )->format('Y-m-d');
         }
 
-        Subscription::create($validated);
+        $subscription = Subscription::create($validated);
+        $this->pendingBillingService->addFirstPeriodForSubscription($subscription);
 
         return redirect()->route('subscriptions.index')->with('success', 'Abonelik eklendi.');
     }
@@ -168,8 +175,12 @@ class SubscriptionController extends Controller
             'auto_renew' => ['nullable', 'boolean'],
             'usd_birim_alis' => ['nullable', 'numeric', 'min:0'],
             'usd_birim_satis' => ['nullable', 'numeric', 'min:0'],
+            'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
+        if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
+            $validated['vat_rate'] = 20;
+        }
 
         if (empty($validated['bitis_tarihi'])) {
             $validated['bitis_tarihi'] = $this->renewalService->computeInitialEndDate(

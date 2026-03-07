@@ -9,3 +9,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('subscriptions:process-renewals')->daily();
+Schedule::command('pending-billings:enqueue')->daily();
+Schedule::command('exchange-rates:fetch')->daily();
+Schedule::command('pending-billings:refresh-amounts')->daily();
