@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cari;
 use App\Models\ExchangeRate;
 use App\Models\PendingBilling;
+use App\Models\Subscription;
 use App\Models\SubscriptionQuantityChange;
+use App\Services\ArenaXmlParser;
 use App\Services\PendingBillingService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -151,5 +155,242 @@ class PendingBillingController extends Controller
         return redirect()
             ->route('pending-billings.index', ['status' => $backStatus])
             ->with('success', 'Alış faturası kaydedildi.' . ($newQuantity !== $previousQuantity ? ' Abonelik adeti güncellendi.' : ''));
+    }
+
+    public function showSupplierInvoiceXml(Request $request): View
+    {
+        $supplierCaris = Cari::whereIn('cari_type', ['supplier', 'both'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'short_name']);
+
+        $currentStatus = $request->get('status', PendingBilling::STATUS_PENDING);
+
+        return view('pending-billings.supplier-invoice-xml', [
+            'supplierCaris' => $supplierCaris,
+            'currentStatus' => $currentStatus,
+        ]);
+    }
+
+    public function storeSupplierInvoiceXml(Request $request, ArenaXmlParser $parser): RedirectResponse
+    {
+        $validated = $request->validate([
+            'provider_cari_id' => ['required', 'integer', 'exists:caris,id'],
+            'xml_file' => ['required', 'file', 'max:10240', 'mimetypes:application/xml,text/xml'],
+        ]);
+
+        $cari = Cari::find($validated['provider_cari_id']);
+        if (! $cari || ! in_array($cari->cari_type, ['supplier', 'both'], true)) {
+            return redirect()
+                ->route('pending-billings.supplier-invoice-xml', ['status' => $request->get('status', 'pending')])
+                ->withInput()
+                ->with('error', 'Seçilen cari tedarikçi değil.');
+        }
+
+        $xmlContent = file_get_contents($validated['xml_file']->getRealPath());
+        $parsed = $parser->parse($xmlContent);
+
+        $sellerVkn = $parsed['seller_vkn'] !== null ? preg_replace('/\s+/', '', $parsed['seller_vkn']) : '';
+        $cariTax = $cari->tax_number !== null && $cari->tax_number !== '' ? preg_replace('/\s+/', '', $cari->tax_number) : '';
+        if ($sellerVkn !== '' && $cariTax !== '' && $sellerVkn !== $cariTax) {
+            return redirect()
+                ->route('pending-billings.supplier-invoice-xml', ['status' => $request->get('status', 'pending')])
+                ->withInput()
+                ->with('error', 'Fatura vergi numarası (' . $parsed['seller_vkn'] . ') seçilen tedarikçi ile uyuşmuyor.');
+        }
+
+        $request->session()->put('supplier_invoice_xml_parsed', [
+            'provider_cari_id' => (int) $validated['provider_cari_id'],
+            'provider_cari_name' => $cari->short_name ?: $cari->name,
+            'back_status' => $request->get('status', 'pending'),
+            'invoice_no' => $parsed['invoice_no'],
+            'issue_date' => $parsed['issue_date'],
+            'seller_vkn' => $parsed['seller_vkn'],
+            'lines' => $parsed['lines'],
+        ]);
+
+        return redirect()->route('pending-billings.supplier-invoice-xml-preview');
+    }
+
+    public function showSupplierInvoiceXmlPreview(Request $request): View|RedirectResponse
+    {
+        $data = $request->session()->get('supplier_invoice_xml_parsed');
+        if (! is_array($data)) {
+            return redirect()->route('pending-billings.index')->with('error', 'Önizleme verisi bulunamadı. XML’i tekrar yükleyin.');
+        }
+
+        $providerCariId = (int) ($data['provider_cari_id'] ?? 0);
+        $lines = $data['lines'] ?? [];
+        $issueDateStr = $data['issue_date'] ?? '';
+
+        $defaultPeriodYear = null;
+        $defaultPeriodMonth = null;
+        if ($issueDateStr !== '') {
+            $dt = Carbon::parse($issueDateStr);
+            $defaultPeriodYear = (int) $dt->year;
+            $defaultPeriodMonth = (int) $dt->month;
+        }
+
+        $linePeriods = [];
+        foreach ($lines as $index => $line) {
+            $sozlesmeNo = trim((string) ($line['sozlesme_no'] ?? ''));
+            $periods = [];
+            if ($sozlesmeNo !== '') {
+                $subscription = Subscription::query()
+                    ->where('provider_cari_id', $providerCariId)
+                    ->where('sozlesme_no', $sozlesmeNo)
+                    ->first();
+                if ($subscription) {
+                    $starts = PendingBilling::query()
+                        ->where('subscription_id', $subscription->id)
+                        ->orderBy('period_start')
+                        ->get(['period_start'])
+                        ->pluck('period_start')
+                        ->unique()
+                        ->values();
+                    foreach ($starts as $ps) {
+                        if ($ps) {
+                            $periods[] = [
+                                'year' => (int) $ps->year,
+                                'month' => (int) $ps->month,
+                                'label' => $ps->locale('tr')->translatedFormat('F Y'),
+                            ];
+                        }
+                    }
+                }
+            }
+            $linePeriods[$index] = $periods;
+        }
+
+        return view('pending-billings.supplier-invoice-xml-preview', [
+            'parsed' => $data,
+            'linePeriods' => $linePeriods,
+            'defaultPeriodYear' => $defaultPeriodYear,
+            'defaultPeriodMonth' => $defaultPeriodMonth,
+            'unmatched' => $request->session()->get('unmatched', []),
+        ]);
+    }
+
+    public function cancelSupplierInvoiceXmlPreview(Request $request): RedirectResponse
+    {
+        $data = $request->session()->get('supplier_invoice_xml_parsed');
+        $backStatus = is_array($data) ? ($data['back_status'] ?? 'pending') : 'pending';
+        $request->session()->forget('supplier_invoice_xml_parsed');
+
+        return redirect()->route('pending-billings.index', ['status' => $backStatus])
+            ->with('success', 'XML önizlemesi iptal edildi.');
+    }
+
+    public function applySupplierInvoiceXml(Request $request): RedirectResponse
+    {
+        $data = $request->session()->get('supplier_invoice_xml_parsed');
+        if (! is_array($data)) {
+            return redirect()->route('pending-billings.index')->with('error', 'Önizleme verisi bulunamadı. XML’i tekrar yükleyin.');
+        }
+
+        $providerCariId = (int) ($data['provider_cari_id'] ?? 0);
+        $invoiceNo = $data['invoice_no'] ?? '';
+        $issueDateStr = $data['issue_date'] ?? '';
+        $lines = $data['lines'] ?? [];
+        $backStatus = $data['back_status'] ?? 'pending';
+
+        if ($issueDateStr === '' || $lines === []) {
+            $request->session()->forget('supplier_invoice_xml_parsed');
+
+            return redirect()->route('pending-billings.index', ['status' => $backStatus])
+                ->with('error', 'Fatura tarihi veya kalem yok.');
+        }
+
+        $issueDate = Carbon::parse($issueDateStr);
+        $requestLines = $request->input('lines', []);
+
+        $unmatched = [];
+        $resolved = [];
+
+        foreach ($lines as $index => $line) {
+            $sn = trim((string) ($line['sozlesme_no'] ?? ''));
+            if ($sn === '') {
+                continue;
+            }
+            $periodStr = isset($requestLines[$index]['period']) ? trim((string) $requestLines[$index]['period']) : '';
+            $periodParts = $periodStr !== '' ? explode('-', $periodStr) : [];
+            $periodYear = (count($periodParts) === 2 && is_numeric($periodParts[0]) && is_numeric($periodParts[1]))
+                ? (int) $periodParts[0] : null;
+            $periodMonth = (count($periodParts) === 2 && is_numeric($periodParts[0]) && is_numeric($periodParts[1]))
+                ? (int) $periodParts[1] : null;
+            if ($periodYear === null || $periodMonth === null || $periodMonth < 1 || $periodMonth > 12) {
+                $unmatched[] = ['sozlesme_no' => $sn, 'item_name' => $line['item_name'] ?? null, 'reason' => 'Dönem seçilmedi'];
+                continue;
+            }
+
+            $subscription = Subscription::query()
+                ->where('provider_cari_id', $providerCariId)
+                ->where('sozlesme_no', $sn)
+                ->first();
+            if (! $subscription) {
+                $unmatched[] = ['sozlesme_no' => $sn, 'item_name' => $line['item_name'] ?? null, 'reason' => 'Abonelik bulunamadı'];
+                continue;
+            }
+
+            $pendingBilling = PendingBilling::query()
+                ->where('subscription_id', $subscription->id)
+                ->whereYear('period_start', $periodYear)
+                ->whereMonth('period_start', $periodMonth)
+                ->first();
+            if (! $pendingBilling) {
+                $unmatched[] = ['sozlesme_no' => $sn, 'item_name' => $line['item_name'] ?? null, 'reason' => $periodYear . '-' . str_pad((string) $periodMonth, 2, '0', STR_PAD_LEFT) . ' döneminde sipariş yok'];
+                continue;
+            }
+
+            $key = $sn . '|' . $periodYear . '|' . $periodMonth;
+            if (! isset($resolved[$key])) {
+                $resolved[$key] = [
+                    'subscription' => $subscription,
+                    'pending_billing' => $pendingBilling,
+                    'amount' => 0,
+                ];
+            }
+            $resolved[$key]['amount'] += (float) ($line['line_extension_amount_try'] ?? 0);
+        }
+
+        if ($unmatched !== []) {
+            return redirect()
+                ->route('pending-billings.supplier-invoice-xml-preview')
+                ->with('error', 'Faturada olup siparişlerinizde bulunamayan kalemler var. Abonelik tanımlı olmayabilir veya dönem eşleşmiyor. İşlem tamamlanmadı.')
+                ->with('unmatched', $unmatched);
+        }
+
+        $updated = 0;
+        foreach ($resolved as $row) {
+            $subscription = $row['subscription'];
+            $pendingBilling = $row['pending_billing'];
+            $amount = $row['amount'];
+
+            $pendingBilling->update([
+                'supplier_invoice_number' => $invoiceNo,
+                'supplier_invoice_date' => $issueDate,
+                'actual_alis_tl' => $amount,
+            ]);
+
+            $satisFromAlis = null;
+            if ((float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {
+                $satisFromAlis = (float) $amount * ((float) $subscription->usd_birim_satis / (float) $subscription->usd_birim_alis);
+            }
+
+            $salesLine = $pendingBilling->salesInvoiceLine;
+            if ($salesLine !== null) {
+                $pendingBilling->update(['expected_satis_tl' => $satisFromAlis]);
+                $feeDifferenceTl = $satisFromAlis !== null ? (float) $salesLine->line_amount_tl - $satisFromAlis : null;
+                $pendingBilling->update(['fee_difference_tl' => $feeDifferenceTl]);
+            } else {
+                $pendingBilling->update(['expected_satis_tl' => $satisFromAlis]);
+            }
+            $updated++;
+        }
+
+        $request->session()->forget('supplier_invoice_xml_parsed');
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => $backStatus])
+            ->with('success', 'Alış faturası XML işlendi. ' . $updated . ' sipariş güncellendi.');
     }
 }

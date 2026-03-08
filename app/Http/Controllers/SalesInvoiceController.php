@@ -233,4 +233,28 @@ class SalesInvoiceController extends Controller
 
         return view('sales-invoices.show', ['salesInvoice' => $sales_invoice]);
     }
+
+    public function editInvoiceDetails(SalesInvoice $sales_invoice): View
+    {
+        $sales_invoice->load('customerCari');
+
+        return view('sales-invoices.invoice-details', ['salesInvoice' => $sales_invoice]);
+    }
+
+    public function updateInvoiceDetails(Request $request, SalesInvoice $sales_invoice): RedirectResponse
+    {
+        $validated = $request->validate([
+            'our_invoice_number' => ['required', 'string', 'max:64'],
+            'our_invoice_date' => ['required', 'date'],
+        ]);
+
+        $sales_invoice->update([
+            'our_invoice_number' => $validated['our_invoice_number'],
+            'our_invoice_date' => $validated['our_invoice_date'],
+        ]);
+
+        return redirect()
+            ->route('sales-invoices.index')
+            ->with('success', 'Fatura numarası ve tarihi kaydedildi.');
+    }
 }

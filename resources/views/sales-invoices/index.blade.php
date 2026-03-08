@@ -1,18 +1,13 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
-            <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Faturalandı</h1>
-            <a href="{{ route('sales-invoices.create') }}" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-xs uppercase tracking-widest hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
-                Yeni faturalandırma
-            </a>
-        </div>
+        <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Faturalandı</h1>
     </x-slot>
 
     <x-flash-messages />
 
     <div class="mb-4">
         <p class="text-sm text-gray-600">
-            Müşteriye gönderilen ödeme talepleri / faturalar. Siparişlerden seçilen kayıtlar tek fatura altında toplanabilir.
+            Sistemin öngördüğü faturalandırmalar. Fatura gerçekten kesildiğinde satırdan &quot;Fatura bilgisi gir&quot; ile fatura numarası ve tarihini girebilirsiniz. Yeni faturalandırma Siparişler sayfasından yapılır.
         </p>
     </div>
 
@@ -33,7 +28,7 @@
                     @forelse ($salesInvoices as $inv)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                {{ $inv->created_at->format('d.m.Y H:i') }}
+                                {{ $inv->our_invoice_date ? $inv->our_invoice_date->format('d.m.Y') : ($inv->created_at->format('d.m.Y H:i')) }}
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-900">
                                 {{ $inv->customerCari?->short_name ?: $inv->customerCari?->name ?? '—' }}
@@ -47,14 +42,16 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
                                 {{ $inv->lines->count() }}
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
+                            <td class="px-4 py-3 whitespace-nowrap text-right text-sm space-x-2">
+                                <a href="{{ route('sales-invoices.invoice-details', $inv) }}" class="text-slate-600 hover:text-slate-900 font-medium">{{ $inv->our_invoice_number ? 'Fatura bilgisi düzenle' : 'Fatura bilgisi gir' }}</a>
+                                <span class="text-gray-300">|</span>
                                 <a href="{{ route('sales-invoices.show', $inv) }}" class="text-slate-600 hover:text-slate-900 font-medium">Detay</a>
                             </td>
                         </tr>
                     @empty
                         <tr>
                             <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">
-                                Henüz faturalandırma kaydı yok. Siparişler sayfasından müşteri seçip kayıtları faturalandırabilirsiniz.
+                                Henüz faturalandırma kaydı yok. Siparişler sayfasından seçim yapıp &quot;Seçilenleri faturaya geçir&quot; ile oluşturabilirsiniz.
                             </td>
                         </tr>
                     @endforelse

@@ -40,10 +40,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('pending-billings/{pending_billing}/refresh-amounts', [PendingBillingController::class, 'refreshAmounts'])->name('pending-billings.refresh-amounts');
     Route::get('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'showSupplierInvoice'])->name('pending-billings.supplier-invoice');
     Route::post('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'storeSupplierInvoice'])->name('pending-billings.store-supplier-invoice');
+    Route::get('pending-billings/supplier-invoice-xml', [PendingBillingController::class, 'showSupplierInvoiceXml'])->name('pending-billings.supplier-invoice-xml');
+    Route::post('pending-billings/supplier-invoice-xml', [PendingBillingController::class, 'storeSupplierInvoiceXml'])->name('pending-billings.store-supplier-invoice-xml');
+    Route::get('pending-billings/supplier-invoice-xml-preview', [PendingBillingController::class, 'showSupplierInvoiceXmlPreview'])->name('pending-billings.supplier-invoice-xml-preview');
+    Route::get('pending-billings/supplier-invoice-xml-cancel', [PendingBillingController::class, 'cancelSupplierInvoiceXmlPreview'])->name('pending-billings.supplier-invoice-xml-cancel');
+    Route::post('pending-billings/supplier-invoice-xml-apply', [PendingBillingController::class, 'applySupplierInvoiceXml'])->name('pending-billings.supplier-invoice-xml-apply');
     Route::get('sales-invoices', [SalesInvoiceController::class, 'index'])->name('sales-invoices.index');
     Route::get('sales-invoices/create', [SalesInvoiceController::class, 'create'])->name('sales-invoices.create');
     Route::post('sales-invoices', [SalesInvoiceController::class, 'store'])->name('sales-invoices.store');
     Route::get('sales-invoices/{sales_invoice}', [SalesInvoiceController::class, 'show'])->name('sales-invoices.show');
+    Route::get('sales-invoices/{sales_invoice}/invoice-details', [SalesInvoiceController::class, 'editInvoiceDetails'])->name('sales-invoices.invoice-details');
+    Route::patch('sales-invoices/{sales_invoice}/invoice-details', [SalesInvoiceController::class, 'updateInvoiceDetails'])->name('sales-invoices.update-invoice-details');
 
     Route::get('exchange-rates', [ExchangeRateController::class, 'index'])->name('exchange-rates.index');
     Route::post('exchange-rates/fetch-latest', [ExchangeRateController::class, 'fetchLatest'])->name('exchange-rates.fetch-latest');
