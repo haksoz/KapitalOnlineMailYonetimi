@@ -8,6 +8,7 @@ use App\Http\Controllers\ServiceProviderController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\PendingBillingController;
 use App\Http\Controllers\SalesInvoiceController;
+use App\Http\Controllers\SimulationController;
 use App\Http\Controllers\SubscriptionRenewalLogController;
 use Illuminate\Support\Facades\Route;
 
@@ -48,6 +49,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('exchange-rates/fetch-latest', [ExchangeRateController::class, 'fetchLatest'])->name('exchange-rates.fetch-latest');
     Route::get('exchange-rates/{exchangeRate}/edit', [ExchangeRateController::class, 'edit'])->name('exchange-rates.edit');
     Route::patch('exchange-rates/{exchangeRate}', [ExchangeRateController::class, 'update'])->name('exchange-rates.update');
+
+    Route::get('simulation', [SimulationController::class, 'index'])->name('simulation.index');
+    Route::post('simulation/set-date', [SimulationController::class, 'setDate'])->name('simulation.set-date');
+    Route::post('simulation/clear-date', [SimulationController::class, 'clearDate'])->name('simulation.clear-date');
+    Route::post('simulation/run-enqueue', [SimulationController::class, 'runEnqueue'])->name('simulation.run-enqueue');
+    Route::post('simulation/run-renewals', [SimulationController::class, 'runRenewals'])->name('simulation.run-renewals');
 });
 
 require __DIR__.'/auth.php';

@@ -38,6 +38,10 @@
                     <a href="{{ route('subscription-renewal-logs.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('subscription-renewal-logs.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Yenileme geçmişi</a>
                     <a href="{{ route('pending-billings.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('pending-billings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Siparişler</a>
                     <a href="{{ route('sales-invoices.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('sales-invoices.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Faturalandı</a>
+                    <div class="pt-4 pb-2">
+                        <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</p>
+                    </div>
+                    <a href="{{ route('simulation.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('simulation.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Simülasyon</a>
                 </nav>
             </div>
         </aside>
@@ -68,6 +72,8 @@
                 <a href="{{ route('subscription-renewal-logs.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('subscription-renewal-logs.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Yenileme geçmişi</a>
                 <a href="{{ route('pending-billings.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('pending-billings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Siparişler</a>
                 <a href="{{ route('sales-invoices.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('sales-invoices.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Faturalandı</a>
+                <div class="pt-4 pb-2"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</p></div>
+                <a href="{{ route('simulation.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('simulation.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Simülasyon</a>
             </nav>
         </aside>
 
