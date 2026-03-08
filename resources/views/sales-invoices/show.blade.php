@@ -66,8 +66,10 @@
                                     {{ number_format((float) $line->line_amount_tl, 2, ',', '.') }} ₺
                                 </td>
                                 <td class="px-4 py-3 text-right text-sm space-x-2">
-                                    <a href="{{ route('pending-billings.supplier-invoice', [$line->pendingBilling, 'status' => 'invoiced']) }}" class="text-slate-600 hover:text-slate-900 font-medium">Alış gir</a>
-                                    <span class="text-gray-300">|</span>
+                                    @if ($line->pendingBilling->actual_alis_tl === null || $line->pendingBilling->actual_alis_tl === '')
+                                        <a href="{{ route('pending-billings.supplier-invoice', [$line->pendingBilling, 'status' => 'invoiced']) }}" class="text-slate-600 hover:text-slate-900 font-medium">Alış gir</a>
+                                        <span class="text-gray-300">|</span>
+                                    @endif
                                     <a href="{{ route('subscriptions.show', $line->pendingBilling->subscription) }}" class="text-slate-600 hover:text-slate-900 font-medium">Abonelik</a>
                                 </td>
                             </tr>

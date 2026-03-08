@@ -79,8 +79,14 @@ class PendingBillingController extends Controller
             ->with('error', 'Kayıt yapılamadı. Kayıt beklemede değilse, USD kuru tanımlı değilse veya abonelikte birim alış (USD) yoksa tutarlar hesaplanamaz.');
     }
 
-    public function showSupplierInvoice(PendingBilling $pending_billing): View
+    public function showSupplierInvoice(PendingBilling $pending_billing): View|RedirectResponse
     {
+        if ($pending_billing->actual_alis_tl !== null && $pending_billing->actual_alis_tl !== '') {
+            return redirect()
+                ->route('pending-billings.index', ['status' => request('status', 'pending')])
+                ->with('error', 'Alış faturası zaten girilmiş. Düzeltme şu an kapalı; ileride ayrıntı sayfasından yönetilecek.');
+        }
+
         $pending_billing->load('subscription');
 
         return view('pending-billings.supplier-invoice', [
@@ -90,6 +96,12 @@ class PendingBillingController extends Controller
 
     public function storeSupplierInvoice(Request $request, PendingBilling $pending_billing): RedirectResponse
     {
+        if ($pending_billing->actual_alis_tl !== null && $pending_billing->actual_alis_tl !== '') {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $request->get('status', 'pending')])
+                ->with('error', 'Alış faturası zaten girilmiş. Düzeltme şu an kapalı.');
+        }
+
         $validated = $request->validate([
             'supplier_invoice_number' => ['required', 'string', 'max:64'],
             'supplier_invoice_date' => ['required', 'date'],
@@ -115,9 +127,9 @@ class PendingBillingController extends Controller
 
         $line = $pending_billing->salesInvoiceLine;
         if ($line !== null) {
-            // Zaten faturalandı: gerçek satış ve farkı yaz (fatura tutarı ile karşılaştır)
-            $pending_billing->update(['actual_satis_tl' => $satisFromAlis]);
-            $feeDifferenceTl = $satisFromAlis !== null ? $satisFromAlis - (float) $line->line_amount_tl : null;
+            // Zaten faturalandı: kesinleşen satış fatura tutarı (dokunulmaz). Kesinleşen alıştan hesaplanan satış beklenen satışa yazılır; fark = kesinleşen satış − beklenen satış.
+            $pending_billing->update(['expected_satis_tl' => $satisFromAlis]);
+            $feeDifferenceTl = $satisFromAlis !== null ? (float) $line->line_amount_tl - $satisFromAlis : null;
             $pending_billing->update(['fee_difference_tl' => $feeDifferenceTl]);
         } else {
             // Henüz beklemede: gerçek alıştan hesaplanan tutar beklenen satış olarak güncellenir, gerçek satış yazılmaz

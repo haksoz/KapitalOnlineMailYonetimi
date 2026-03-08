@@ -68,12 +68,15 @@
                             if ($alisKdvHaric === null && $usdEfektifSelling !== null && $usdAlis !== null) {
                                 $qty = (int) $sub->quantity;
                                 $alisKdvHaric = $usdAlis * $qty * $usdEfektifSelling;
-                                if ($usdAlis > 0 && $usdSatis !== null) {
+                                if ($satisTl === null && $usdAlis > 0 && $usdSatis !== null) {
                                     $satisTl = $alisKdvHaric * ($usdSatis / $usdAlis);
                                 }
                             }
                             $actualAlis = isset($pb->actual_alis_tl) && $pb->actual_alis_tl !== '' && $pb->actual_alis_tl !== null ? (float) $pb->actual_alis_tl : null;
                             $actualSatis = isset($pb->actual_satis_tl) && $pb->actual_satis_tl !== '' && $pb->actual_satis_tl !== null ? (float) $pb->actual_satis_tl : null;
+                            if ($actualAlis !== null && $actualSatis === null && $usdAlis !== null && $usdAlis > 0 && $usdSatis !== null) {
+                                $satisTl = $actualAlis * ($usdSatis / $usdAlis);
+                            }
                             $donemLabel = $pb->period_start ? $pb->period_start->locale('tr')->translatedFormat('F Y') : '—';
                             $accumulatedFark = $accumulatedFarkBySubscription[$pb->subscription_id ?? 0] ?? 0;
                             $showKurGuncelle = $pb->status === 'pending' && $actualAlis === null;
@@ -117,7 +120,10 @@
                                         —
                                     @endif
                                 @elseif ($actualSatis !== null)
-                                    @if ($satisTl !== null)
+                                    @if (($currentStatus ?? '') === 'invoiced' && $actualAlis !== null && ($satisTl === null || $satisTl == 0))
+                                        {{-- Faturalandı + alış kesinleşmiş, beklenen satış yok (alış fat. önce girilmiş sipariş) --}}
+                                        <span class="block text-gray-500">Beklenen 0,00 ₺</span>
+                                    @elseif ($satisTl !== null)
                                         <span class="block text-gray-500">Beklenen {{ number_format($satisTl, 2, ',', '.') }} ₺</span>
                                     @endif
                                     <span class="block font-medium">Kesinleşen {{ number_format($actualSatis, 2, ',', '.') }} ₺</span>
@@ -163,8 +169,8 @@
                                     </form>
                                     <span class="text-gray-300">|</span>
                                 @endif
-                                @if ($pb->status !== 'cancelled')
-                                    <a href="{{ route('pending-billings.supplier-invoice', [$pb, 'status' => $currentStatus ?? 'pending']) }}" class="text-slate-600 hover:text-slate-900 font-medium">{{ $actualAlis !== null ? 'Alış düzelt' : 'Alış gir' }}</a>
+                                @if ($pb->status !== 'cancelled' && $actualAlis === null)
+                                    <a href="{{ route('pending-billings.supplier-invoice', [$pb, 'status' => $currentStatus ?? 'pending']) }}" class="text-slate-600 hover:text-slate-900 font-medium">Alış gir</a>
                                     <span class="text-gray-300">|</span>
                                 @endif
                                 <a href="{{ route('subscriptions.show', $pb->subscription) }}" class="text-slate-600 hover:text-slate-900 font-medium">Abonelik</a>
