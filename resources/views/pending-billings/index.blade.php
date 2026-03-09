@@ -76,7 +76,13 @@
                                 }
                             }
                             $actualAlis = isset($pb->actual_alis_tl) && $pb->actual_alis_tl !== '' && $pb->actual_alis_tl !== null ? (float) $pb->actual_alis_tl : null;
-                            $actualSatis = isset($pb->actual_satis_tl) && $pb->actual_satis_tl !== '' && $pb->actual_satis_tl !== null ? (float) $pb->actual_satis_tl : null;
+                            // Faturalandıysa kesinleşen satışı fatura satırından al (fark eklendiyse orada doğru tutar var)
+                            $actualSatis = null;
+                            if ($pb->salesInvoiceLine && $pb->salesInvoiceLine->line_amount_tl !== null && $pb->salesInvoiceLine->line_amount_tl !== '') {
+                                $actualSatis = (float) $pb->salesInvoiceLine->line_amount_tl;
+                            } elseif (isset($pb->actual_satis_tl) && $pb->actual_satis_tl !== '' && $pb->actual_satis_tl !== null) {
+                                $actualSatis = (float) $pb->actual_satis_tl;
+                            }
                             if ($actualAlis !== null && $actualSatis === null && $usdAlis !== null && $usdAlis > 0 && $usdSatis !== null) {
                                 $satisTl = $actualAlis * ($usdSatis / $usdAlis);
                             }

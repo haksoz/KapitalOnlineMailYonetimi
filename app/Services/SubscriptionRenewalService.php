@@ -42,6 +42,52 @@ class SubscriptionRenewalService
     }
 
     /**
+     * Bitiş tarihi verilen tarihe kadar geçmiş olan (aktif, otomatik yenileme açık) aboneliklerin
+     * bitiş tarihini, bitiş > upToDate olana kadar periyot ekleyerek günceller.
+     * Tek seferde "bugüne kadar" yenileme yapar.
+     *
+     * @return array{renewed_ids: array<int>, total_extensions: int}
+     */
+    public function processRenewalsUpTo(Carbon $upToDate): array
+    {
+        $subscriptions = Subscription::query()
+            ->where('durum', Subscription::DURUM_ACTIVE)
+            ->where('auto_renew', true)
+            ->whereNotNull('bitis_tarihi')
+            ->whereDate('bitis_tarihi', '<=', $upToDate)
+            ->get();
+
+        $renewedIds = [];
+        $totalExtensions = 0;
+
+        foreach ($subscriptions as $subscription) {
+            $currentEnd = $subscription->bitis_tarihi;
+            if (! $currentEnd) {
+                continue;
+            }
+
+            $extensions = 0;
+            while ($currentEnd->lte($upToDate)) {
+                $nextEnd = $this->addPeriod($currentEnd->copy(), $subscription->taahhut_tipi);
+                $subscription->update(['bitis_tarihi' => $nextEnd]);
+                $currentEnd = $nextEnd;
+                $subscription->refresh();
+                $extensions++;
+                $totalExtensions++;
+            }
+
+            if ($extensions > 0) {
+                $renewedIds[] = $subscription->id;
+            }
+        }
+
+        return [
+            'renewed_ids' => $renewedIds,
+            'total_extensions' => $totalExtensions,
+        ];
+    }
+
+    /**
      * Taahhüt tipine göre verilen tarihe bir periyot ekler.
      */
     public function addPeriod(Carbon $date, string $taahhutTipi): Carbon

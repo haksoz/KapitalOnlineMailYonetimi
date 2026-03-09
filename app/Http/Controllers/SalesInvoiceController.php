@@ -147,8 +147,15 @@ class SalesInvoiceController extends Controller
         ]);
 
         $customerCariId = (int) $validated['customer_cari_id'];
-        $ids = array_values(array_unique($validated['pending_billing_ids']));
-        $addFarkIds = array_values($validated['add_fark'] ?? []);
+        $ids = array_values(array_unique(array_map('intval', $validated['pending_billing_ids'])));
+        $rawAddFark = $validated['add_fark'] ?? [];
+        if (! is_array($rawAddFark)) {
+            $rawAddFark = $rawAddFark !== null && $rawAddFark !== '' ? [$rawAddFark] : [];
+        }
+        $addFarkIds = array_values(array_intersect(
+            array_unique(array_filter(array_map('intval', $rawAddFark))),
+            $ids
+        ));
 
         $pendingBillings = PendingBilling::query()
             ->with('subscription')

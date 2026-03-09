@@ -18,19 +18,37 @@ class PendingBillingController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = PendingBilling::query()
-            ->with(['subscription.customerCari', 'subscription.product'])
-            ->orderByDesc('period_start');
-
         $status = $request->get('status', PendingBilling::STATUS_PENDING);
         if (in_array($status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_CANCELLED], true)) {
-            $query->where('status', $status);
+            // ok
         } else {
-            $query->where('status', PendingBilling::STATUS_PENDING);
             $status = PendingBilling::STATUS_PENDING;
         }
 
+        $query = PendingBilling::query()
+            ->with(['subscription.customerCari', 'subscription.product', 'salesInvoiceLine'])
+            ->where('status', $status);
+        if ($status === PendingBilling::STATUS_INVOICED) {
+            $query->orderBy('id');
+        } else {
+            $query->orderByDesc('period_start');
+        }
+
         $pendingBillings = $query->paginate(20)->withQueryString();
+
+        // Faturalandı listesinde kesinleşen satışı fatura satırı ile senkronize et (fark eklendi ama actual_satis_tl güncellenmemiş olabilir)
+        if ($status === PendingBilling::STATUS_INVOICED) {
+            foreach ($pendingBillings as $pb) {
+                $line = $pb->salesInvoiceLine;
+                if ($line !== null) {
+                    $lineAmount = (float) $line->line_amount_tl;
+                    $current = $pb->actual_satis_tl !== null && $pb->actual_satis_tl !== '' ? (float) $pb->actual_satis_tl : null;
+                    if ($current === null || abs($current - $lineAmount) > 0.001) {
+                        $pb->update(['actual_satis_tl' => $lineAmount]);
+                    }
+                }
+            }
+        }
 
         // Abonelik bazında birikmiş fark (önceki faturalandırılmış kayıtlardaki fee_difference_tl toplamı)
         $subscriptionIds = $pendingBillings->pluck('subscription_id')->unique()->filter()->values()->all();
@@ -175,7 +193,7 @@ class PendingBillingController extends Controller
     {
         $validated = $request->validate([
             'provider_cari_id' => ['required', 'integer', 'exists:caris,id'],
-            'xml_file' => ['required', 'file', 'max:10240', 'mimetypes:application/xml,text/xml'],
+            'xml_file' => ['required', 'file', 'max:10240'],
         ]);
 
         $cari = Cari::find($validated['provider_cari_id']);

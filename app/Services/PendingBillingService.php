@@ -200,6 +200,70 @@ class PendingBillingService
     }
 
     /**
+     * Bugüne (veya verilen tarihe) kadar eksik kalan dönemleri tüm aktif abonelikler için ekler.
+     * baslangic_tarihi ile upToDate arasında, henüz PendingBilling kaydı olmayan her dönem için kayıt oluşturur.
+     * Koşul: baslangic_tarihi <= period_start < bitis_tarihi.
+     *
+     * @return int Eklenen kayıt sayısı
+     */
+    public function enqueueMissingPeriodsUpTo(Carbon $upToDate): int
+    {
+        $subscriptions = Subscription::query()
+            ->where('durum', Subscription::DURUM_ACTIVE)
+            ->whereNotNull('bitis_tarihi')
+            ->whereNotNull('baslangic_tarihi')
+            ->get();
+
+        $added = 0;
+
+        foreach ($subscriptions as $subscription) {
+            $baslangic = $subscription->baslangic_tarihi;
+            $bitis = $subscription->bitis_tarihi;
+            $cursor = $baslangic->copy()->startOfDay();
+
+            while ($cursor->lte($upToDate)) {
+                if ($cursor->lt($baslangic) || $cursor->gte($bitis)) {
+                    $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu);
+                    continue;
+                }
+
+                $exists = PendingBilling::where('subscription_id', $subscription->id)
+                    ->where('period_start', $cursor->toDateString())
+                    ->exists();
+                if ($exists) {
+                    $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu);
+                    continue;
+                }
+
+                $periodEnd = $this->computePeriodEnd($cursor->copy(), $subscription->faturalama_periyodu);
+                PendingBilling::create([
+                    'subscription_id' => $subscription->id,
+                    'period_start' => $cursor->copy(),
+                    'period_end' => $periodEnd,
+                    'status' => PendingBilling::STATUS_PENDING,
+                ]);
+                $added++;
+
+                $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu);
+            }
+        }
+
+        return $added;
+    }
+
+    /**
+     * Dönem cursor'ını bir periyot ileri taşır (aylık: +1 ay aynı gün, yıllık: +1 yıl).
+     */
+    private function advancePeriodCursor(Carbon $cursor, string $faturalamaPeriyodu): void
+    {
+        if ($faturalamaPeriyodu === Subscription::FATURALAMA_MONTHLY) {
+            $cursor->addMonth();
+        } else {
+            $cursor->addYear();
+        }
+    }
+
+    /**
      * Dönem başlangıcına göre dönem bitiş tarihi (son gün).
      */
     public function computePeriodEnd(Carbon $periodStart, string $faturalamaPeriyodu): Carbon
