@@ -38,6 +38,8 @@ class SubscriptionRenewalService
             $renewed[] = $subscription->id;
         }
 
+        $this->applyCancellationsUpTo($asOf);
+
         return $renewed;
     }
 
@@ -81,10 +83,45 @@ class SubscriptionRenewalService
             }
         }
 
+        $this->applyCancellationsUpTo($upToDate);
+
         return [
             'renewed_ids' => $renewedIds,
             'total_extensions' => $totalExtensions,
         ];
+    }
+
+    /**
+     * planned_cancel_date veya auto_renew=false / bitiş tarihi geçmiş olan abonelikleri iptal eder.
+     */
+    protected function applyCancellationsUpTo(Carbon $upToDate): void
+    {
+        // 1) İptal talimatı girilmiş abonelikler
+        $planned = Subscription::query()
+            ->where('durum', Subscription::DURUM_PENDING)
+            ->whereNotNull('planned_cancel_date')
+            ->whereDate('planned_cancel_date', '<=', $upToDate)
+            ->get();
+
+        foreach ($planned as $subscription) {
+            $subscription->update([
+                'durum' => Subscription::DURUM_CANCELLED,
+            ]);
+        }
+
+        // 2) Otomatik yenileme kapalı, bitiş tarihi geçmiş aktif abonelikler
+        $expiredNonRenewing = Subscription::query()
+            ->where('durum', Subscription::DURUM_ACTIVE)
+            ->where('auto_renew', false)
+            ->whereNotNull('bitis_tarihi')
+            ->whereDate('bitis_tarihi', '<=', $upToDate)
+            ->get();
+
+        foreach ($expiredNonRenewing as $subscription) {
+            $subscription->update([
+                'durum' => Subscription::DURUM_CANCELLED,
+            ]);
+        }
     }
 
     /**

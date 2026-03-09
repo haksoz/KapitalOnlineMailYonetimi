@@ -63,9 +63,18 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ $sub->bitis_tarihi?->format('d.m.Y') ?? '—' }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 @php
-                                    $durumLabels = ['active' => 'Aktif', 'cancelled' => 'İptal', 'pending' => 'Beklemede'];
+                                    $durumLabels = [
+                                        'active' => 'Aktif',
+                                        'cancelled' => 'İptal',
+                                        'pending' => 'İptal planlandı',
+                                    ];
                                 @endphp
-                                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full {{ $sub->durum === 'active' ? 'bg-green-100 text-green-800' : ($sub->durum === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800') }}">
+                                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full
+                                    {{ $sub->durum === 'active'
+                                        ? 'bg-green-100 text-green-800'
+                                        : ($sub->durum === 'cancelled'
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-amber-100 text-amber-800') }}">
                                     {{ $durumLabels[$sub->durum] ?? $sub->durum }}
                                 </span>
                             </td>
@@ -73,11 +82,12 @@
                             <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
                                 <a href="{{ route('subscriptions.show', $sub) }}" class="text-slate-600 hover:text-slate-900 font-medium">Detay</a>
                                 <a href="{{ route('subscriptions.edit', $sub) }}" class="ml-3 text-slate-600 hover:text-slate-900 font-medium">Düzenle</a>
-                                <form action="{{ route('subscriptions.destroy', $sub) }}" method="POST" class="inline-block ml-3" onsubmit="return confirm('Bu aboneliği silmek istediğinize emin misiniz?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Sil</button>
-                                </form>
+                                @if ($sub->durum === 'active')
+                                    <form action="{{ route('subscriptions.cancel', $sub) }}" method="POST" class="inline-block ml-3" onsubmit="return confirm('Bu aboneliği iptal etmek istediğinize emin misiniz? İptal talimatı, aboneliğin bitiş tarihinde devreye girecek ve otomatik yenileme kapatılacaktır.');">
+                                        @csrf
+                                        <button type="submit" class="text-amber-600 hover:text-amber-800 font-medium">İptal et</button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @empty

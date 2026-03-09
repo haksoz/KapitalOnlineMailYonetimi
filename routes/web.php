@@ -9,7 +9,6 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\PendingBillingController;
 use App\Http\Controllers\SalesInvoiceController;
 use App\Http\Controllers\TriggersController;
-use App\Http\Controllers\SubscriptionRenewalLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -31,11 +30,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('caris', CariController::class)->except(['show']);
     Route::resource('service-providers', ServiceProviderController::class)->except(['show']);
     Route::resource('products', ProductController::class)->except(['show']);
-    Route::resource('subscriptions', SubscriptionController::class);
+    Route::resource('subscriptions', SubscriptionController::class)->except(['destroy']);
+    Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
     Route::post('subscriptions/{subscription}/create-projection', [SubscriptionController::class, 'createProjection'])->name('subscriptions.create-projection');
     Route::get('subscriptions/{subscription}/update-quantity', [SubscriptionController::class, 'showUpdateQuantity'])->name('subscriptions.show-update-quantity');
     Route::post('subscriptions/{subscription}/update-quantity', [SubscriptionController::class, 'updateQuantity'])->name('subscriptions.update-quantity');
-    Route::get('subscription-renewal-logs', [SubscriptionRenewalLogController::class, 'index'])->name('subscription-renewal-logs.index');
     Route::get('pending-billings', [PendingBillingController::class, 'index'])->name('pending-billings.index');
     Route::post('pending-billings/{pending_billing}/refresh-amounts', [PendingBillingController::class, 'refreshAmounts'])->name('pending-billings.refresh-amounts');
     Route::get('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'showSupplierInvoice'])->name('pending-billings.supplier-invoice');

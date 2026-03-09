@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ServiceProvider;
 use App\Models\Subscription;
 use App\Models\SubscriptionQuantityChange;
+use App\Models\PendingBilling;
 use App\Services\PendingBillingService;
 use App\Services\SubscriptionProjectionService;
 use App\Services\SubscriptionRenewalService;
@@ -103,11 +104,14 @@ class SubscriptionController extends Controller
     {
         $subscription->load([
             'customerCari', 'providerCari', 'product', 'serviceProvider',
-            'monthlyProjections' => fn ($q) => $q->orderByDesc('year')->orderByDesc('month'),
             'quantityChanges',
         ]);
 
-        return view('subscriptions.show', compact('subscription'));
+        $orderSummaries = PendingBilling::where('subscription_id', $subscription->id)
+            ->orderByDesc('period_start')
+            ->get();
+
+        return view('subscriptions.show', compact('subscription', 'orderSummaries'));
     }
 
     public function showUpdateQuantity(Subscription $subscription): View
@@ -194,10 +198,33 @@ class SubscriptionController extends Controller
         return redirect()->route('subscriptions.index')->with('success', 'Abonelik güncellendi.');
     }
 
-    public function destroy(Subscription $subscription): RedirectResponse
+    public function cancel(Subscription $subscription): RedirectResponse
     {
-        $subscription->delete();
-        return redirect()->route('subscriptions.index')->with('success', 'Abonelik silindi.');
+        if ($subscription->durum === Subscription::DURUM_CANCELLED) {
+            return redirect()
+                ->route('subscriptions.show', $subscription)
+                ->with('info', 'Bu abonelik zaten iptal edilmiş.');
+        }
+
+        if ($subscription->durum === Subscription::DURUM_PENDING) {
+            return redirect()
+                ->route('subscriptions.show', $subscription)
+                ->with('info', 'Bu abonelik için zaten bir iptal talimatı var.');
+        }
+
+        $bitis = $subscription->bitis_tarihi;
+
+        $plannedCancelDate = $bitis?->copy() ?? now()->toDateString();
+
+        $subscription->update([
+            'durum' => Subscription::DURUM_PENDING,
+            'auto_renew' => false,
+            'planned_cancel_date' => $plannedCancelDate,
+        ]);
+
+        return redirect()
+            ->route('subscriptions.show', $subscription)
+            ->with('success', 'Abonelik, bitiş tarihinde iptal edilmek üzere işaretlendi.');
     }
 
     public function createProjection(Request $request, Subscription $subscription): RedirectResponse

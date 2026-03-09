@@ -28,6 +28,7 @@ class Subscription extends Model
         'sozlesme_no',
         'baslangic_tarihi',
         'bitis_tarihi',
+        'planned_cancel_date',
         'taahhut_tipi',
         'faturalama_periyodu',
         'durum',
@@ -42,6 +43,7 @@ class Subscription extends Model
         return [
             'baslangic_tarihi' => 'date',
             'bitis_tarihi' => 'date',
+            'planned_cancel_date' => 'date',
             'auto_renew' => 'boolean',
             'usd_birim_alis' => 'decimal:4',
             'usd_birim_satis' => 'decimal:4',

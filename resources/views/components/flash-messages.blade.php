@@ -3,6 +3,11 @@
         {{ session('success') }}
     </div>
 @endif
+@if (session('info'))
+    <div class="mb-4 rounded-lg bg-blue-50 p-4 text-sm text-blue-800" role="alert">
+        {{ session('info') }}
+    </div>
+@endif
 @if (session('error'))
     <div class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-800" role="alert">
         {{ session('error') }}
