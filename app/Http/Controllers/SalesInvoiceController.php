@@ -170,6 +170,32 @@ class SalesInvoiceController extends Controller
                 ->with('error', 'Seçilen kayıtlar bulunamadı veya müşteri uyuşmuyor.');
         }
 
+        // Güvenlik için: tek müşteri ve tek dönem kuralını backend'de de zorunlu kıl
+        $customerIds = $pendingBillings
+            ->pluck('subscription.customer_cari_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($customerIds->count() !== 1 || (int) $customerIds[0] !== $customerCariId) {
+            return redirect()
+                ->route('sales-invoices.create', ['customer_cari_id' => $customerCariId])
+                ->with('error', 'Farklı carilere ait siparişler aynı faturaya geçirilemez.');
+        }
+
+        $periods = $pendingBillings
+            ->pluck('period_start')
+            ->filter()
+            ->map(fn ($d) => $d->format('Y-m-d'))
+            ->unique()
+            ->values();
+
+        if ($periods->count() > 1) {
+            return redirect()
+                ->route('sales-invoices.create', ['customer_cari_id' => $customerCariId])
+                ->with('error', 'Farklı dönemlere ait siparişler aynı faturaya geçirilemez. Lütfen tek bir döneme ait siparişleri seçin.');
+        }
+
         $subscriptionIds = $pendingBillings->pluck('subscription_id')->unique()->filter()->values()->all();
         $accumulatedFarkBySubscription = [];
         if ($subscriptionIds !== []) {

@@ -8,7 +8,7 @@
 
     <x-flash-messages />
 
-    <div class="space-y-6">
+    <div x-data="{ atmacayaKopyalaOpen: {{ request()->boolean('atmacaya') ? 'true' : 'false' }} }" class="space-y-6">
         <div class="bg-white rounded-xl shadow-sm p-6">
             <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Fatura bilgileri</h2>
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
@@ -35,6 +35,16 @@
                     <dd class="text-sm text-gray-700">{{ $salesInvoice->notes }}</dd>
                 </div>
             @endif
+
+            <div class="mt-4">
+                <button
+                    type="button"
+                    @click="atmacayaKopyalaOpen = true"
+                    class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                >
+                    Atmaca’ya kopyala
+                </button>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -76,6 +86,69 @@
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        {{-- Atmaca formatı popup --}}
+        <div
+            x-show="atmacayaKopyalaOpen"
+            x-cloak
+            class="fixed inset-0 z-40 flex items-center justify-center bg-black/40"
+        >
+            <div class="bg-white rounded-xl shadow-xl max-w-3xl w-full mx-4">
+                <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-gray-700">Atmaca’ya kopyala</h2>
+                    <button
+                        type="button"
+                        @click="atmacayaKopyalaOpen = false"
+                        class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        aria-label="Kapat"
+                    >
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <p class="text-xs text-gray-500">
+                        Aşağıdaki tabloyu Excel’e, ardından Atmaca’da “Excel’den yapıştır” alanına yapıştırabilirsiniz.
+                        Format: <span class="font-mono">Açıklama [TAB] Adet [TAB] TL Fiyat [TAB] KDV [TAB] İndirim</span>
+                    </p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400">“Kopyala”ya tıklayın; tüm satırlar panoya kopyalanır.</span>
+                        <button
+                            type="button"
+                            @click="$refs.atmacaText && $refs.atmacaText.select(); document.execCommand('copy');"
+                            class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-slate-800 text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                        >
+                            Kopyala
+                        </button>
+                    </div>
+                    <textarea
+                        x-ref="atmacaText"
+                        readonly
+                        class="w-full h-56 text-xs font-mono border-gray-300 rounded-lg shadow-sm focus:ring-slate-500 focus:border-slate-500"
+                        onfocus="this.select();"
+                    >@foreach ($salesInvoice->lines as $line)
+@php
+    $sub = $line->pendingBilling->subscription;
+    $qty = max(1, (int) ($sub->quantity ?? 1));
+    $unit = $qty > 0 ? ((float) $line->line_amount_tl / $qty) : (float) $line->line_amount_tl;
+    $vat = $sub->vat_rate !== null ? (float) $sub->vat_rate : 20;
+    $discount = 0;
+    $periodLabel = $line->pendingBilling->period_start?->format('m.Y');
+    $productName = $sub->product?->name ?? 'Hizmet';
+    $sozlesmeNo = $sub->sozlesme_no ?? '';
+    $descParts = array_filter([
+        $productName,
+        $periodLabel ? ('Dönem ' . $periodLabel) : null,
+        $sozlesmeNo ? ('Sözleşme: ' . $sozlesmeNo) : null,
+    ]);
+    $desc = implode(' - ', $descParts);
+@endphp
+{{ $desc . "\t" . $qty . "\t" . number_format($unit, 2, '.', '') . "\t" . $vat . "\t" . $discount }}
+@endforeach</textarea>
+                </div>
             </div>
         </div>
     </div>

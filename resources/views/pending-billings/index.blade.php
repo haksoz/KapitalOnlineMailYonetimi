@@ -24,11 +24,55 @@
 
     <div class="mb-4 border-b border-gray-200">
         <nav class="flex gap-1" aria-label="Sipariş durumu sekmeleri">
-            <a href="{{ route('pending-billings.index', ['status' => 'pending']) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ ($currentStatus ?? 'pending') === 'pending' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Beklemede</a>
-            <a href="{{ route('pending-billings.index', ['status' => 'invoiced']) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ ($currentStatus ?? '') === 'invoiced' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Faturalandı</a>
-            <a href="{{ route('pending-billings.index', ['status' => 'cancelled']) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ ($currentStatus ?? '') === 'cancelled' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">İptal</a>
+            @php
+                $queryParams = request()->only(['customer_cari_id', 'period_year', 'period_month', 'per_page']);
+            @endphp
+            <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'pending'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ ($currentStatus ?? 'pending') === 'pending' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Beklemede</a>
+            <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'invoiced'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ ($currentStatus ?? '') === 'invoiced' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Faturalandı</a>
+            <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'cancelled'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ ($currentStatus ?? '') === 'cancelled' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">İptal</a>
         </nav>
     </div>
+
+    <form method="GET" action="{{ route('pending-billings.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="status" value="{{ $currentStatus ?? 'pending' }}">
+        <div class="min-w-[180px]">
+            <label for="customer_cari_id" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Müşteri</label>
+            <select id="customer_cari_id" name="customer_cari_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
+                <option value="">— Tümü —</option>
+                @foreach ($caris ?? [] as $c)
+                    <option value="{{ $c->id }}" @selected(request('customer_cari_id') == $c->id)>{{ $c->short_name ?: $c->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="min-w-[120px]">
+            <label for="period_year" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Dönem (yıl)</label>
+            <select id="period_year" name="period_year" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
+                <option value="">— Tümü —</option>
+                @for ($y = now()->year; $y >= now()->year - 3; $y--)
+                    <option value="{{ $y }}" @selected(request('period_year') === (string) $y)>{{ $y }}</option>
+                @endfor
+            </select>
+        </div>
+        <div class="min-w-[140px]">
+            <label for="period_month" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Dönem (ay)</label>
+            <select id="period_month" name="period_month" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
+                <option value="">— Tümü —</option>
+                @for ($m = 1; $m <= 12; $m++)
+                    <option value="{{ $m }}" @selected(request('period_month') === (string) $m)>{{ \Carbon\Carbon::createFromDate(2000, $m, 1)->translatedFormat('F') }}</option>
+                @endfor
+            </select>
+        </div>
+        <button type="submit" class="inline-flex items-center justify-center min-h-[38px] px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-md hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">Filtrele</button>
+        @if (request()->filled('customer_cari_id') || request()->filled('period_year') || request()->filled('period_month'))
+            <a href="{{ route('pending-billings.index', array_merge(request()->only('status', 'per_page'))) }}" class="inline-flex items-center min-h-[38px] px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Filtreyi temizle</a>
+        @endif
+    </form>
+
+    <style>
+        .pb-eligible-row {
+            background-color: #bbf7d0 !important; /* yeşil-200, biraz daha koyu */
+        }
+    </style>
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         @if (($currentStatus ?? '') === 'pending')
@@ -93,7 +137,16 @@
                         <tr class="hover:bg-gray-50">
                             @if (($currentStatus ?? '') === 'pending')
                                 <td class="px-4 py-3">
-                                    <input type="checkbox" name="pending_billing_ids[]" value="{{ $pb->id }}" form="faturalandir-form" class="pending-row-checkbox rounded border-gray-300 text-slate-600 focus:ring-slate-500">
+                                    <input
+                                        type="checkbox"
+                                        name="pending_billing_ids[]"
+                                        value="{{ $pb->id }}"
+                                        form="faturalandir-form"
+                                        class="pending-row-checkbox rounded border-gray-300 text-slate-600 focus:ring-slate-500"
+                                        data-customer-id="{{ $sub->customer_cari_id }}"
+                                        data-period-year="{{ $pb->period_start?->year }}"
+                                        data-period-month="{{ $pb->period_start?->month }}"
+                                    >
                                 </td>
                             @endif
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono">{{ $pb->id }}</td>
@@ -204,17 +257,145 @@
             </div>
             </form>
         @endif
-        @if ($pendingBillings->hasPages())
-            <div class="px-4 py-3 border-t border-gray-200 bg-gray-50">
-                {{ $pendingBillings->links() }}
+        @php
+            $total = $pendingBillings->total();
+            $currentPerPage = (int) request('per_page', 20);
+            $pageQuery = request()->only(['status', 'customer_cari_id', 'period_year', 'period_month']);
+        @endphp
+        <div class="px-4 py-3 border-t border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="text-sm text-gray-600">Toplam <strong>{{ $total }}</strong> kayıt.</span>
+                <span class="text-sm text-gray-500">Sayfa başına:</span>
+                @foreach ([15, 20, 25, 50, 100] as $n)
+                    @if ($n === $currentPerPage)
+                        <span class="inline-flex items-center px-2 py-1 text-sm font-medium rounded bg-slate-200 text-slate-800">{{ $n }}</span>
+                    @else
+                        <a href="{{ route('pending-billings.index', array_merge($pageQuery, ['per_page' => $n, 'page' => 1])) }}" class="inline-flex items-center px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 rounded">{{ $n }}</a>
+                    @endif
+                @endforeach
             </div>
-        @endif
+            @if ($pendingBillings->hasPages())
+                <div class="flex items-center">
+                    {{ $pendingBillings->withQueryString()->links() }}
+                </div>
+            @endif
+        </div>
     </div>
     @if (($currentStatus ?? '') === 'pending')
+        <div id="pending-lock-banner" class="mx-4 mt-3 mb-1 hidden px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700">
+            Seçim kilitlendi:
+            <span data-lock-text class="font-medium"></span>.
+            Farklı müşteri veya döneme ait siparişleri seçemezsiniz.
+        </div>
         <script>
-            document.getElementById('select-all-pending')?.addEventListener('change', function () {
-                document.querySelectorAll('.pending-row-checkbox').forEach(function (cb) { cb.checked = this.checked; }, this);
-            });
+            (function () {
+                const selectAll = document.getElementById('select-all-pending');
+                const checkboxes = Array.from(document.querySelectorAll('.pending-row-checkbox'));
+                const banner = document.getElementById('pending-lock-banner');
+                const lockTextEl = banner ? banner.querySelector('[data-lock-text]') : null;
+
+                let lockedCustomerId = null;
+                let lockedYear = null;
+                let lockedMonth = null;
+
+                function updateRowHighlight() {
+                    checkboxes.forEach(function (cb) {
+                        const row = cb.closest('tr');
+                        if (!row) return;
+                        row.classList.remove('pb-eligible-row');
+                        if (!lockedCustomerId) return;
+                        const cId = cb.dataset.customerId || null;
+                        const y = cb.dataset.periodYear || null;
+                        const m = cb.dataset.periodMonth || null;
+                        if (cId === lockedCustomerId && y === lockedYear && m === lockedMonth) {
+                            row.classList.add('pb-eligible-row');
+                        }
+                    });
+                }
+
+                function resetLockIfNoSelection() {
+                    const anyChecked = checkboxes.some(cb => cb.checked);
+                    if (!anyChecked) {
+                        lockedCustomerId = lockedYear = lockedMonth = null;
+                        if (banner) {
+                            banner.classList.add('hidden');
+                            if (lockTextEl) lockTextEl.textContent = '';
+                        }
+                        updateRowHighlight();
+                    }
+                }
+
+                function applyLockFromCheckbox(cb) {
+                    const cId = cb.dataset.customerId || null;
+                    const y = cb.dataset.periodYear || null;
+                    const m = cb.dataset.periodMonth || null;
+
+                    if (!lockedCustomerId) {
+                        lockedCustomerId = cId;
+                        lockedYear = y;
+                        lockedMonth = m;
+                        if (banner && lockTextEl) {
+                            const periodLabel = (y && m) ? (y + '-' + String(m).padStart(2, '0')) : 'dönem bilgisi yok';
+                            lockTextEl.textContent = 'Müşteri ID ' + (cId || '—') + ' — Dönem ' + periodLabel;
+                            banner.classList.remove('hidden');
+                        }
+                        updateRowHighlight();
+                        return true;
+                    }
+
+                    if (cId !== lockedCustomerId || y !== lockedYear || m !== lockedMonth) {
+                        return false;
+                    }
+
+                    return true;
+                }
+
+                checkboxes.forEach(function (cb) {
+                    cb.addEventListener('change', function () {
+                        if (this.checked) {
+                            if (!applyLockFromCheckbox(this)) {
+                                alert('Sadece aynı müşteri ve aynı döneme ait siparişleri seçebilirsiniz.');
+                                this.checked = false;
+                            }
+                        } else {
+                            resetLockIfNoSelection();
+                        }
+                        updateRowHighlight();
+                    });
+                });
+
+                if (selectAll) {
+                    selectAll.addEventListener('change', function () {
+                        if (this.checked) {
+                            // Tüm seçimler kapatılıp ilk geçerli satıra göre kilit belirlenecek
+                            lockedCustomerId = lockedYear = lockedMonth = null;
+                            if (banner) {
+                                banner.classList.add('hidden');
+                                if (lockTextEl) lockTextEl.textContent = '';
+                            }
+
+                            checkboxes.forEach(function (cb) {
+                                if (cb.disabled) {
+                                    cb.checked = false;
+                                    return;
+                                }
+                                // İlk uygun seçim kilidi belirler, sonrakiler uyumluysa seçilir
+                                if (applyLockFromCheckbox(cb)) {
+                                    cb.checked = true;
+                                } else {
+                                    cb.checked = false;
+                                }
+                            });
+                            updateRowHighlight();
+                        } else {
+                            checkboxes.forEach(function (cb) { cb.checked = false; });
+                            resetLockIfNoSelection();
+                        }
+                    });
+                }
+                // İlk yüklemede (sayfa yenileme sonrası) mevcut seçim varsa highlight et
+                updateRowHighlight();
+            })();
         </script>
     @endif
 </x-app-layout>

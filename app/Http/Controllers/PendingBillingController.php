@@ -25,16 +25,33 @@ class PendingBillingController extends Controller
             $status = PendingBilling::STATUS_PENDING;
         }
 
+        $perPage = (int) $request->get('per_page', 20);
+        if (! in_array($perPage, [15, 20, 25, 50, 100], true)) {
+            $perPage = 20;
+        }
+
         $query = PendingBilling::query()
             ->with(['subscription.customerCari', 'subscription.product', 'salesInvoiceLine'])
             ->where('status', $status);
-        if ($status === PendingBilling::STATUS_INVOICED) {
-            $query->orderBy('id');
-        } else {
-            $query->orderByDesc('period_start');
+
+        if ($request->filled('customer_cari_id')) {
+            $query->whereHas('subscription', fn ($q) => $q->where('customer_cari_id', (int) $request->customer_cari_id));
+        }
+        if ($request->filled('period_year')) {
+            $query->whereYear('period_start', (int) $request->period_year);
+        }
+        if ($request->filled('period_month')) {
+            $query->whereMonth('period_start', (int) $request->period_month);
         }
 
-        $pendingBillings = $query->paginate(20)->withQueryString();
+        // Tüm sekmelerde (beklemede, faturalandı, iptal) ID'ye göre, büyükten küçüğe sıralama
+        $query->orderByDesc('id');
+
+        $pendingBillings = $query->paginate($perPage)->withQueryString();
+
+        $caris = Cari::whereIn('cari_type', ['customer', 'both'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'short_name']);
 
         // Faturalandı listesinde kesinleşen satışı fatura satırı ile senkronize et (fark eklendi ama actual_satis_tl güncellenmemiş olabilir)
         if ($status === PendingBilling::STATUS_INVOICED) {
@@ -85,6 +102,7 @@ class PendingBillingController extends Controller
             'usdEfektifSelling' => $usdEfektifSelling,
             'currentStatus' => $status,
             'accumulatedFarkBySubscription' => $accumulatedFarkBySubscription,
+            'caris' => $caris,
         ]);
     }
 
