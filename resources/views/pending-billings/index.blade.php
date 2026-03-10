@@ -76,7 +76,8 @@
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         @if (($currentStatus ?? '') === 'pending')
-            <form action="{{ route('sales-invoices.create') }}" method="GET" id="faturalandir-form" onsubmit="var c = document.querySelectorAll('.pending-row-checkbox:checked'); if (c.length === 0) { alert('En az bir sipariş seçin.'); return false; } return true;">
+            {{-- Seçilen siparişleri faturalandırma onay ekranına (sales-invoices.create) gönder --}}
+            <form action="{{ route('sales-invoices.create') }}" method="GET" id="faturalandir-form">
         @endif
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -213,7 +214,7 @@
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-right">
                                     @if ($accumulatedFark != 0)
-                                        <span class="{{ $accumulatedFark > 0 ? 'text-amber-700' : 'text-slate-600' }} font-medium">{{ number_format($accumulatedFark, 2, ',', '.') }} ₺</span>
+                                        <span class="{{ $accumulatedFark > 0 ? 'text-red-600' : 'text-slate-600' }} font-medium">{{ number_format($accumulatedFark, 2, ',', '.') }} ₺</span>
                                     @else
                                         <span class="text-gray-400">—</span>
                                     @endif
@@ -297,6 +298,8 @@
                 let lockedCustomerId = null;
                 let lockedYear = null;
                 let lockedMonth = null;
+
+                const form = document.getElementById('faturalandir-form');
 
                 function updateRowHighlight() {
                     checkboxes.forEach(function (cb) {
@@ -390,6 +393,21 @@
                         } else {
                             checkboxes.forEach(function (cb) { cb.checked = false; });
                             resetLockIfNoSelection();
+                        }
+                    });
+                }
+                if (form) {
+                    form.addEventListener('submit', function (e) {
+                        const anyChecked = checkboxes.some(cb => cb.checked);
+                        if (!anyChecked) {
+                            alert('En az bir sipariş seçin.');
+                            e.preventDefault();
+                            return;
+                        }
+                        if (!lockedCustomerId) {
+                            alert('Müşteri ve dönem seçimi geçersiz. Lütfen seçimleri tekrar yapın.');
+                            e.preventDefault();
+                            return;
                         }
                     });
                 }

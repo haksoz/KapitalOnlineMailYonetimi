@@ -109,9 +109,46 @@ class SubscriptionController extends Controller
 
         $orderSummaries = PendingBilling::where('subscription_id', $subscription->id)
             ->orderByDesc('period_start')
-            ->get();
+            ->paginate(15)
+            ->withQueryString();
 
         return view('subscriptions.show', compact('subscription', 'orderSummaries'));
+    }
+
+    public function orderSummaryTotals(Subscription $subscription): \Illuminate\Http\JsonResponse
+    {
+        $rows = PendingBilling::where('subscription_id', $subscription->id)->get();
+
+        $expectedSatis = 0.0;
+        $actualAlis = 0.0;
+        $actualSatis = 0.0;
+        $fark = 0.0;
+
+        foreach ($rows as $pb) {
+            if ($pb->expected_satis_tl !== null && $pb->expected_satis_tl !== '') {
+                $expectedSatis += (float) $pb->expected_satis_tl;
+            }
+            if ($pb->actual_alis_tl !== null && $pb->actual_alis_tl !== '') {
+                $actualAlis += (float) $pb->actual_alis_tl;
+            }
+            if ($pb->actual_satis_tl !== null && $pb->actual_satis_tl !== '') {
+                $actualSatis += (float) $pb->actual_satis_tl;
+            }
+            $farkVal = $pb->fee_difference_tl;
+            if ($farkVal === null && $pb->expected_satis_tl !== null && $pb->expected_satis_tl !== '' && $pb->actual_satis_tl !== null && $pb->actual_satis_tl !== '') {
+                $farkVal = (float) $pb->expected_satis_tl - (float) $pb->actual_satis_tl;
+            }
+            if ($farkVal !== null) {
+                $fark += (float) $farkVal;
+            }
+        }
+
+        return response()->json([
+            'expected_satis_tl' => round($expectedSatis, 2),
+            'actual_alis_tl' => round($actualAlis, 2),
+            'actual_satis_tl' => round($actualSatis, 2),
+            'fark_tl' => round($fark, 2),
+        ]);
     }
 
     public function showUpdateQuantity(Subscription $subscription): View

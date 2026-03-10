@@ -128,9 +128,54 @@
         </div>
         @endif
 
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden" x-data="{
+            totals: null,
+            loading: false,
+            error: null,
+            async loadTotals() {
+                this.loading = true;
+                this.error = null;
+                this.totals = null;
+                try {
+                    const r = await fetch('{{ route('subscriptions.order-summary-totals', $subscription) }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                    if (!r.ok) throw new Error('Hesaplanamadı');
+                    this.totals = await r.json();
+                } catch (e) {
+                    this.error = e.message || 'Bir hata oluştu';
+                }
+                this.loading = false;
+            },
+            fmt(n) { return n == null ? '—' : Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        }">
             <div class="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h2 class="text-sm font-semibold text-gray-700">Bekleyen ve faturalanan siparişlerin özeti</h2>
+                <button type="button" @click="loadTotals()" :disabled="loading"
+                    class="inline-flex items-center justify-center min-h-[38px] px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50">
+                    <span x-show="!loading">Finansal Toplamlar</span>
+                    <span x-show="loading" x-cloak>Hesaplanıyor…</span>
+                </button>
+            </div>
+            <div x-show="totals || error" x-cloak class="px-4 py-3 border-b border-gray-200 bg-gray-50"
+                x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                <p x-show="error" class="text-sm text-red-600" x-text="error"></p>
+                <dl x-show="totals && !error" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                    <div>
+                        <dt class="text-gray-500">Beklenen satış (TL)</dt>
+                        <dd class="font-medium text-gray-900" x-text="fmt(totals?.expected_satis_tl)"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">Gerçekleşen alış (TL)</dt>
+                        <dd class="font-medium text-gray-900" x-text="fmt(totals?.actual_alis_tl)"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">Gerçekleşen satış (TL)</dt>
+                        <dd class="font-medium text-gray-900" x-text="fmt(totals?.actual_satis_tl)"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">Fark (TL)</dt>
+                        <dd class="font-medium" :class="totals && totals.fark_tl > 0 ? 'text-red-600' : 'text-gray-900'" x-text="fmt(totals?.fark_tl)"></dd>
+                    </div>
+                </dl>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -138,7 +183,6 @@
                         <tr>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dönem</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Beklenen alış (TL)</th>
                             <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Beklenen satış (TL)</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tedarik fatura no</th>
                             <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Gerçekleşen alış (TL)</th>
@@ -162,9 +206,6 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                                    {{ $pb->expected_alis_tl !== null ? number_format((float) $pb->expected_alis_tl, 2, ',', '.') : '—' }}
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                                     {{ $pb->expected_satis_tl !== null ? number_format((float) $pb->expected_satis_tl, 2, ',', '.') : '—' }}
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
@@ -176,13 +217,19 @@
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                                     {{ $pb->actual_satis_tl !== null ? number_format((float) $pb->actual_satis_tl, 2, ',', '.') : '—' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right {{ $pb->fee_difference_tl !== null && (float) $pb->fee_difference_tl < 0 ? 'text-red-600' : 'text-gray-700' }}">
-                                    {{ $pb->fee_difference_tl !== null ? number_format((float) $pb->fee_difference_tl, 2, ',', '.') : '—' }}
+                                @php
+                                    $farkTl = $pb->fee_difference_tl;
+                                    if ($farkTl === null && $pb->expected_satis_tl !== null && $pb->expected_satis_tl !== '' && $pb->actual_satis_tl !== null && $pb->actual_satis_tl !== '') {
+                                        $farkTl = (float) $pb->expected_satis_tl - (float) $pb->actual_satis_tl;
+                                    }
+                                @endphp
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right {{ $farkTl !== null && (float) $farkTl > 0 ? 'text-red-600' : 'text-gray-700' }}">
+                                    {{ $farkTl !== null ? number_format((float) $farkTl, 2, ',', '.') : '—' }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
+                                <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">
                                     Bu aboneliğe ait bekleyen veya faturalanmış sipariş bulunmuyor.
                                 </td>
                             </tr>
@@ -190,6 +237,11 @@
                     </tbody>
                 </table>
             </div>
+            @if ($orderSummaries->hasPages())
+                <div class="px-4 py-3 border-t border-gray-200">
+                    {{ $orderSummaries->withQueryString()->links() }}
+                </div>
+            @endif
         </div>
     </div>
 </x-app-layout>

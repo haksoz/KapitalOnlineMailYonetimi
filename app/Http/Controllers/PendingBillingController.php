@@ -167,9 +167,12 @@ class PendingBillingController extends Controller
 
         $line = $pending_billing->salesInvoiceLine;
         if ($line !== null) {
-            // Zaten faturalandı: kesinleşen satış fatura tutarı (dokunulmaz). Kesinleşen alıştan hesaplanan satış beklenen satışa yazılır; fark = kesinleşen satış − beklenen satış.
+            // Zaten faturalandı: beklenen satışa yazılır. Fark = beklenen − kesinleşen (pozitif = zarar; sonraki ayda "Farkı ekle" ile telafi edilir).
             $pending_billing->update(['expected_satis_tl' => $satisFromAlis]);
-            $feeDifferenceTl = $satisFromAlis !== null ? (float) $line->line_amount_tl - $satisFromAlis : null;
+            $feeDifferenceTl = null;
+            if ($satisFromAlis !== null && $line->line_amount_tl !== null && $line->line_amount_tl !== '') {
+                $feeDifferenceTl = (float) $satisFromAlis - (float) $line->line_amount_tl;
+            }
             $pending_billing->update(['fee_difference_tl' => $feeDifferenceTl]);
         } else {
             // Henüz beklemede: gerçek alıştan hesaplanan tutar beklenen satış olarak güncellenir, gerçek satış yazılmaz
@@ -415,7 +418,10 @@ class PendingBillingController extends Controller
             $salesLine = $pendingBilling->salesInvoiceLine;
             if ($salesLine !== null) {
                 $pendingBilling->update(['expected_satis_tl' => $satisFromAlis]);
-                $feeDifferenceTl = $satisFromAlis !== null ? (float) $salesLine->line_amount_tl - $satisFromAlis : null;
+                $feeDifferenceTl = null;
+                if ($satisFromAlis !== null && $salesLine->line_amount_tl !== null && $salesLine->line_amount_tl !== '') {
+                    $feeDifferenceTl = (float) $satisFromAlis - (float) $salesLine->line_amount_tl;
+                }
                 $pendingBilling->update(['fee_difference_tl' => $feeDifferenceTl]);
             } else {
                 $pendingBilling->update(['expected_satis_tl' => $satisFromAlis]);

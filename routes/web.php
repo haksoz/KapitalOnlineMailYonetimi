@@ -33,6 +33,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('subscriptions', SubscriptionController::class)->except(['destroy']);
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
     Route::post('subscriptions/{subscription}/create-projection', [SubscriptionController::class, 'createProjection'])->name('subscriptions.create-projection');
+    Route::get('subscriptions/{subscription}/order-summary-totals', [SubscriptionController::class, 'orderSummaryTotals'])->name('subscriptions.order-summary-totals');
     Route::get('subscriptions/{subscription}/update-quantity', [SubscriptionController::class, 'showUpdateQuantity'])->name('subscriptions.show-update-quantity');
     Route::post('subscriptions/{subscription}/update-quantity', [SubscriptionController::class, 'updateQuantity'])->name('subscriptions.update-quantity');
     Route::get('pending-billings', [PendingBillingController::class, 'index'])->name('pending-billings.index');
