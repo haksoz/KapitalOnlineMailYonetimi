@@ -1,0 +1,76 @@
+<x-app-layout>
+    <x-slot name="header">
+        <div class="flex items-center gap-2">
+            <a href="{{ route('pending-billings.index', array_merge(request()->only('status', 'customer_cari_id', 'period_year', 'period_month'), ['status' => 'invoiced'])) }}" class="text-gray-500 hover:text-gray-700">&larr;</a>
+            <h1 class="text-xl font-semibold text-gray-800">Kesinleşen satış tutarını düzelt — #{{ $pendingBilling->id }}</h1>
+        </div>
+    </x-slot>
+
+    <x-flash-messages />
+
+    <div class="bg-white rounded-xl shadow-sm p-6 max-w-xl space-y-4">
+        <div class="text-sm text-gray-600 space-y-1">
+            <p>
+                <span class="font-medium text-gray-800">Müşteri:</span>
+                {{ $pendingBilling->subscription->customerCari?->short_name ?: $pendingBilling->subscription->customerCari?->name ?? '—' }}
+            </p>
+            <p>
+                <span class="font-medium text-gray-800">Sözleşme / Ürün:</span>
+                {{ $pendingBilling->subscription->sozlesme_no }}
+                @if ($pendingBilling->subscription->product)
+                    — {{ $pendingBilling->subscription->product->name }}
+                @endif
+            </p>
+            <p>
+                <span class="font-medium text-gray-800">Dönem:</span>
+                {{ $pendingBilling->period_start?->locale('tr')->translatedFormat('F Y') ?? '—' }}
+            </p>
+            @if ($pendingBilling->salesInvoiceLine && $pendingBilling->salesInvoiceLine->salesInvoice)
+                <p>
+                    <span class="font-medium text-gray-800">Fatura:</span>
+                    <a href="{{ route('sales-invoices.show', $pendingBilling->salesInvoiceLine->salesInvoice) }}" class="text-slate-600 hover:text-slate-900">
+                        #{{ $pendingBilling->salesInvoiceLine->salesInvoice->id }}
+                    </a>
+                </p>
+            @endif
+        </div>
+
+        <form action="{{ route('admin.pending-billings.update-sale', $pendingBilling) }}" method="POST" class="space-y-4">
+            @csrf
+            @method('PATCH')
+
+            <div>
+                <x-input-label value="Beklenen satış (TL)" />
+                <p class="mt-1 text-sm text-gray-700">
+                    {{ $pendingBilling->expected_satis_tl !== null ? number_format((float) $pendingBilling->expected_satis_tl, 2, ',', '.') . ' ₺' : '—' }}
+                </p>
+            </div>
+
+            <div>
+                <x-input-label for="actual_satis_tl" value="Kesinleşen satış (TL) *" />
+                <x-text-input
+                    id="actual_satis_tl"
+                    name="actual_satis_tl"
+                    type="text"
+                    class="mt-1 block w-full"
+                    :value="old('actual_satis_tl', $pendingBilling->actual_satis_tl ?? $pendingBilling->salesInvoiceLine?->line_amount_tl)"
+                    required
+                    inputmode="decimal"
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                    Bu değer, ilişkili fatura satırında ve siparişteki kesinleşen satış alanında güncellenecektir.
+                </p>
+                <x-input-error :messages="$errors->get('actual_satis_tl')" class="mt-1" />
+            </div>
+
+            <div class="mt-6 flex gap-3">
+                <x-primary-button>Kaydet</x-primary-button>
+                <a href="{{ route('pending-billings.index', array_merge(request()->only('status', 'customer_cari_id', 'period_year', 'period_month'), ['status' => 'invoiced'])) }}"
+                   class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+                    İptal
+                </a>
+            </div>
+        </form>
+    </div>
+</x-app-layout>
+

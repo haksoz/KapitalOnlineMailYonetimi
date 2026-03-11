@@ -13,7 +13,7 @@
     <div class="mb-4">
         <p class="text-sm text-gray-600">
             Önce öde sonra kullan mantığına göre dönem başı gelen siparişler burada listelenir. Yeni abonelik oluşturulunca ilk dönem, sonraki dönemler ise günlük <code class="text-xs bg-gray-100 px-1 rounded">pending-billings:enqueue</code> komutu ile eklenir.
-            Beklenen TL tutarlar işlem günü <strong>efektif satış</strong> kuru (USD) ile hesaplanır. Tabloda gördüğünüz tutarlar kayıtlı değilse anlık kur ile gösterilir; <strong>&quot;Kur ile hesapla&quot;</strong> butonu ile hesaplanan tutarlar <strong>veritabanına yazılır</strong> ve faturalandırma yaparken bu kayıtlı tutarlar kullanılır. Toplu güncelleme için <code class="text-xs bg-gray-100 px-1 rounded">pending-billings:refresh-amounts</code> komutu da kullanılabilir.
+            Beklenen TL tutarlar işlem günü <strong>efektif satış</strong> kuru (USD) ile hesaplanır. Tabloda gördüğünüz tutarlar kayıtlı değilse anlık kur ile gösterilir; <strong>&quot;Hesapla&quot;</strong> butonu ile hesaplanan tutarlar <strong>veritabanına yazılır</strong> ve faturalandırma yaparken bu kayıtlı tutarlar kullanılır. Toplu güncelleme için <code class="text-xs bg-gray-100 px-1 rounded">pending-billings:refresh-amounts</code> komutu da kullanılabilir.
         </p>
         @if ($usdEfektifSelling === null)
             <p class="text-sm text-amber-700 mt-1">
@@ -85,15 +85,15 @@
                     <tr>
                         @if (($currentStatus ?? '') === 'pending')
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <label class="inline-flex items-center gap-1 cursor-pointer">
+                                <label class="inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="select-all-pending" class="rounded border-gray-300 text-slate-600 focus:ring-slate-500" aria-label="Tümünü seç">
-                                    <span>Seç</span>
                                 </label>
                             </th>
                         @endif
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sözleşme no / Ürün</th>
+                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Adet</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dönem</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Alış (TL)</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Satış (TL)</th>
@@ -160,6 +160,9 @@
                                     <br><span class="text-gray-500">{{ $sub->product->name }}</span>
                                 @endif
                             </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
+                                {{ $sub->quantity ?? 1 }}
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ $donemLabel }}</td>
                             <td class="px-4 py-3 text-sm text-right text-gray-800">
                                 @if ($actualAlis !== null)
@@ -190,6 +193,11 @@
                                         <span class="block text-gray-500">Beklenen {{ number_format($satisTl, 2, ',', '.') }} ₺</span>
                                     @endif
                                     <span class="block font-medium">Kesinleşen {{ number_format($actualSatis, 2, ',', '.') }} ₺</span>
+                                    @if(($currentStatus ?? '') === 'invoiced' && auth()->user()?->isAdmin())
+                                        <a href="{{ route('admin.pending-billings.edit-sale', $pb) }}" class="mt-1 inline-block text-xs text-slate-600 hover:text-slate-900">
+                                            Kesinleşen satışı düzelt
+                                        </a>
+                                    @endif
                                 @elseif ($satisTl !== null)
                                     <span class="block font-medium">Beklenen {{ number_format($satisTl, 2, ',', '.') }} ₺</span>
                                 @else
@@ -198,7 +206,7 @@
                             </td>
                             @if (($currentStatus ?? '') === 'pending')
                                 <td class="px-4 py-3 text-sm text-gray-600">
-                                    @if ($actualAlis !== null && ($pb->supplier_invoice_number || $pb->supplier_invoice_date))
+                                    @if ($pb->supplier_invoice_number || $pb->supplier_invoice_date)
                                         @if ($pb->supplier_invoice_number)
                                             <span class="font-medium text-gray-900">{{ $pb->supplier_invoice_number }}</span>
                                         @endif
@@ -208,6 +216,14 @@
                                             @endif
                                             <span class="text-gray-500">{{ $pb->supplier_invoice_date->format('d.m.Y') }}</span>
                                         @endif
+                                        <button
+                                            type="submit"
+                                            form="clear-supplier-{{ $pb->id }}"
+                                            class="mt-1 text-xs text-amber-700 hover:text-amber-900 font-medium"
+                                            onclick="return confirm('Bu siparişten alış faturası bilgileri kaldırılacak. Devam?');"
+                                        >
+                                            Alışı geri al
+                                        </button>
                                     @else
                                         <span class="text-gray-400">—</span>
                                     @endif
@@ -221,27 +237,27 @@
                                 </td>
                             @endif
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                {{ $pb->created_at->format('d.m.Y H:i') }}
+                                {{ $pb->created_at->format('d.m.Y') }}
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-right text-sm space-x-2">
-                                @if ($showKurGuncelle)
-                                    <form action="{{ route('pending-billings.refresh-amounts', $pb) }}" method="POST" class="inline" onsubmit="return confirm('Bu kayıt için beklenen alış/satış tutarları güncel kur ile güncellenecek. Devam?');">
-                                        @csrf
-                                        <input type="hidden" name="status" value="{{ request('status') }}">
-                                        <button type="submit" class="text-amber-600 hover:text-amber-800 font-medium">Kur ile hesapla</button>
-                                    </form>
-                                    <span class="text-gray-300">|</span>
-                                @endif
-                                @if ($pb->status !== 'cancelled' && $actualAlis === null)
-                                    <a href="{{ route('pending-billings.supplier-invoice', [$pb, 'status' => $currentStatus ?? 'pending']) }}" class="text-slate-600 hover:text-slate-900 font-medium">Alış gir</a>
-                                    <span class="text-gray-300">|</span>
-                                @endif
-                                <a href="{{ route('subscriptions.show', $pb->subscription) }}" class="text-slate-600 hover:text-slate-900 font-medium">Abonelik</a>
+                            <td class="px-4 py-3 text-right text-sm">
+                                <div class="flex flex-wrap justify-end items-center gap-2">
+                                    @if ($showKurGuncelle)
+                                        <form action="{{ route('pending-billings.refresh-amounts', $pb) }}" method="POST" onsubmit="return confirm('Bu kayıt için beklenen alış/satış tutarları güncel kur ile güncellenecek. Devam?');" class="inline">
+                                            @csrf
+                                            <input type="hidden" name="status" value="{{ request('status') }}">
+                                            <button type="submit" class="text-amber-600 hover:text-amber-800 font-medium whitespace-nowrap">Hesapla</button>
+                                        </form>
+                                    @endif
+                                    @if ($pb->status !== 'cancelled' && $actualAlis === null)
+                                        <a href="{{ route('pending-billings.supplier-invoice', [$pb, 'status' => $currentStatus ?? 'pending']) }}" class="text-slate-600 hover:text-slate-900 font-medium whitespace-nowrap">Alış gir</a>
+                                    @endif
+                                    <a href="{{ route('subscriptions.show', $pb->subscription) }}" class="text-slate-600 hover:text-slate-900 font-medium whitespace-nowrap">Abonelik</a>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ ($currentStatus ?? '') === 'pending' ? 11 : 8 }}" class="px-4 py-8 text-center text-sm text-gray-500">
+                            <td colspan="{{ ($currentStatus ?? '') === 'pending' ? 12 : 9 }}" class="px-4 py-8 text-center text-sm text-gray-500">
                                 Kayıt yok. Yeni abonelik eklediğinizde ilk dönem veya günlük komut çalıştığında burada görünecektir.
                             </td>
                         </tr>
@@ -257,6 +273,15 @@
                 <span class="text-sm text-gray-500">Faturalandırmak istediğiniz siparişleri işaretleyip butona tıklayın.</span>
             </div>
             </form>
+
+            @foreach ($pendingBillings as $pb)
+                @if ($pb->supplier_invoice_number || $pb->supplier_invoice_date)
+                    <form id="clear-supplier-{{ $pb->id }}" action="{{ route('pending-billings.clear-supplier-invoice', $pb) }}" method="POST" class="hidden">
+                        @csrf
+                        <input type="hidden" name="status" value="{{ request('status') }}">
+                    </form>
+                @endif
+            @endforeach
         @endif
         @php
             $total = $pendingBillings->total();

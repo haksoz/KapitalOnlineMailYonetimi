@@ -18,6 +18,8 @@ class ArenaXmlParser
      */
     public function parse(string $xmlContent): array
     {
+        $xmlContent = $this->normalizeXmlString($xmlContent);
+
         $doc = new DOMDocument();
         $doc->loadXML($xmlContent);
 
@@ -53,6 +55,37 @@ class ArenaXmlParser
             'seller_vkn' => $sellerVkn ?: null,
             'lines' => $lines,
         ];
+    }
+
+    /**
+     * BOM ve baştaki/sondaki boşlukları kaldırır; loadXML için geçerli XML başlangıcı sağlar.
+     */
+    private function normalizeXmlString(string $xml): string
+    {
+        $xml = trim($xml);
+        // UTF-8 BOM
+        if (str_starts_with($xml, "\xEF\xBB\xBF")) {
+            $xml = substr($xml, 3);
+        }
+        // UTF-16 LE BOM
+        if (str_starts_with($xml, "\xFF\xFE")) {
+            $xml = substr($xml, 2);
+            $xml = mb_convert_encoding($xml, 'UTF-8', 'UTF-16LE');
+        }
+        // UTF-16 BE BOM
+        if (str_starts_with($xml, "\xFE\xFF")) {
+            $xml = substr($xml, 2);
+            $xml = mb_convert_encoding($xml, 'UTF-8', 'UTF-16BE');
+        }
+
+        $xml = trim($xml);
+        // İlk geçerli XML başlangıcını bul (bazı dosyalarda BOM dışı görünmez karakter olabiliyor)
+        $first = strpos($xml, '<');
+        if ($first > 0) {
+            $xml = substr($xml, $first);
+        }
+
+        return $xml;
     }
 
     private function firstNodeValue(\DOMNodeList $list, int $index = 0): string

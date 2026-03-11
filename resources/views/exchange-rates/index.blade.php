@@ -35,8 +35,6 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Döviz Alış</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Döviz Satış</th>
-                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Efektif Alış</th>
-                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Efektif Satış</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
                     </tr>
                 </thead>
@@ -50,12 +48,6 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                                 {{ $usd->forex_selling !== null ? number_format($usd->forex_selling, 4, ',', '.') : '—' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                                {{ $usd->banknote_buying !== null ? number_format($usd->banknote_buying, 4, ',', '.') : '—' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                                {{ $usd->banknote_selling !== null ? number_format($usd->banknote_selling, 4, ',', '.') : '—' }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right">
                                 <a href="{{ route('exchange-rates.edit', $usd) }}" class="text-slate-600 hover:text-slate-900 font-medium">Düzenle</a>
@@ -72,12 +64,6 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
                                 {{ $eur->forex_selling !== null ? number_format($eur->forex_selling, 4, ',', '.') : '—' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                                {{ $eur->banknote_buying !== null ? number_format($eur->banknote_buying, 4, ',', '.') : '—' }}
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
-                                {{ $eur->banknote_selling !== null ? number_format($eur->banknote_selling, 4, ',', '.') : '—' }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right">
                                 <a href="{{ route('exchange-rates.edit', $eur) }}" class="text-slate-600 hover:text-slate-900 font-medium">Düzenle</a>

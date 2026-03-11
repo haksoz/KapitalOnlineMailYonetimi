@@ -155,19 +155,23 @@ class PendingBillingService
         $added = 0;
 
         foreach ($subscriptions as $subscription) {
+            // Aboneliğin faturalandırma günü (29, 30, 31 gibi yüksek günler için kısa aylarda ayın son günü kullanılır).
             $billingDay = $subscription->baslangic_tarihi->day;
-            if ($billingDay !== $day) {
+            $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
+            $effectiveBillingDay = min($billingDay, $daysInMonth);
+
+            if ($effectiveBillingDay !== $day) {
                 continue;
             }
 
             $periodStart = null;
             if ($subscription->faturalama_periyodu === Subscription::FATURALAMA_MONTHLY) {
-                $periodStart = Carbon::createFromDate($year, $month, $day);
+                $periodStart = Carbon::createFromDate($year, $month, $effectiveBillingDay);
             } elseif ($subscription->faturalama_periyodu === Subscription::FATURALAMA_YEARLY) {
                 if ($subscription->baslangic_tarihi->month !== $month) {
                     continue;
                 }
-                $periodStart = Carbon::createFromDate($year, $month, $day);
+                $periodStart = Carbon::createFromDate($year, $month, $effectiveBillingDay);
             } else {
                 continue;
             }
@@ -219,11 +223,12 @@ class PendingBillingService
         foreach ($subscriptions as $subscription) {
             $baslangic = $subscription->baslangic_tarihi;
             $bitis = $subscription->bitis_tarihi;
+            $billingDay = $baslangic->day;
             $cursor = $baslangic->copy()->startOfDay();
 
             while ($cursor->lte($upToDate)) {
                 if ($cursor->lt($baslangic) || $cursor->gte($bitis)) {
-                    $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu);
+                    $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
                     continue;
                 }
 
@@ -231,7 +236,7 @@ class PendingBillingService
                     ->where('period_start', $cursor->toDateString())
                     ->exists();
                 if ($exists) {
-                    $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu);
+                    $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
                     continue;
                 }
 
@@ -244,7 +249,7 @@ class PendingBillingService
                 ]);
                 $added++;
 
-                $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu);
+                $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
             }
         }
 
@@ -252,15 +257,35 @@ class PendingBillingService
     }
 
     /**
-     * Dönem cursor'ını bir periyot ileri taşır (aylık: +1 ay aynı gün, yıllık: +1 yıl).
+     * Dönem cursor'ını bir periyot ileri taşır.
+     *
+     * Aylıkta: bir ay ileri, gün = min(abonelik başlangıç günü, yeni ayın son günü).
+     * Yıllıkta: bir yıl ileri, gün = min(abonelik başlangıç günü, yeni yıl/ayın son günü).
      */
-    private function advancePeriodCursor(Carbon $cursor, string $faturalamaPeriyodu): void
+    private function advancePeriodCursor(Carbon $cursor, string $faturalamaPeriyodu, int $billingDay): void
     {
         if ($faturalamaPeriyodu === Subscription::FATURALAMA_MONTHLY) {
-            $cursor->addMonth();
+            // Bir sonraki ayın 1. gününe git, sonra faturalandırma gününü uygula
+            $year = $cursor->year;
+            $month = $cursor->month;
+
+            if ($month === 12) {
+                $year++;
+                $month = 1;
+            } else {
+                $month++;
+            }
+
+            $cursor->setDate($year, $month, 1);
         } else {
-            $cursor->addYear();
+            // Yıllıkta: bir sonraki yılın aynı ayının 1. gününe git
+            $year = $cursor->year + 1;
+            $month = $cursor->month;
+            $cursor->setDate($year, $month, 1);
         }
+
+        $daysInMonth = $cursor->daysInMonth;
+        $cursor->day = min($billingDay, $daysInMonth);
     }
 
     /**

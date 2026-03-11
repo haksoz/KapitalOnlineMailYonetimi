@@ -196,6 +196,23 @@ class PendingBillingController extends Controller
             ->with('success', 'Alış faturası kaydedildi.' . ($newQuantity !== $previousQuantity ? ' Abonelik adeti güncellendi.' : ''));
     }
 
+    public function clearSupplierInvoice(Request $request, PendingBilling $pending_billing): RedirectResponse
+    {
+        $pending_billing->update([
+            'supplier_invoice_number' => null,
+            'supplier_invoice_date' => null,
+            'actual_alis_tl' => null,
+            'expected_satis_tl' => null,
+            'fee_difference_tl' => null,
+        ]);
+
+        $backStatus = $request->get('status', $pending_billing->status ?? PendingBilling::STATUS_PENDING);
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => $backStatus])
+            ->with('success', 'Alış faturası bu siparişten kaldırıldı. Gerekirse doğru dönem için tekrar alış faturası girebilirsiniz.');
+    }
+
     public function showSupplierInvoiceXml(Request $request): View
     {
         $supplierCaris = Cari::whereIn('cari_type', ['supplier', 'both'])
@@ -214,7 +231,8 @@ class PendingBillingController extends Controller
     {
         $validated = $request->validate([
             'provider_cari_id' => ['required', 'integer', 'exists:caris,id'],
-            'xml_file' => ['required', 'file', 'max:10240'],
+            'xml_file' => ['nullable', 'file', 'max:10240', 'required_without:xml_content'],
+            'xml_content' => ['nullable', 'string', 'required_without:xml_file'],
         ]);
 
         $cari = Cari::find($validated['provider_cari_id']);
@@ -225,8 +243,28 @@ class PendingBillingController extends Controller
                 ->with('error', 'Seçilen cari tedarikçi değil.');
         }
 
-        $xmlContent = file_get_contents($validated['xml_file']->getRealPath());
-        $parsed = $parser->parse($xmlContent);
+        $xmlContent = null;
+        if (! empty($validated['xml_content'])) {
+            $xmlContent = (string) $validated['xml_content'];
+        } elseif ($request->hasFile('xml_file')) {
+            $xmlContent = file_get_contents($validated['xml_file']->getRealPath());
+        }
+
+        if ($xmlContent === null || trim($xmlContent) === '') {
+            return redirect()
+                ->route('pending-billings.supplier-invoice-xml', ['status' => $request->get('status', 'pending')])
+                ->withInput()
+                ->with('error', 'XML içeriği bulunamadı. Dosya seçin veya XML metnini yapıştırın.');
+        }
+
+        try {
+            $parsed = $parser->parse($xmlContent);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('pending-billings.supplier-invoice-xml', ['status' => $request->get('status', 'pending')])
+                ->withInput()
+                ->with('error', 'XML okunamadı. Lütfen geçerli bir UBL alış faturası XML\'i yapıştırın veya dosya seçin. Hata: ' . $e->getMessage());
+        }
 
         $sellerVkn = $parsed['seller_vkn'] !== null ? preg_replace('/\s+/', '', $parsed['seller_vkn']) : '';
         $cariTax = $cari->tax_number !== null && $cari->tax_number !== '' ? preg_replace('/\s+/', '', $cari->tax_number) : '';

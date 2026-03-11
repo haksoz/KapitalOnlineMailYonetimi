@@ -46,20 +46,6 @@
                                       :value="old('forex_selling', $rate->forex_selling)"
                                       inputmode="decimal" />
                     </div>
-                    <div>
-                        <x-input-label for="banknote_buying" value="Efektif Alış" />
-                        <x-text-input id="banknote_buying" name="banknote_buying" type="text"
-                                      class="mt-1 block w-full"
-                                      :value="old('banknote_buying', $rate->banknote_buying)"
-                                      inputmode="decimal" />
-                    </div>
-                    <div>
-                        <x-input-label for="banknote_selling" value="Efektif Satış" />
-                        <x-text-input id="banknote_selling" name="banknote_selling" type="text"
-                                      class="mt-1 block w-full"
-                                      :value="old('banknote_selling', $rate->banknote_selling)"
-                                      inputmode="decimal" />
-                    </div>
                 </div>
             </div>
 

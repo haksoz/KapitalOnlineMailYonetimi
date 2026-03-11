@@ -8,7 +8,9 @@ use App\Http\Controllers\ServiceProviderController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\PendingBillingController;
 use App\Http\Controllers\SalesInvoiceController;
+use App\Http\Controllers\SubscriptionMonitorController;
 use App\Http\Controllers\Admin\MailSettingController as AdminMailSettingController;
+use App\Http\Controllers\Admin\PendingBillingAdminController as AdminPendingBillingController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\TriggersController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('pending-billings/{pending_billing}/refresh-amounts', [PendingBillingController::class, 'refreshAmounts'])->name('pending-billings.refresh-amounts');
     Route::get('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'showSupplierInvoice'])->name('pending-billings.supplier-invoice');
     Route::post('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'storeSupplierInvoice'])->name('pending-billings.store-supplier-invoice');
+    Route::post('pending-billings/{pending_billing}/clear-supplier-invoice', [PendingBillingController::class, 'clearSupplierInvoice'])->name('pending-billings.clear-supplier-invoice');
     Route::get('pending-billings/supplier-invoice-xml', [PendingBillingController::class, 'showSupplierInvoiceXml'])->name('pending-billings.supplier-invoice-xml');
     Route::post('pending-billings/supplier-invoice-xml', [PendingBillingController::class, 'storeSupplierInvoiceXml'])->name('pending-billings.store-supplier-invoice-xml');
     Route::get('pending-billings/supplier-invoice-xml-preview', [PendingBillingController::class, 'showSupplierInvoiceXmlPreview'])->name('pending-billings.supplier-invoice-xml-preview');
@@ -68,13 +71,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('triggers/run-renewals-up-to', [TriggersController::class, 'runRenewalsUpTo'])->name('triggers.run-renewals-up-to');
     Route::post('triggers/run-enqueue-missing', [TriggersController::class, 'runEnqueueMissingPeriods'])->name('triggers.run-enqueue-missing');
 
+    Route::get('subscription-monitor', [SubscriptionMonitorController::class, 'index'])->name('subscription-monitor.index');
+
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::get('users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
         Route::patch('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+
         Route::get('mail-settings', [AdminMailSettingController::class, 'edit'])->name('mail-settings.edit');
         Route::patch('mail-settings', [AdminMailSettingController::class, 'update'])->name('mail-settings.update');
         Route::post('mail-settings/test', [AdminMailSettingController::class, 'sendTest'])->name('mail-settings.test');
+
+        Route::get('pending-billings/{pending_billing}/edit-sale', [AdminPendingBillingController::class, 'editSale'])->name('pending-billings.edit-sale');
+        Route::patch('pending-billings/{pending_billing}/edit-sale', [AdminPendingBillingController::class, 'updateSale'])->name('pending-billings.update-sale');
     });
 });
 

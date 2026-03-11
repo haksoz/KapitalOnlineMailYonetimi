@@ -32,15 +32,30 @@ class SalesInvoiceController extends Controller
     public function storeSalesInvoiceXml(Request $request, SalesInvoiceXmlParser $parser): RedirectResponse
     {
         $validated = $request->validate([
-            'xml_file' => ['required', 'file', 'max:10240'],
+            'xml_file' => ['nullable', 'file', 'max:10240', 'required_without:xml_content'],
+            'xml_content' => ['nullable', 'string', 'required_without:xml_file'],
         ]);
 
-        $xmlContent = file_get_contents($validated['xml_file']->getRealPath());
+        $xmlContent = null;
+        if (! empty($validated['xml_content'] ?? null)) {
+            $xmlContent = (string) $validated['xml_content'];
+        } elseif ($request->hasFile('xml_file')) {
+            $xmlContent = file_get_contents($validated['xml_file']->getRealPath());
+        }
+
+        if ($xmlContent === null || trim($xmlContent) === '') {
+            return redirect()
+                ->route('sales-invoices.sales-invoice-xml')
+                ->withInput()
+                ->with('error', 'XML içeriği bulunamadı. Dosya seçin veya XML metnini yapıştırın.');
+        }
+
         $parsed = $parser->parse($xmlContent);
 
         if ($parsed['customer_vkn'] === null || $parsed['customer_vkn'] === '') {
             return redirect()
                 ->route('sales-invoices.sales-invoice-xml')
+                ->withInput()
                 ->with('error', 'XML’de alıcı (müşteri) VKN/TCKN bulunamadı.');
         }
 
@@ -53,6 +68,7 @@ class SalesInvoiceController extends Controller
         if (! $cari) {
             return redirect()
                 ->route('sales-invoices.sales-invoice-xml')
+                ->withInput()
                 ->with('error', 'Bu VKN/TCKN’e ait cari bulunamadı: ' . $parsed['customer_vkn']);
         }
 
@@ -68,6 +84,7 @@ class SalesInvoiceController extends Controller
         if ($periodYear === null || $periodMonth === null) {
             return redirect()
                 ->route('sales-invoices.sales-invoice-xml')
+                ->withInput()
                 ->with('error', 'XML’de fatura tarihi (IssueDate) bulunamadı veya geçersiz.');
         }
 
@@ -75,6 +92,7 @@ class SalesInvoiceController extends Controller
         if ($sozlesmeNos === []) {
             return redirect()
                 ->route('sales-invoices.sales-invoice-xml')
+                ->withInput()
                 ->with('error', 'XML’de *sözleşme no* formatında açıklama bulunamadı (örn. *23452436*).');
         }
 
