@@ -7,6 +7,7 @@ use App\Models\ExchangeRate;
 use App\Models\PendingBilling;
 use App\Models\SalesInvoice;
 use App\Models\SalesInvoiceLine;
+use App\Services\SalesInvoiceXmlParser;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -21,6 +22,157 @@ class SalesInvoiceController extends Controller
             ->paginate(15);
 
         return view('sales-invoices.index', compact('salesInvoices'));
+    }
+
+    public function showSalesInvoiceXml(): View
+    {
+        return view('sales-invoices.sales-invoice-xml');
+    }
+
+    public function storeSalesInvoiceXml(Request $request, SalesInvoiceXmlParser $parser): RedirectResponse
+    {
+        $validated = $request->validate([
+            'xml_file' => ['required', 'file', 'max:10240'],
+        ]);
+
+        $xmlContent = file_get_contents($validated['xml_file']->getRealPath());
+        $parsed = $parser->parse($xmlContent);
+
+        if ($parsed['customer_vkn'] === null || $parsed['customer_vkn'] === '') {
+            return redirect()
+                ->route('sales-invoices.sales-invoice-xml')
+                ->with('error', 'XML’de alıcı (müşteri) VKN/TCKN bulunamadı.');
+        }
+
+        $vknNormalized = preg_replace('/\s+/', '', $parsed['customer_vkn']);
+        $cari = Cari::where('country_code', 'TR')
+            ->whereNotNull('tax_number')
+            ->get()
+            ->first(fn (Cari $c) => preg_replace('/\s+/', '', (string) $c->tax_number) === $vknNormalized);
+
+        if (! $cari) {
+            return redirect()
+                ->route('sales-invoices.sales-invoice-xml')
+                ->with('error', 'Bu VKN/TCKN’e ait cari bulunamadı: ' . $parsed['customer_vkn']);
+        }
+
+        $periodYear = null;
+        $periodMonth = null;
+        if ($parsed['issue_date'] !== null && $parsed['issue_date'] !== '') {
+            $dt = \DateTime::createFromFormat('Y-m-d', $parsed['issue_date']);
+            if ($dt) {
+                $periodYear = (int) $dt->format('Y');
+                $periodMonth = (int) $dt->format('n');
+            }
+        }
+        if ($periodYear === null || $periodMonth === null) {
+            return redirect()
+                ->route('sales-invoices.sales-invoice-xml')
+                ->with('error', 'XML’de fatura tarihi (IssueDate) bulunamadı veya geçersiz.');
+        }
+
+        $sozlesmeNos = $parsed['sozlesme_nos'];
+        if ($sozlesmeNos === []) {
+            return redirect()
+                ->route('sales-invoices.sales-invoice-xml')
+                ->with('error', 'XML’de *sözleşme no* formatında açıklama bulunamadı (örn. *23452436*).');
+        }
+
+        $candidates = SalesInvoice::query()
+            ->where(function ($q): void {
+                $q->whereNull('our_invoice_number')->orWhere('our_invoice_number', '');
+            })
+            ->where('customer_cari_id', $cari->id)
+            ->whereHas('lines.pendingBilling', function ($q) use ($periodYear, $periodMonth): void {
+                $q->whereYear('period_start', $periodYear)->whereMonth('period_start', $periodMonth);
+            })
+            ->whereHas('lines.pendingBilling.subscription', function ($q) use ($sozlesmeNos): void {
+                $q->whereIn('sozlesme_no', $sozlesmeNos);
+            })
+            ->with(['customerCari', 'lines.pendingBilling.subscription'])
+            ->orderByDesc('id')
+            ->get();
+
+        $request->session()->put('sales_invoice_xml_parsed', [
+            'parsed' => $parsed,
+            'cari_id' => $cari->id,
+            'cari_name' => $cari->short_name ?: $cari->name,
+            'candidates' => $candidates->map(fn (SalesInvoice $inv) => [
+                'id' => $inv->id,
+                'order_number' => $inv->order_number,
+                'total_amount_tl' => $inv->total_amount_tl !== null ? (float) $inv->total_amount_tl : null,
+                'line_count' => $inv->lines->count(),
+                'sozlesme_nos' => $inv->lines->pluck('pendingBilling.subscription.sozlesme_no')->filter()->unique()->values()->all(),
+            ])->all(),
+        ]);
+
+        return redirect()->route('sales-invoices.sales-invoice-xml-match-preview');
+    }
+
+    public function showSalesInvoiceXmlMatchPreview(Request $request): View|RedirectResponse
+    {
+        $data = $request->session()->get('sales_invoice_xml_parsed');
+        if (! is_array($data) || ! isset($data['parsed'], $data['candidates'])) {
+            return redirect()->route('sales-invoices.sales-invoice-xml')
+                ->with('error', 'Önizleme verisi yok. XML’i tekrar yükleyin.');
+        }
+
+        $parsed = $data['parsed'];
+        $candidates = $data['candidates'];
+        $xmlTaxExclusive = (float) ($parsed['tax_exclusive_amount'] ?? 0);
+
+        return view('sales-invoices.sales-invoice-xml-match-preview', [
+            'parsed' => $parsed,
+            'cariName' => $data['cari_name'] ?? '',
+            'candidates' => $candidates,
+            'xmlTaxExclusiveAmount' => $xmlTaxExclusive,
+        ]);
+    }
+
+    public function cancelSalesInvoiceXmlMatch(Request $request): RedirectResponse
+    {
+        $request->session()->forget('sales_invoice_xml_parsed');
+
+        return redirect()->route('sales-invoices.sales-invoice-xml')
+            ->with('info', 'Eşleştirme iptal edildi.');
+    }
+
+    public function confirmSalesInvoiceXmlMatch(Request $request): RedirectResponse
+    {
+        $data = $request->session()->get('sales_invoice_xml_parsed');
+        if (! is_array($data) || ! isset($data['parsed'], $data['candidates'])) {
+            return redirect()->route('sales-invoices.sales-invoice-xml')
+                ->with('error', 'Oturum süresi doldu. XML’i tekrar yükleyin.');
+        }
+
+        $validated = $request->validate([
+            'sales_invoice_id' => ['required', 'integer', 'exists:sales_invoices,id'],
+        ]);
+
+        $salesInvoiceId = (int) $validated['sales_invoice_id'];
+        $allowedIds = array_column($data['candidates'], 'id');
+        if (! in_array($salesInvoiceId, $allowedIds, true)) {
+            return redirect()->route('sales-invoices.sales-invoice-xml-match-preview')
+                ->with('error', 'Seçilen fatura eşleşen listede yok.');
+        }
+
+        $parsed = $data['parsed'];
+        $salesInvoice = SalesInvoice::findOrFail($salesInvoiceId);
+
+        $update = [
+            'our_invoice_number' => $parsed['invoice_id'] ?? '',
+            'our_invoice_date' => $parsed['issue_date'] ?? null,
+        ];
+        if ($salesInvoice->order_number === null || $salesInvoice->order_number === '') {
+            $update['order_number'] = SalesInvoice::getNextFaturaTakipNo();
+        }
+        $salesInvoice->update($update);
+
+        $request->session()->forget('sales_invoice_xml_parsed');
+
+        return redirect()
+            ->route('sales-invoices.show', $salesInvoice)
+            ->with('success', 'Fatura eşleştirildi. Fatura no ve tarih kaydedildi.');
     }
 
     public function create(Request $request): View|RedirectResponse
@@ -229,6 +381,7 @@ class SalesInvoiceController extends Controller
         $salesInvoice = SalesInvoice::create([
             'customer_cari_id' => $customerCariId,
             'total_amount_tl' => $total,
+            'order_number' => SalesInvoice::getNextFaturaTakipNo(),
         ]);
 
         $farkAddedForSubscription = [];
@@ -282,9 +435,15 @@ class SalesInvoiceController extends Controller
             'our_invoice_date' => ['required', 'date'],
         ]);
 
+        $orderNumber = $sales_invoice->order_number;
+        if ($orderNumber === null || $orderNumber === '') {
+            $orderNumber = SalesInvoice::getNextFaturaTakipNo();
+        }
+
         $sales_invoice->update([
             'our_invoice_number' => $validated['our_invoice_number'],
             'our_invoice_date' => $validated['our_invoice_date'],
+            'order_number' => $orderNumber,
         ]);
 
         return redirect()

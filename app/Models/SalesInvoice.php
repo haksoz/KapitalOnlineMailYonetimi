@@ -14,6 +14,7 @@ class SalesInvoice extends Model
         'customer_cari_id',
         'our_invoice_number',
         'our_invoice_date',
+        'order_number',
         'total_amount_tl',
         'notes',
     ];
@@ -34,5 +35,27 @@ class SalesInvoice extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(SalesInvoiceLine::class, 'sales_invoice_id');
+    }
+
+    /**
+     * Sonraki Fatura Takip No (FTN000001, FTN000002, ...) değerini döndürür.
+     */
+    public static function getNextFaturaTakipNo(): string
+    {
+        $existing = static::whereNotNull('order_number')
+            ->where('order_number', 'like', 'FTN%')
+            ->pluck('order_number');
+
+        $maxNum = 0;
+        foreach ($existing as $n) {
+            if (preg_match('/^FTN(\d{6})$/', $n, $m)) {
+                $num = (int) $m[1];
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
+        }
+
+        return 'FTN' . str_pad((string) ($maxNum + 1), 6, '0', STR_PAD_LEFT);
     }
 }

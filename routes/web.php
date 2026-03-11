@@ -46,6 +46,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('pending-billings/supplier-invoice-xml-cancel', [PendingBillingController::class, 'cancelSupplierInvoiceXmlPreview'])->name('pending-billings.supplier-invoice-xml-cancel');
     Route::post('pending-billings/supplier-invoice-xml-apply', [PendingBillingController::class, 'applySupplierInvoiceXml'])->name('pending-billings.supplier-invoice-xml-apply');
     Route::get('sales-invoices', [SalesInvoiceController::class, 'index'])->name('sales-invoices.index');
+    Route::get('sales-invoices/sales-invoice-xml', [SalesInvoiceController::class, 'showSalesInvoiceXml'])->name('sales-invoices.sales-invoice-xml');
+    Route::post('sales-invoices/sales-invoice-xml', [SalesInvoiceController::class, 'storeSalesInvoiceXml'])->name('sales-invoices.store-sales-invoice-xml');
+    Route::get('sales-invoices/sales-invoice-xml-match-preview', [SalesInvoiceController::class, 'showSalesInvoiceXmlMatchPreview'])->name('sales-invoices.sales-invoice-xml-match-preview');
+    Route::get('sales-invoices/sales-invoice-xml-match-cancel', [SalesInvoiceController::class, 'cancelSalesInvoiceXmlMatch'])->name('sales-invoices.sales-invoice-xml-match-cancel');
+    Route::post('sales-invoices/sales-invoice-xml-confirm', [SalesInvoiceController::class, 'confirmSalesInvoiceXmlMatch'])->name('sales-invoices.sales-invoice-xml-confirm');
     Route::get('sales-invoices/create', [SalesInvoiceController::class, 'create'])->name('sales-invoices.create');
     Route::post('sales-invoices', [SalesInvoiceController::class, 'store'])->name('sales-invoices.store');
     Route::get('sales-invoices/{sales_invoice}', [SalesInvoiceController::class, 'show'])->name('sales-invoices.show');

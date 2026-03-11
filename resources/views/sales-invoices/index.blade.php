@@ -1,6 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Faturalandı</h1>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
+            <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Faturalandı</h1>
+            <a href="{{ route('sales-invoices.sales-invoice-xml') }}" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-sm hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+                Satış faturası XML gir
+            </a>
+        </div>
     </x-slot>
 
     <x-flash-messages />
@@ -19,6 +24,7 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fatura no</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fatura Takip No</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Toplam (TL)</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Satır sayısı</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
@@ -34,13 +40,11 @@
                                 $unit = $qty > 0 ? ((float) $line->line_amount_tl / $qty) : (float) $line->line_amount_tl;
                                 $vat = $sub->vat_rate !== null ? (float) $sub->vat_rate : 20;
                                 $discount = 0;
-                                $periodLabel = $line->pendingBilling->period_start?->format('m.Y');
                                 $productName = $sub->product?->name ?? 'Hizmet';
                                 $sozlesmeNo = $sub->sozlesme_no ?? '';
                                 $descParts = array_filter([
                                     $productName,
-                                    $periodLabel ? ('Dönem ' . $periodLabel) : null,
-                                    $sozlesmeNo ? ('Sözleşme: ' . $sozlesmeNo) : null,
+                                    $sozlesmeNo ? ('Sözleşme: *' . $sozlesmeNo . '*') : null,
                                 ]);
                                 $desc = implode(' - ', $descParts);
                                 $atmacaLines[] = $desc . "\t" . $qty . "\t" . number_format($unit, 2, '.', '') . "\t" . $vat . "\t" . $discount;
@@ -56,6 +60,9 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                 {{ $inv->our_invoice_number ?? '—' }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                {{ $inv->order_number ?? '—' }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                                 {{ $inv->total_amount_tl !== null ? number_format((float) $inv->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}
@@ -83,7 +90,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">
+                            <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">
                                 Henüz faturalandırma kaydı yok. Siparişler sayfasından seçim yapıp &quot;Seçilenleri faturaya geçir&quot; ile oluşturabilirsiniz.
                             </td>
                         </tr>

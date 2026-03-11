@@ -24,6 +24,12 @@
                     <dt class="text-gray-500">Fatura tarihi</dt>
                     <dd class="font-medium text-gray-900">{{ $salesInvoice->our_invoice_date?->format('d.m.Y') ?? '—' }}</dd>
                 </div>
+                @if ($salesInvoice->order_number)
+                <div>
+                    <dt class="text-gray-500">Fatura Takip No (FTN)</dt>
+                    <dd class="font-medium text-gray-900">{{ $salesInvoice->order_number }}</dd>
+                </div>
+                @endif
                 <div>
                     <dt class="text-gray-500">Toplam (TL)</dt>
                     <dd class="font-medium text-gray-900">{{ $salesInvoice->total_amount_tl !== null ? number_format((float) $salesInvoice->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}</dd>
@@ -136,13 +142,11 @@
     $unit = $qty > 0 ? ((float) $line->line_amount_tl / $qty) : (float) $line->line_amount_tl;
     $vat = $sub->vat_rate !== null ? (float) $sub->vat_rate : 20;
     $discount = 0;
-    $periodLabel = $line->pendingBilling->period_start?->format('m.Y');
     $productName = $sub->product?->name ?? 'Hizmet';
     $sozlesmeNo = $sub->sozlesme_no ?? '';
     $descParts = array_filter([
         $productName,
-        $periodLabel ? ('Dönem ' . $periodLabel) : null,
-        $sozlesmeNo ? ('Sözleşme: ' . $sozlesmeNo) : null,
+        $sozlesmeNo ? ('Sözleşme: *' . $sozlesmeNo . '*') : null,
     ]);
     $desc = implode(' - ', $descParts);
 @endphp

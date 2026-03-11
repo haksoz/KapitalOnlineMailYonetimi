@@ -37,6 +37,11 @@
                         required />
                     <x-input-error :messages="$errors->get('our_invoice_date')" class="mt-1" />
                 </div>
+                <div>
+                    <x-input-label value="Fatura Takip No (FTN)" />
+                    <p class="mt-1 text-sm font-medium text-gray-900">{{ $salesInvoice->order_number ?? '—' }}</p>
+                    <p class="mt-1 text-xs text-gray-500">Otomatik atanır (FTN000001, FTN000002, …). Faturaya bastığınızda bu numarayı kullanarak sistemdeki fatura ile eşleştirme yapabilirsiniz. Henüz atanmadıysa kaydettiğinizde atanacaktır.</p>
+                </div>
             </div>
 
             <div class="mt-6 flex flex-wrap gap-3">
