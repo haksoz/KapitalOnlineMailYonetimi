@@ -40,6 +40,10 @@
                     <div class="pt-4 pb-2">
                         <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</p>
                     </div>
+                    @if(Auth::user()?->isAdmin())
+                    <a href="{{ route('admin.users.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.users.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Kullanıcı Yönetimi</a>
+                    <a href="{{ route('admin.mail-settings.edit') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.mail-settings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Mail Yönetimi</a>
+                    @endif
                     <a href="{{ route('triggers.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('triggers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Tetikleyiciler</a>
                 </nav>
             </div>
@@ -71,6 +75,10 @@
                 <a href="{{ route('pending-billings.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('pending-billings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Siparişler</a>
                 <a href="{{ route('sales-invoices.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('sales-invoices.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Satış Faturası</a>
                 <div class="pt-4 pb-2"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</p></div>
+                @if(Auth::user()?->isAdmin())
+                <a href="{{ route('admin.users.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.users.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Kullanıcı Yönetimi</a>
+                <a href="{{ route('admin.mail-settings.edit') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.mail-settings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Mail Yönetimi</a>
+                @endif
                 <a href="{{ route('triggers.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('triggers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Tetikleyiciler</a>
             </nav>
         </aside>

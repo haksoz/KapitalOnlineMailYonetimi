@@ -8,6 +8,8 @@ use App\Http\Controllers\ServiceProviderController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\PendingBillingController;
 use App\Http\Controllers\SalesInvoiceController;
+use App\Http\Controllers\Admin\MailSettingController as AdminMailSettingController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\TriggersController;
 use Illuminate\Support\Facades\Route;
 
@@ -65,6 +67,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('triggers', [TriggersController::class, 'index'])->name('triggers.index');
     Route::post('triggers/run-renewals-up-to', [TriggersController::class, 'runRenewalsUpTo'])->name('triggers.run-renewals-up-to');
     Route::post('triggers/run-enqueue-missing', [TriggersController::class, 'runEnqueueMissingPeriods'])->name('triggers.run-enqueue-missing');
+
+    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::get('users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
+        Route::patch('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+        Route::get('mail-settings', [AdminMailSettingController::class, 'edit'])->name('mail-settings.edit');
+        Route::patch('mail-settings', [AdminMailSettingController::class, 'update'])->name('mail-settings.update');
+        Route::post('mail-settings/test', [AdminMailSettingController::class, 'sendTest'])->name('mail-settings.test');
+    });
 });
 
 require __DIR__.'/auth.php';

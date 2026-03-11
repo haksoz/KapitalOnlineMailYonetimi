@@ -39,12 +39,13 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => User::ROLE_USER,
+            'is_active' => false,
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
-
-        return redirect(route('dashboard', absolute: false));
+        return redirect(route('login'))
+            ->with('status', 'Kayıt oluşturuldu. Hesabınız yönetici onayından sonra giriş yapabilecektir.');
     }
 }

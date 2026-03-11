@@ -49,6 +49,14 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $user = Auth::user();
+        if (! $user->is_active) {
+            Auth::logout();
+            throw ValidationException::withMessages([
+                'email' => 'Hesabınız henüz aktif değil. Yönetici onayı bekleniyor.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 
