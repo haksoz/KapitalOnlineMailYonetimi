@@ -38,6 +38,34 @@
                     <x-input-error :messages="$errors->get('our_invoice_date')" class="mt-1" />
                 </div>
                 <div>
+                    <x-input-label for="invoice_total_net_tl" value="Kestiğin faturanın KDV hariç toplamı (TL)" />
+                    <x-text-input id="invoice_total_net_tl" name="invoice_total_net_tl" type="number" step="0.01" min="0"
+                        class="mt-1 block w-full"
+                        :value="old('invoice_total_net_tl', $salesInvoice->invoice_total_net_tl)" />
+                    <p class="mt-1 text-xs text-gray-500">
+                        Bu alana gerçek faturadaki KDV hariç toplamı girersen, sistem kendi hesapladığı toplam ile farkı kaydeder.
+                    </p>
+                    <x-input-error :messages="$errors->get('invoice_total_net_tl')" class="mt-1" />
+                    @if ($salesInvoice->invoice_total_diff_tl !== null)
+                        <p class="mt-1 text-xs {{ (float) $salesInvoice->invoice_total_diff_tl === 0.0 ? 'text-emerald-700' : 'text-amber-700' }}">
+                            Sistem toplamı ile fatura toplamı farkı:
+                            <strong>{{ number_format((float) $salesInvoice->invoice_total_diff_tl, 2, ',', '.') }} ₺</strong>
+                        </p>
+                    @endif
+                </div>
+                @if ($salesInvoice->invoice_total_diff_tl !== null && (float) $salesInvoice->invoice_total_diff_tl !== 0.0)
+                <div>
+                    <x-input-label for="invoice_total_diff_reason" value="Bu fark neden kaynaklanıyor?" />
+                    <x-text-input id="invoice_total_diff_reason" name="invoice_total_diff_reason" type="text"
+                        class="mt-1 block w-full"
+                        :value="old('invoice_total_diff_reason', $salesInvoice->invoice_total_diff_reason)" maxlength="255" />
+                    <p class="mt-1 text-xs text-gray-500">
+                        Örneğin: vade farkı, kur yuvarlama, iskonto, manuel düzeltme vb. Boş bırakabilirsin.
+                    </p>
+                    <x-input-error :messages="$errors->get('invoice_total_diff_reason')" class="mt-1" />
+                </div>
+                @endif
+                <div>
                     <x-input-label value="Fatura Takip No (FTN)" />
                     <p class="mt-1 text-sm font-medium text-gray-900">{{ $salesInvoice->order_number ?? '—' }}</p>
                     <p class="mt-1 text-xs text-gray-500">Otomatik atanır (FTN000001, FTN000002, …). Faturaya bastığınızda bu numarayı kullanarak sistemdeki fatura ile eşleştirme yapabilirsiniz. Henüz atanmadıysa kaydettiğinizde atanacaktır.</p>

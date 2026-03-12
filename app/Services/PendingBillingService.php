@@ -182,8 +182,10 @@ class PendingBillingService
                 continue;
             }
 
+            // Aynı abonelik için aynı yıl/ayda zaten bir sipariş varsa ikinciyi oluşturma.
             $exists = PendingBilling::where('subscription_id', $subscription->id)
-                ->where('period_start', $periodStart->toDateString())
+                ->whereYear('period_start', $periodStart->year)
+                ->whereMonth('period_start', $periodStart->month)
                 ->exists();
             if ($exists) {
                 continue;
@@ -232,8 +234,10 @@ class PendingBillingService
                     continue;
                 }
 
+                // Aynı abonelik ve yıl/ay için zaten bir sipariş varsa ikinciyi oluşturma.
                 $exists = PendingBilling::where('subscription_id', $subscription->id)
-                    ->where('period_start', $cursor->toDateString())
+                    ->whereYear('period_start', $cursor->year)
+                    ->whereMonth('period_start', $cursor->month)
                     ->exists();
                 if ($exists) {
                     $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);

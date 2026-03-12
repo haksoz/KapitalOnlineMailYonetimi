@@ -101,9 +101,17 @@
                                     $oldPeriod = old('lines.'.$index.'.period');
                                     $selected = $oldPeriod !== null ? $oldPeriod : $defaultSel;
                                     $recentBillings = $lineRecentBillings[$index] ?? [];
+                                    $customerName = $lineCustomerNames[$index] ?? null;
                                 @endphp
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ $line['sozlesme_no'] ?? '—' }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {{ $line['sozlesme_no'] ?? '—' }}
+                                        @if ($customerName)
+                                            <div class="text-xs text-gray-500">
+                                                {{ $customerName }}
+                                            </div>
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-3 text-sm text-gray-600">{{ $line['item_name'] ?? '—' }}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ isset($line['quantity']) ? number_format((float) $line['quantity'], 0, ',', '.') : '—' }}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">{{ isset($line['line_extension_amount_try']) ? number_format((float) $line['line_extension_amount_try'], 2, ',', '.') : '—' }}</td>
@@ -124,10 +132,11 @@
                                                 @foreach ($recentBillings as $rb)
                                                     <li class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                                                         <span class="font-medium text-gray-900">{{ $rb['period_label'] }}</span>
-                                                        <span class="text-gray-500">·</span>
-                                                        <span class="@if($rb['status'] === 'pending') text-amber-600 @elseif($rb['status'] === 'invoiced') text-emerald-600 @else text-gray-500 @endif">{{ $rb['status_label'] }}</span>
-                                                        <span class="text-gray-400 text-xs">Alış: {{ $rb['has_supplier_invoice'] ? 'Var' : 'Yok' }}</span>
-                                                        <span class="text-gray-400 text-xs">Satış: {{ $rb['has_sales_invoice'] ? 'Var' : 'Yok' }}</span>
+                                                        @if($rb['has_supplier_invoice'])
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200">Alış faturası VAR</span>
+                                                        @else
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 ring-1 ring-amber-200">Alış faturası YOK</span>
+                                                        @endif
                                                     </li>
                                                 @endforeach
                                             </ul>

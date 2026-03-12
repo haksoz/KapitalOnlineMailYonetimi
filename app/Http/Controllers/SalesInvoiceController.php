@@ -451,6 +451,8 @@ class SalesInvoiceController extends Controller
         $validated = $request->validate([
             'our_invoice_number' => ['required', 'string', 'max:64'],
             'our_invoice_date' => ['required', 'date'],
+            'invoice_total_net_tl' => ['nullable', 'numeric', 'min:0'],
+            'invoice_total_diff_reason' => ['nullable', 'string', 'max:255'],
         ]);
 
         $orderNumber = $sales_invoice->order_number;
@@ -458,10 +460,26 @@ class SalesInvoiceController extends Controller
             $orderNumber = SalesInvoice::getNextFaturaTakipNo();
         }
 
+        $invoiceTotalNet = $validated['invoice_total_net_tl'] ?? null;
+        $invoiceTotalDiff = null;
+        if ($invoiceTotalNet !== null) {
+            $baseTotal = $sales_invoice->total_amount_tl !== null ? (float) $sales_invoice->total_amount_tl : 0.0;
+            $invoiceTotalDiff = (float) $invoiceTotalNet - $baseTotal;
+        }
+
+        $diffReason = $validated['invoice_total_diff_reason'] ?? null;
+        if ($invoiceTotalDiff === null || (float) $invoiceTotalDiff === 0.0) {
+            // Fark yoksa açıklamayı sıfırla
+            $diffReason = null;
+        }
+
         $sales_invoice->update([
             'our_invoice_number' => $validated['our_invoice_number'],
             'our_invoice_date' => $validated['our_invoice_date'],
             'order_number' => $orderNumber,
+            'invoice_total_net_tl' => $invoiceTotalNet,
+            'invoice_total_diff_tl' => $invoiceTotalDiff,
+            'invoice_total_diff_reason' => $diffReason,
         ]);
 
         return redirect()

@@ -35,6 +35,29 @@
                     <dd class="font-medium text-gray-900">{{ $salesInvoice->total_amount_tl !== null ? number_format((float) $salesInvoice->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}</dd>
                 </div>
             </dl>
+            @if ($salesInvoice->invoice_total_net_tl !== null)
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <dt class="text-gray-500">Fatura KDV hariç toplamı (girdiğin)</dt>
+                        <dd class="font-medium text-gray-900">
+                            {{ number_format((float) $salesInvoice->invoice_total_net_tl, 2, ',', '.') }} ₺
+                        </dd>
+                    </div>
+                    @if ($salesInvoice->invoice_total_diff_tl !== null)
+                    <div>
+                        <dt class="text-gray-500">Sistem toplamı ile fark</dt>
+                        <dd class="font-medium {{ (float) $salesInvoice->invoice_total_diff_tl === 0.0 ? 'text-emerald-700' : 'text-amber-700' }}">
+                            {{ number_format((float) $salesInvoice->invoice_total_diff_tl, 2, ',', '.') }} ₺
+                        </dd>
+                        @if ($salesInvoice->invoice_total_diff_reason)
+                            <p class="mt-1 text-xs text-gray-600">
+                                Açıklama: {{ $salesInvoice->invoice_total_diff_reason }}
+                            </p>
+                        @endif
+                    </div>
+                    @endif
+                </div>
+            @endif
             @if ($salesInvoice->notes)
                 <div class="mt-3 pt-3 border-t border-gray-100">
                     <dt class="text-gray-500 text-sm">Not</dt>

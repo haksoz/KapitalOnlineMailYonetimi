@@ -44,6 +44,20 @@ class PendingBillingController extends Controller
             $query->whereMonth('period_start', (int) $request->period_month);
         }
 
+        // Alış faturasının varlığı/yokluğu filtresi
+        $hasSupplier = $request->get('has_supplier_invoice');
+        if ($hasSupplier === 'with') {
+            $query->where(function ($q) {
+                $q->whereNotNull('supplier_invoice_number')
+                    ->orWhereNotNull('supplier_invoice_date')
+                    ->orWhereNotNull('actual_alis_tl');
+            });
+        } elseif ($hasSupplier === 'without') {
+            $query->whereNull('supplier_invoice_number')
+                ->whereNull('supplier_invoice_date')
+                ->whereNull('actual_alis_tl');
+        }
+
         // Tüm sekmelerde (beklemede, faturalandı, iptal) ID'ye göre, büyükten küçüğe sıralama
         $query->orderByDesc('id');
 
@@ -309,6 +323,7 @@ class PendingBillingController extends Controller
 
         $linePeriods = [];
         $lineRecentBillings = [];
+        $lineCustomerNames = [];
         foreach ($lines as $index => $line) {
             $sozlesmeNo = trim((string) ($line['sozlesme_no'] ?? ''));
             $periods = [];
@@ -317,6 +332,7 @@ class PendingBillingController extends Controller
                 $subscription = Subscription::query()
                     ->where('provider_cari_id', $providerCariId)
                     ->where('sozlesme_no', $sozlesmeNo)
+                    ->with('customerCari')
                     ->first();
                 if ($subscription) {
                     $starts = PendingBilling::query()
@@ -357,6 +373,8 @@ class PendingBillingController extends Controller
                             'has_sales_invoice' => $pb->salesInvoiceLine !== null,
                         ];
                     }
+                    // Cari kısa adı / unvanı
+                    $lineCustomerNames[$index] = $subscription->customerCari?->short_name ?: $subscription->customerCari?->name;
                 }
             }
             $linePeriods[$index] = $periods;
@@ -367,6 +385,7 @@ class PendingBillingController extends Controller
             'parsed' => $data,
             'linePeriods' => $linePeriods,
             'lineRecentBillings' => $lineRecentBillings,
+            'lineCustomerNames' => $lineCustomerNames,
             'defaultPeriodYear' => $defaultPeriodYear,
             'defaultPeriodMonth' => $defaultPeriodMonth,
             'unmatched' => $request->session()->get('unmatched', []),

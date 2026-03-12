@@ -26,6 +26,8 @@ class PendingBilling extends Model
         'supplier_invoice_number',
         'supplier_invoice_date',
         'actual_alis_tl',
+        'supplier_invoice_total_tl',
+        'supplier_invoice_total_diff_tl',
         'actual_satis_tl',
         'fee_difference_tl',
     ];
@@ -41,6 +43,8 @@ class PendingBilling extends Model
             'amounts_updated_at' => 'datetime',
             'supplier_invoice_date' => 'date',
             'actual_alis_tl' => 'decimal:2',
+            'supplier_invoice_total_tl' => 'decimal:2',
+            'supplier_invoice_total_diff_tl' => 'decimal:2',
             'actual_satis_tl' => 'decimal:2',
             'fee_difference_tl' => 'decimal:2',
         ];

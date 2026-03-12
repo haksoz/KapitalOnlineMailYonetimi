@@ -16,6 +16,9 @@ class SalesInvoice extends Model
         'our_invoice_date',
         'order_number',
         'total_amount_tl',
+        'invoice_total_net_tl',
+        'invoice_total_diff_tl',
+        'invoice_total_diff_reason',
         'notes',
     ];
 
@@ -24,6 +27,8 @@ class SalesInvoice extends Model
         return [
             'our_invoice_date' => 'date',
             'total_amount_tl' => 'decimal:2',
+            'invoice_total_net_tl' => 'decimal:2',
+            'invoice_total_diff_tl' => 'decimal:2',
         ];
     }
 

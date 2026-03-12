@@ -25,7 +25,7 @@
     <div class="mb-4 border-b border-gray-200">
         <nav class="flex gap-1" aria-label="Sipariş durumu sekmeleri">
             @php
-                $queryParams = request()->only(['customer_cari_id', 'period_year', 'period_month', 'per_page']);
+                $queryParams = request()->only(['customer_cari_id', 'period_year', 'period_month', 'has_supplier_invoice', 'per_page']);
             @endphp
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'pending'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ ($currentStatus ?? 'pending') === 'pending' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Beklemede</a>
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'invoiced'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ ($currentStatus ?? '') === 'invoiced' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Faturalandı</a>
@@ -62,8 +62,16 @@
                 @endfor
             </select>
         </div>
+        <div class="min-w-[160px]">
+            <label for="has_supplier_invoice" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Alış faturası</label>
+            <select id="has_supplier_invoice" name="has_supplier_invoice" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
+                <option value="">— Tümü —</option>
+                <option value="with" @selected(request('has_supplier_invoice') === 'with')>Sadece faturası olanlar</option>
+                <option value="without" @selected(request('has_supplier_invoice') === 'without')>Sadece faturası olmayanlar</option>
+            </select>
+        </div>
         <button type="submit" class="inline-flex items-center justify-center min-h-[38px] px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-md hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">Filtrele</button>
-        @if (request()->filled('customer_cari_id') || request()->filled('period_year') || request()->filled('period_month'))
+        @if (request()->filled('customer_cari_id') || request()->filled('period_year') || request()->filled('period_month') || request()->filled('has_supplier_invoice'))
             <a href="{{ route('pending-billings.index', array_merge(request()->only('status', 'per_page'))) }}" class="inline-flex items-center min-h-[38px] px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Filtreyi temizle</a>
         @endif
     </form>

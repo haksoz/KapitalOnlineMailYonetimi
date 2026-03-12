@@ -68,13 +68,26 @@ class SubscriptionMonitorController extends Controller
                 /** @var Cari|null $cari */
                 $cari = $subs->first()?->customerCari;
 
-                $subscriptionCount = $subs->count();
-                // Aylık ve yıllık abonelikler için, bu ayda beklenen dönem sayısını kaba bir yaklaşımla hesaplayalım:
-                // - Aylık: bu ay içinde en az bir gün süren abonelik => 1 dönem
-                // - Yıllık: yine 1 dönem (yıllık olsa bile kontrol amacıyla 1 beklenen sipariş sayıyoruz)
+                // Bu ay için gerçekten dönem beklediğimiz abonelikleri filtrele.
+                // - Aylık abonelikler: bu ay ile kesişen tüm aktifler (zaten $subscriptions içinde öyle geldiler)
+                // - Yıllık abonelikler: sadece başlangıç ayı seçili ay ise o yıl için bir dönem beklenir
+                $effectiveSubs = $subs->filter(function (Subscription $sub) use ($month): bool {
+                    if ($sub->faturalama_periyodu === Subscription::FATURALAMA_YEARLY) {
+                        return $sub->baslangic_tarihi !== null && $sub->baslangic_tarihi->month === $month;
+                    }
+
+                    return true;
+                });
+
+                $subscriptionCount = $effectiveSubs->count();
+                if ($subscriptionCount === 0) {
+                    // Bu ay için bu carinin hiçbir aboneliği dönem üretmiyor; satırı tamamen atla.
+                    continue;
+                }
+
                 $expectedPeriods = $subscriptionCount;
 
-                $customerSubscriptionIds = $subs->pluck('id')->all();
+                $customerSubscriptionIds = $effectiveSubs->pluck('id')->all();
                 $pendingForCustomer = $pendingForMonth->whereIn('subscription_id', $customerSubscriptionIds);
                 $pendingCount = $pendingForCustomer->count();
 
