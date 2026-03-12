@@ -75,6 +75,7 @@
                                 <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Adet</th>
                                 <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">KDV hariç toplam (₺)</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sistemdeki dönemler</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Son 3 sipariş</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hizmet dönemi</th>
                             </tr>
                         </thead>
@@ -99,6 +100,7 @@
                                     }
                                     $oldPeriod = old('lines.'.$index.'.period');
                                     $selected = $oldPeriod !== null ? $oldPeriod : $defaultSel;
+                                    $recentBillings = $lineRecentBillings[$index] ?? [];
                                 @endphp
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ $line['sozlesme_no'] ?? '—' }}</td>
@@ -107,9 +109,30 @@
                                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">{{ isset($line['line_extension_amount_try']) ? number_format((float) $line['line_extension_amount_try'], 2, ',', '.') : '—' }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-600">
                                         @if (count($periods) > 0)
-                                            {{ implode(', ', array_column($periods, 'label')) }}
+                                            <ul class="space-y-0.5">
+                                                @foreach ($periods as $p)
+                                                    <li>{{ $p['label'] }}</li>
+                                                @endforeach
+                                            </ul>
                                         @else
                                             <span class="text-amber-600">Sipariş yok</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">
+                                        @if (count($recentBillings) > 0)
+                                            <ul class="space-y-1">
+                                                @foreach ($recentBillings as $rb)
+                                                    <li class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                                        <span class="font-medium text-gray-900">{{ $rb['period_label'] }}</span>
+                                                        <span class="text-gray-500">·</span>
+                                                        <span class="@if($rb['status'] === 'pending') text-amber-600 @elseif($rb['status'] === 'invoiced') text-emerald-600 @else text-gray-500 @endif">{{ $rb['status_label'] }}</span>
+                                                        <span class="text-gray-400 text-xs">Alış: {{ $rb['has_supplier_invoice'] ? 'Var' : 'Yok' }}</span>
+                                                        <span class="text-gray-400 text-xs">Satış: {{ $rb['has_sales_invoice'] ? 'Var' : 'Yok' }}</span>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        @else
+                                            <span class="text-gray-400">—</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3">

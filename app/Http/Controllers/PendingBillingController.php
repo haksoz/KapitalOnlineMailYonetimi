@@ -308,9 +308,11 @@ class PendingBillingController extends Controller
         }
 
         $linePeriods = [];
+        $lineRecentBillings = [];
         foreach ($lines as $index => $line) {
             $sozlesmeNo = trim((string) ($line['sozlesme_no'] ?? ''));
             $periods = [];
+            $recentBillings = [];
             if ($sozlesmeNo !== '') {
                 $subscription = Subscription::query()
                     ->where('provider_cari_id', $providerCariId)
@@ -333,14 +335,38 @@ class PendingBillingController extends Controller
                             ];
                         }
                     }
+
+                    // İlişkili son 3 sipariş (en güncel dönem önce)
+                    $recent = PendingBilling::query()
+                        ->where('subscription_id', $subscription->id)
+                        ->with('salesInvoiceLine')
+                        ->orderByDesc('period_start')
+                        ->limit(3)
+                        ->get(['id', 'period_start', 'period_end', 'status', 'supplier_invoice_number', 'supplier_invoice_date']);
+                    foreach ($recent as $pb) {
+                        $recentBillings[] = [
+                            'period_label' => $pb->period_start?->locale('tr')->translatedFormat('F Y') ?? '—',
+                            'status' => $pb->status,
+                            'status_label' => match ($pb->status) {
+                                PendingBilling::STATUS_PENDING => 'Beklemede',
+                                PendingBilling::STATUS_INVOICED => 'Faturalandı',
+                                PendingBilling::STATUS_CANCELLED => 'İptal',
+                                default => $pb->status,
+                            },
+                            'has_supplier_invoice' => $pb->supplier_invoice_number !== null && trim((string) $pb->supplier_invoice_number) !== '' || $pb->supplier_invoice_date !== null,
+                            'has_sales_invoice' => $pb->salesInvoiceLine !== null,
+                        ];
+                    }
                 }
             }
             $linePeriods[$index] = $periods;
+            $lineRecentBillings[$index] = $recentBillings;
         }
 
         return view('pending-billings.supplier-invoice-xml-preview', [
             'parsed' => $data,
             'linePeriods' => $linePeriods,
+            'lineRecentBillings' => $lineRecentBillings,
             'defaultPeriodYear' => $defaultPeriodYear,
             'defaultPeriodMonth' => $defaultPeriodMonth,
             'unmatched' => $request->session()->get('unmatched', []),
@@ -424,9 +450,11 @@ class PendingBillingController extends Controller
                     'subscription' => $subscription,
                     'pending_billing' => $pendingBilling,
                     'amount' => 0,
+                    'quantity' => 0,
                 ];
             }
             $resolved[$key]['amount'] += (float) ($line['line_extension_amount_try'] ?? 0);
+            $resolved[$key]['quantity'] += (float) ($line['quantity'] ?? 0);
         }
 
         if ($unmatched !== []) {
@@ -437,6 +465,7 @@ class PendingBillingController extends Controller
         }
 
         $updated = 0;
+        $quantityUpdated = 0;
         foreach ($resolved as $row) {
             $subscription = $row['subscription'];
             $pendingBilling = $row['pending_billing'];
@@ -464,13 +493,33 @@ class PendingBillingController extends Controller
             } else {
                 $pendingBilling->update(['expected_satis_tl' => $satisFromAlis]);
             }
+
+            // XML satırlarındaki adet toplamına göre abonelik miktarını güncelle
+            $newQuantity = (int) round($row['quantity']);
+            $previousQuantity = (int) $subscription->quantity;
+            if ($newQuantity > 0 && $newQuantity !== $previousQuantity) {
+                SubscriptionQuantityChange::create([
+                    'subscription_id' => $subscription->id,
+                    'previous_quantity' => $previousQuantity,
+                    'new_quantity' => $newQuantity,
+                    'effective_date' => $issueDate,
+                ]);
+                $subscription->update(['quantity' => $newQuantity]);
+                $quantityUpdated++;
+            }
+
             $updated++;
         }
 
         $request->session()->forget('supplier_invoice_xml_parsed');
 
+        $message = 'Alış faturası XML işlendi. ' . $updated . ' sipariş güncellendi.';
+        if ($quantityUpdated > 0) {
+            $message .= ' ' . $quantityUpdated . ' abonelik için adet güncellendi.';
+        }
+
         return redirect()
             ->route('pending-billings.index', ['status' => $backStatus])
-            ->with('success', 'Alış faturası XML işlendi. ' . $updated . ' sipariş güncellendi.');
+            ->with('success', $message);
     }
 }
