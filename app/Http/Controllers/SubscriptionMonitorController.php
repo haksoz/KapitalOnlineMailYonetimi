@@ -6,8 +6,10 @@ use App\Models\Cari;
 use App\Models\PendingBilling;
 use App\Models\SalesInvoiceLine;
 use App\Models\Subscription;
+use App\Services\PendingBillingService;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class SubscriptionMonitorController extends Controller
@@ -144,6 +146,33 @@ class SubscriptionMonitorController extends Controller
             'customerSummaries' => $customerSummaries,
             'totals' => $totals,
         ]);
+    }
+
+    /**
+     * Seçilen cari için, belirtilen aya kadar eksik dönem siparişlerini oluşturur.
+     * Abone Takip listesinde "Bu ay için siparişleri oluştur" ile tetiklenir.
+     */
+    public function enqueueMissingForCari(Request $request, PendingBillingService $pendingBillingService): RedirectResponse
+    {
+        $validated = $request->validate([
+            'customer_cari_id' => ['required', 'integer', 'exists:caris,id'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
+        ]);
+
+        $year = (int) ($validated['year'] ?? Carbon::today()->year);
+        $month = (int) ($validated['month'] ?? Carbon::today()->month);
+        $customerCariId = (int) $validated['customer_cari_id'];
+
+        $upToDate = Carbon::create($year, $month, 1)->endOfMonth();
+
+        $added = $pendingBillingService->enqueueMissingPeriodsUpToForCustomer($upToDate, $customerCariId);
+
+        $monthLabel = $upToDate->locale('tr')->translatedFormat('F Y');
+
+        return redirect()
+            ->route('subscription-monitor.index', ['year' => $year, 'month' => $month])
+            ->with('success', "{$monthLabel} için bu cariye ait eksik dönem siparişleri oluşturuldu. {$added} kayıt eklendi.");
     }
 }
 

@@ -73,6 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('triggers/run-enqueue-missing', [TriggersController::class, 'runEnqueueMissingPeriods'])->name('triggers.run-enqueue-missing');
 
     Route::get('subscription-monitor', [SubscriptionMonitorController::class, 'index'])->name('subscription-monitor.index');
+    Route::post('subscription-monitor/enqueue-missing-for-cari', [SubscriptionMonitorController::class, 'enqueueMissingForCari'])->name('subscription-monitor.enqueue-missing-for-cari');
 
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');

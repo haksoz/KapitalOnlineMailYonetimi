@@ -41,6 +41,8 @@
         </div>
     </x-slot>
 
+    <x-flash-messages />
+
     <div class="space-y-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -89,6 +91,7 @@
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" title="Alış faturası atanmış sipariş sayısı">Alış fat. gelen</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Satış Faturaya Bağlı</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Durum</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">İşlem</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
@@ -127,10 +130,25 @@
                                         {{ $status }}
                                     </span>
                                 </td>
+                                <td class="px-4 py-2 whitespace-nowrap">
+                                    @if ($row['status'] === 'Eksik sipariş var' && $row['customer']?->id)
+                                        <form action="{{ route('subscription-monitor.enqueue-missing-for-cari') }}" method="POST" class="inline" onsubmit="return confirm('Seçilen ay ({{ $monthStart->locale('tr')->translatedFormat('F Y') }}) için bu carinin eksik dönem siparişleri oluşturulsun mu?');">
+                                            @csrf
+                                            <input type="hidden" name="customer_cari_id" value="{{ $row['customer']->id }}">
+                                            <input type="hidden" name="year" value="{{ $year }}">
+                                            <input type="hidden" name="month" value="{{ $month }}">
+                                            <button type="submit" class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
+                                                Bu ay için siparişleri oluştur
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-gray-400">—</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">
+                                <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500">
                                     Seçilen ay için aktif aboneliği olan cari bulunamadı.
                                 </td>
                             </tr>

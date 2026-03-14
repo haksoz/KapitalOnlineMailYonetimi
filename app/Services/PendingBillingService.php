@@ -261,6 +261,60 @@ class PendingBillingService
     }
 
     /**
+     * Belirtilen cariye ait aktif abonelikler için, verilen tarihe kadar eksik dönem siparişlerini oluşturur.
+     * Abone Takip sayfasında "Bu ay için siparişleri oluştur" aksiyonu bu metodu kullanır.
+     *
+     * @return int Eklenen kayıt sayısı
+     */
+    public function enqueueMissingPeriodsUpToForCustomer(Carbon $upToDate, int $customerCariId): int
+    {
+        $subscriptions = Subscription::query()
+            ->where('customer_cari_id', $customerCariId)
+            ->where('durum', Subscription::DURUM_ACTIVE)
+            ->whereNotNull('bitis_tarihi')
+            ->whereNotNull('baslangic_tarihi')
+            ->get();
+
+        $added = 0;
+
+        foreach ($subscriptions as $subscription) {
+            $baslangic = $subscription->baslangic_tarihi;
+            $bitis = $subscription->bitis_tarihi;
+            $billingDay = $baslangic->day;
+            $cursor = $baslangic->copy()->startOfDay();
+
+            while ($cursor->lte($upToDate)) {
+                if ($cursor->lt($baslangic) || $cursor->gte($bitis)) {
+                    $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
+                    continue;
+                }
+
+                $exists = PendingBilling::where('subscription_id', $subscription->id)
+                    ->whereYear('period_start', $cursor->year)
+                    ->whereMonth('period_start', $cursor->month)
+                    ->exists();
+                if ($exists) {
+                    $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
+                    continue;
+                }
+
+                $periodEnd = $this->computePeriodEnd($cursor->copy(), $subscription->faturalama_periyodu);
+                PendingBilling::create([
+                    'subscription_id' => $subscription->id,
+                    'period_start' => $cursor->copy(),
+                    'period_end' => $periodEnd,
+                    'status' => PendingBilling::STATUS_PENDING,
+                ]);
+                $added++;
+
+                $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
+            }
+        }
+
+        return $added;
+    }
+
+    /**
      * Dönem cursor'ını bir periyot ileri taşır.
      *
      * Aylıkta: bir ay ileri, gün = min(abonelik başlangıç günü, yeni ayın son günü).
