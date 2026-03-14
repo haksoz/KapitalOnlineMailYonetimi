@@ -20,6 +20,9 @@
                     Abonelik bitiş tarihlerini bugüne kadar güncelle
                 </button>
             </form>
+            <a href="{{ route('triggers.renewals-up-to-end-of-month') }}" class="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+                Abonelik bitiş tarihini bu ay sonuna kadar güncelle
+            </a>
             <form action="{{ route('triggers.run-enqueue-missing') }}" method="POST" class="inline" onsubmit="return confirm('Bugüne kadar eksik kalan tüm dönemler için sipariş kayıtları eklenecek. Devam?');">
                 @csrf
                 <button type="submit" class="inline-flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">

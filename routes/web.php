@@ -70,6 +70,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('triggers', [TriggersController::class, 'index'])->name('triggers.index');
     Route::post('triggers/run-renewals-up-to', [TriggersController::class, 'runRenewalsUpTo'])->name('triggers.run-renewals-up-to');
+    Route::get('triggers/renewals-up-to-end-of-month', [TriggersController::class, 'showRenewalsUpToEndOfMonth'])->name('triggers.renewals-up-to-end-of-month');
+    Route::post('triggers/renewals-up-to-end-of-month', [TriggersController::class, 'runRenewalsUpToEndOfMonth'])->name('triggers.run-renewals-up-to-end-of-month');
     Route::post('triggers/run-enqueue-missing', [TriggersController::class, 'runEnqueueMissingPeriods'])->name('triggers.run-enqueue-missing');
 
     Route::get('subscription-monitor', [SubscriptionMonitorController::class, 'index'])->name('subscription-monitor.index');
