@@ -242,6 +242,30 @@ class PendingBillingController extends Controller
             ->with('success', 'Sipariş ertelendi. İleride Ertelendi sekmesinden faturalandırabilirsiniz.');
     }
 
+    public function bulkPostpone(Request $request): RedirectResponse
+    {
+        $ids = $request->get('pending_billing_ids', []);
+        if (! is_array($ids)) {
+            $ids = [];
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+
+        if ($ids === []) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $request->get('status', PendingBilling::STATUS_PENDING)])
+                ->with('error', 'En az bir sipariş seçin.');
+        }
+
+        $count = PendingBilling::query()
+            ->whereIn('id', $ids)
+            ->where('status', PendingBilling::STATUS_PENDING)
+            ->update(['status' => PendingBilling::STATUS_POSTPONED]);
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => PendingBilling::STATUS_POSTPONED])
+            ->with('success', $count . ' sipariş ertelendi. İleride Ertelendi sekmesinden faturalandırabilirsiniz.');
+    }
+
     public function showSupplierInvoiceXml(Request $request): View
     {
         $supplierCaris = Cari::whereIn('cari_type', ['supplier', 'both'])

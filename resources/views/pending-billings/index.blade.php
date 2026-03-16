@@ -291,7 +291,21 @@
                 <button type="submit" form="faturalandir-form" class="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-sm hover:bg-slate-700">
                     Seçilenleri faturaya geçir
                 </button>
-                <span class="text-sm text-gray-500">Faturalandırmak istediğiniz siparişleri işaretleyip butona tıklayın.</span>
+
+                <button
+                    type="submit"
+                    form="faturalandir-form"
+                    formaction="{{ route('pending-billings.bulk-postpone') }}"
+                    formmethod="POST"
+                    class="inline-flex items-center px-4 py-2 bg-slate-500 text-white rounded-lg font-semibold text-sm hover:bg-slate-600"
+                    onclick="return confirm('Seçili siparişleri ileride faturalamak üzere ertele?');"
+                >
+                    Seçilenleri toplu ertele
+                </button>
+
+                <span class="text-sm text-gray-500">
+                    Faturalandırmak veya ertelemek istediğiniz siparişleri işaretleyip ilgili butona tıklayın.
+                </span>
             </div>
             </form>
 
