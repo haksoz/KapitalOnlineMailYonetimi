@@ -11,13 +11,19 @@ use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class SubscriptionMonitorController extends Controller
 {
+    public const STATUS_TAMAMLANDI = 'Tamamlandı';
+    public const STATUS_EKSIK_SIPARIS = 'Eksik sipariş var';
+    public const STATUS_FATURALANMAMIS = 'Faturalandırılmamış siparişler var';
+
     public function index(Request $request): View
     {
         $year = (int) $request->input('year', Carbon::today()->year);
         $month = (int) $request->input('month', Carbon::today()->month);
+        $statusFilter = $request->input('status', '');
 
         $monthStart = Carbon::create($year, $month, 1)->startOfDay();
         $monthEnd = $monthStart->copy()->endOfMonth();
@@ -29,7 +35,7 @@ class SubscriptionMonitorController extends Controller
             ->whereNotNull('bitis_tarihi')
             ->where('baslangic_tarihi', '<=', $monthEnd)
             ->where('bitis_tarihi', '>', $monthStart)
-            ->with('customerCari')
+            ->with(['customerCari', 'product'])
             ->get();
 
         // Cari bazlı grupla
@@ -105,11 +111,29 @@ class SubscriptionMonitorController extends Controller
                     ->whereIn('id', $invoicedPendingIds)
                     ->count();
 
-                $status = 'Tamamlandı';
+                $status = self::STATUS_TAMAMLANDI;
                 if ($pendingCount < $expectedPeriods) {
-                    $status = 'Eksik sipariş var';
+                    $status = self::STATUS_EKSIK_SIPARIS;
                 } elseif ($invoicedCount < $pendingCount) {
-                    $status = 'Faturalandırılmamış siparişler var';
+                    $status = self::STATUS_FATURALANMAMIS;
+                }
+
+                // O ay için her beklenen abonelik/dönemin tek tek durumu (akordeon detayı)
+                $details = [];
+                foreach ($effectiveSubs as $sub) {
+                    $pb = $pendingForCustomer->firstWhere('subscription_id', $sub->id);
+                    $supplierInvoiced = $pb && (
+                        ($pb->supplier_invoice_number !== null && trim((string) $pb->supplier_invoice_number) !== '')
+                        || $pb->supplier_invoice_date !== null
+                    );
+                    $salesInvoiced = $pb && $invoicedPendingIds->contains($pb->id);
+
+                    $details[] = [
+                        'subscription' => $sub,
+                        'pending_billing' => $pb,
+                        'supplier_invoiced' => $supplierInvoiced,
+                        'sales_invoiced' => $salesInvoiced,
+                    ];
                 }
 
                 $customerSummaries[] = [
@@ -120,11 +144,24 @@ class SubscriptionMonitorController extends Controller
                     'supplier_invoiced_count' => $supplierInvoicedCount,
                     'invoiced_count' => $invoicedCount,
                     'status' => $status,
+                    'details' => $details,
                 ];
             }
         }
 
-        // İstatistik kutucukları için toplamlar
+        // Durum filtrelemesi (query: tamamlandi, eksik, faturalanmamis)
+        $statusMap = [
+            'tamamlandi' => self::STATUS_TAMAMLANDI,
+            'eksik' => self::STATUS_EKSIK_SIPARIS,
+            'faturalanmamis' => self::STATUS_FATURALANMAMIS,
+        ];
+        if ($statusFilter !== '' && isset($statusMap[$statusFilter])) {
+            $customerSummaries = array_values(array_filter($customerSummaries, function (array $row) use ($statusMap, $statusFilter): bool {
+                return ($row['status'] ?? '') === $statusMap[$statusFilter];
+            }));
+        }
+
+        // İstatistik kutucukları için toplamlar (filtrelenmiş listeye göre)
         $totals = [
             'customer_count' => count($customerSummaries),
             'subscription_count' => array_sum(array_column($customerSummaries, 'subscription_count')),
@@ -138,12 +175,32 @@ class SubscriptionMonitorController extends Controller
             return strcmp($a['customer']?->name ?? '', $b['customer']?->name ?? '');
         });
 
+        // Sayfalama (Cari Bazında Durum tablosu)
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = $perPage >= 5 && $perPage <= 100 ? $perPage : 15;
+        $page = (int) $request->input('page', 1);
+        $page = $page < 1 ? 1 : $page;
+        $total = count($customerSummaries);
+        $offset = ($page - 1) * $perPage;
+        $items = array_slice($customerSummaries, $offset, $perPage);
+        $customerSummariesPaginated = new LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
         return view('subscription-monitor.index', [
             'year' => $year,
             'month' => $month,
             'monthStart' => $monthStart,
             'monthEnd' => $monthEnd,
-            'customerSummaries' => $customerSummaries,
+            'statusFilter' => $statusFilter,
+            'customerSummaries' => $customerSummariesPaginated,
             'totals' => $totals,
         ]);
     }
@@ -170,8 +227,13 @@ class SubscriptionMonitorController extends Controller
 
         $monthLabel = $upToDate->locale('tr')->translatedFormat('F Y');
 
+        $query = ['year' => $year, 'month' => $month];
+        if ($request->filled('status')) {
+            $query['status'] = $request->input('status');
+        }
+
         return redirect()
-            ->route('subscription-monitor.index', ['year' => $year, 'month' => $month])
+            ->route('subscription-monitor.index', $query)
             ->with('success', "{$monthLabel} için bu cariye ait eksik dönem siparişleri oluşturuldu. {$added} kayıt eklendi.");
     }
 }
