@@ -11,6 +11,7 @@ class PendingBilling extends Model
     public const STATUS_PENDING = 'pending';
     public const STATUS_INVOICED = 'invoiced';
     public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_POSTPONED = 'postponed';
 
     protected $table = 'pending_billings';
 

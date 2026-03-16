@@ -19,7 +19,7 @@ class PendingBillingController extends Controller
     public function index(Request $request): View
     {
         $status = $request->get('status', PendingBilling::STATUS_PENDING);
-        if (in_array($status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_CANCELLED], true)) {
+        if (in_array($status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED, PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_CANCELLED], true)) {
             // ok
         } else {
             $status = PendingBilling::STATUS_PENDING;
@@ -227,6 +227,21 @@ class PendingBillingController extends Controller
             ->with('success', 'Alış faturası bu siparişten kaldırıldı. Gerekirse doğru dönem için tekrar alış faturası girebilirsiniz.');
     }
 
+    public function postpone(Request $request, PendingBilling $pending_billing): RedirectResponse
+    {
+        if ($pending_billing->status !== PendingBilling::STATUS_PENDING) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $request->get('status', PendingBilling::STATUS_PENDING)])
+                ->with('error', 'Sadece beklemede olan siparişler ertelenebilir.');
+        }
+
+        $pending_billing->update(['status' => PendingBilling::STATUS_POSTPONED]);
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => $request->get('status', PendingBilling::STATUS_PENDING)])
+            ->with('success', 'Sipariş ertelendi. İleride Ertelendi sekmesinden faturalandırabilirsiniz.');
+    }
+
     public function showSupplierInvoiceXml(Request $request): View
     {
         $supplierCaris = Cari::whereIn('cari_type', ['supplier', 'both'])
@@ -365,6 +380,7 @@ class PendingBillingController extends Controller
                             'status' => $pb->status,
                             'status_label' => match ($pb->status) {
                                 PendingBilling::STATUS_PENDING => 'Beklemede',
+                                PendingBilling::STATUS_POSTPONED => 'Ertelendi',
                                 PendingBilling::STATUS_INVOICED => 'Faturalandı',
                                 PendingBilling::STATUS_CANCELLED => 'İptal',
                                 default => $pb->status,

@@ -213,14 +213,14 @@ class SalesInvoiceController extends Controller
         if ($ids !== []) {
             $pendingBillings = PendingBilling::query()
                 ->with(['subscription.product', 'subscription.customerCari'])
-                ->where('status', PendingBilling::STATUS_PENDING)
+                ->whereIn('status', [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED])
                 ->whereIn('id', $ids)
                 ->orderBy('period_start')
                 ->get();
 
             if ($pendingBillings->isEmpty()) {
                 return redirect()->route('pending-billings.index', ['status' => 'pending'])
-                    ->with('error', 'Seçilen siparişler bulunamadı veya artık beklemede değil.');
+                    ->with('error', 'Seçilen siparişler bulunamadı veya artık beklemede/ertelenmiş değil.');
             }
 
             $customerCariIds = $pendingBillings->pluck('subscription.customer_cari_id')->unique()->filter()->values()->all();
