@@ -13,6 +13,7 @@ class Cari extends Model
     protected $fillable = [
         'name',
         'short_name',
+        'email',
         'country_code',
         'tax_number',
         'cari_type',

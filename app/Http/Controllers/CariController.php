@@ -29,6 +29,7 @@ class CariController extends Controller
         $validated = $request->validate([
             'name'         => ['required', 'string', 'max:255'],
             'short_name'   => ['nullable', 'string', 'max:100'],
+            'email'        => ['nullable', 'email', 'max:255'],
             'country_code' => ['nullable', 'string', 'size:2'],
             'tax_number'   => ['nullable', 'string', 'max:50'],
             'cari_type'    => ['nullable', 'string', 'max:32'],
@@ -56,6 +57,7 @@ class CariController extends Controller
         $validated = $request->validate([
             'name'         => ['required', 'string', 'max:255'],
             'short_name'   => ['nullable', 'string', 'max:100'],
+            'email'        => ['nullable', 'email', 'max:255'],
             'country_code' => ['nullable', 'string', 'size:2'],
             'tax_number'   => ['nullable', 'string', 'max:50'],
             'cari_type'    => ['nullable', 'string', 'max:32'],

@@ -8,10 +8,13 @@
 
     <x-flash-messages />
 
-    <div class="mb-4">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600">
-            Kayıtlı kullanıcılar. Rol ve aktiflik durumunu düzenleyebilirsiniz. Yeni üyeler varsayılan olarak giriş yapamaz; aktifleştirdikten sonra giriş yapabilirler.
+            Kayıtlı kullanıcılar. Rol ve aktiflik durumunu düzenleyebilirsiniz. Yeni kullanıcı ekleyebilir veya parola sıfırlayabilirsiniz.
         </p>
+        <a href="{{ route('admin.users.create') }}" class="inline-flex items-center px-4 py-2 bg-slate-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+            Yeni kullanıcı
+        </a>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">

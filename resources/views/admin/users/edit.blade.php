@@ -31,6 +31,22 @@
                     <x-input-label for="is_active" value="Aktif (giriş yapabilir)" class="!mb-0" />
                 </div>
                 <p class="text-xs text-gray-500">Pasif kullanıcılar giriş yapamaz.</p>
+
+                <div class="border-t border-gray-200 pt-4">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Parola sıfırla</p>
+                    <p class="text-xs text-gray-500 mb-3">Yeni parola girmek zorunlu değildir. Sadece değiştirmek istediğinizde doldurun.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <x-input-label for="password" value="Yeni parola" />
+                            <x-text-input id="password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+                            <x-input-error :messages="$errors->get('password')" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-input-label for="password_confirmation" value="Yeni parola (tekrar)" />
+                            <x-text-input id="password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="mt-6 flex gap-3">

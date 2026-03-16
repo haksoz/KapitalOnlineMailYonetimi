@@ -16,6 +16,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kısa Ad / Ünvan</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-posta</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ülke</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vergi No</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cari Tipi</th>
@@ -27,6 +28,13 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {{ $cari->short_name ?: $cari->name }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-500">
+                                @if ($cari->email)
+                                    <a href="mailto:{{ $cari->email }}" class="text-slate-600 hover:text-slate-900">{{ $cari->email }}</a>
+                                @else
+                                    —
+                                @endif
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                                 {{ $cari->country_code ?? 'TR' }}
@@ -55,7 +63,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">Henüz cari eklenmemiş.</td>
+                            <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">Henüz cari eklenmemiş.</td>
                         </tr>
                     @endforelse
                 </tbody>
