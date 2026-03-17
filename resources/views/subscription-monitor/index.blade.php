@@ -67,10 +67,10 @@
                             <th scope="col" class="w-10 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"></th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cari</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Abonelik</th>
-                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Beklenen Sipariş</th>
-                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Oluşan Sipariş</th>
-                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" title="Alış faturası atanmış sipariş sayısı">Alış fat. gelen</th>
-                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Satış Faturaya Bağlı</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sipariş</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" title="Alış faturası atanmış sipariş sayısı">Alış fat.</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Satış Fat.</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">E-Fatura</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Durum</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">İşlem</th>
                         </tr>
@@ -94,13 +94,13 @@
                                     {{ $row['subscription_count'] }}
                                 </td>
                                 <td class="px-4 py-2 whitespace-nowrap text-gray-900">
-                                    {{ $row['expected_periods'] }}
-                                </td>
-                                <td class="px-4 py-2 whitespace-nowrap text-gray-900">
                                     {{ $row['pending_count'] }}
                                 </td>
                                 <td class="px-4 py-2 whitespace-nowrap text-gray-900">
                                     {{ $row['supplier_invoiced_count'] }}
+                                </td>
+                                <td class="px-4 py-2 whitespace-nowrap text-gray-900">
+                                    {{ $row['billed_count'] }}
                                 </td>
                                 <td class="px-4 py-2 whitespace-nowrap text-gray-900">
                                     {{ $row['invoiced_count'] }}
@@ -148,11 +148,11 @@
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Abonelik</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Adet</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">USD Satış</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Dönem</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Sipariş</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Bitiş tarihi</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Alış fat.</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Satış fat.</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">E-Fatura</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -170,18 +170,7 @@
                                                     <td class="px-3 py-2 text-gray-900">{{ $productLabel }}</td>
                                                     <td class="px-3 py-2 text-gray-900">{{ $qty }}</td>
                                                     <td class="px-3 py-2 text-gray-900">
-                                                        @if ($kesinlesenTl !== null)
-                                                            <span title="Kesinleşen (TL)">{{ number_format($kesinlesenTl, 2, ',', '.') }} TL</span>
-                                                        @else
-                                                            <span title="Beklenen (USD)">{{ number_format($expectedUsd, 2, ',', '.') }} USD</span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="px-3 py-2 text-gray-600">
-                                                        @if ($pb)
-                                                            {{ $pb->period_start?->locale('tr')->translatedFormat('F Y') }}
-                                                        @else
-                                                            <span class="text-amber-600">—</span>
-                                                        @endif
+                                                        <span>{{ number_format($expectedUsd, 2, ',', '.') }} USD</span>
                                                     </td>
                                                     <td class="px-3 py-2">
                                                         @if ($pb)
@@ -199,6 +188,13 @@
                                                     </td>
                                                     <td class="px-3 py-2">
                                                         @if ($d['supplier_invoiced'])
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Evet</span>
+                                                        @else
+                                                            <span class="text-gray-500">—</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-3 py-2">
+                                                        @if ($d['sales_invoiced'])
                                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Evet</span>
                                                         @else
                                                             <span class="text-gray-500">—</span>

@@ -99,6 +99,11 @@ class SubscriptionMonitorController extends Controller
                 $pendingForCustomer = $pendingForMonth->whereIn('subscription_id', $customerSubscriptionIds);
                 $pendingCount = $pendingForCustomer->count();
 
+                // Statüsü Faturalandı olan sipariş sayısı
+                $billedCount = $pendingForCustomer
+                    ->where('status', PendingBilling::STATUS_INVOICED)
+                    ->count();
+
                 // Alış faturası atanmış sipariş sayısı (supplier_invoice_number veya supplier_invoice_date dolu)
                 $supplierInvoicedCount = $pendingForCustomer->filter(function ($pb) {
                     $hasNumber = $pb->supplier_invoice_number !== null && trim((string) $pb->supplier_invoice_number) !== '';
@@ -142,6 +147,7 @@ class SubscriptionMonitorController extends Controller
                     'expected_periods' => $expectedPeriods,
                     'pending_count' => $pendingCount,
                     'supplier_invoiced_count' => $supplierInvoicedCount,
+                    'billed_count' => $billedCount,
                     'invoiced_count' => $invoicedCount,
                     'status' => $status,
                     'details' => $details,
@@ -168,6 +174,7 @@ class SubscriptionMonitorController extends Controller
             'expected_periods' => array_sum(array_column($customerSummaries, 'expected_periods')),
             'pending_count' => array_sum(array_column($customerSummaries, 'pending_count')),
             'supplier_invoiced_count' => array_sum(array_column($customerSummaries, 'supplier_invoiced_count')),
+            'billed_count' => array_sum(array_column($customerSummaries, 'billed_count')),
             'invoiced_count' => array_sum(array_column($customerSummaries, 'invoiced_count')),
         ];
 
