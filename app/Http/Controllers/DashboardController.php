@@ -32,8 +32,9 @@ class DashboardController extends Controller
             ->where('status', PendingBilling::STATUS_INVOICED)
             ->sum('actual_alis_tl');
 
+        // Bekleyen + ertelenen siparişler: henüz kesinleşmemiş alışlar
         $purchasesPendingYear = (float) (clone $basePurchaseQuery)
-            ->where('status', PendingBilling::STATUS_PENDING)
+            ->whereIn('status', [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED])
             ->sum('actual_alis_tl');
 
         $totalPurchasesYear = $purchasesInvoicedYear + $purchasesPendingYear;
@@ -70,9 +71,9 @@ class DashboardController extends Controller
             ->distinct('customer_cari_id')
             ->count('customer_cari_id');
 
-        // 3) Bekleyen sipariş sayısı (genel)
+        // 3) Bekleyen sipariş sayısı (genel) — ertelenenler dahil
         $pendingBillingsCount = PendingBilling::query()
-            ->where('status', PendingBilling::STATUS_PENDING)
+            ->whereIn('status', [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED])
             ->count();
 
         // 4) Önceki ay ve bu ay görünümü (beklenen ve kesinleşen satış/alış)
@@ -82,13 +83,13 @@ class DashboardController extends Controller
         $prevMonthStart = $monthStart->copy()->subMonthNoOverflow();
         $prevMonthEnd = $prevMonthStart->copy()->endOfMonth();
 
-        // Beklenen satış/alış: period_start üzerinden (sadece beklemede olan siparişler)
+        // Beklenen satış/alış: period_start üzerinden (beklemede + ertelenen siparişler)
         $prevMonthPending = PendingBilling::query()
-            ->where('status', PendingBilling::STATUS_PENDING)
+            ->whereIn('status', [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED])
             ->whereBetween('period_start', [$prevMonthStart->toDateString(), $prevMonthEnd->toDateString()])
             ->get();
         $thisMonthPending = PendingBilling::query()
-            ->where('status', PendingBilling::STATUS_PENDING)
+            ->whereIn('status', [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED])
             ->whereBetween('period_start', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->get();
 
