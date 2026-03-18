@@ -25,6 +25,14 @@
     @php
         $currentStatus = $currentStatus ?? 'pending';
         $isSelectableStatus = in_array($currentStatus, ['pending', 'postponed'], true);
+
+        // Faturalandı sekmesinde filtre alanında bu yıl/bu ay varsayılan seçili görünsün
+        $defaultPeriodYear = request('period_year');
+        $defaultPeriodMonth = request('period_month');
+        if ($currentStatus === 'invoiced') {
+            $defaultPeriodYear = $defaultPeriodYear ?? now()->year;
+            $defaultPeriodMonth = $defaultPeriodMonth ?? now()->month;
+        }
     @endphp
 
     <div class="mb-4 border-b border-gray-200">
@@ -55,7 +63,7 @@
             <select id="period_year" name="period_year" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
                 <option value="">— Tümü —</option>
                 @for ($y = now()->year; $y >= now()->year - 3; $y--)
-                    <option value="{{ $y }}" @selected(request('period_year') === (string) $y)>{{ $y }}</option>
+                    <option value="{{ $y }}" @selected((string) $defaultPeriodYear === (string) $y)>{{ $y }}</option>
                 @endfor
             </select>
         </div>
@@ -64,7 +72,7 @@
             <select id="period_month" name="period_month" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
                 <option value="">— Tümü —</option>
                 @for ($m = 1; $m <= 12; $m++)
-                    <option value="{{ $m }}" @selected(request('period_month') === (string) $m)>{{ \Carbon\Carbon::createFromDate(2000, $m, 1)->translatedFormat('F') }}</option>
+                    <option value="{{ $m }}" @selected((string) $defaultPeriodMonth === (string) $m)>{{ \Carbon\Carbon::createFromDate(2000, $m, 1)->translatedFormat('F') }}</option>
                 @endfor
             </select>
         </div>

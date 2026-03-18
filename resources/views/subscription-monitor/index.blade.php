@@ -120,7 +120,7 @@
                                 </td>
                                 <td class="px-4 py-2 whitespace-nowrap" @click.stop>
                                     @if ($row['status'] === 'Eksik sipariş var' && $row['customer']?->id)
-                                        <form action="{{ route('subscription-monitor.enqueue-missing-for-cari') }}" method="POST" class="inline" onsubmit="return confirm('Seçilen ay ({{ $monthStart->locale('tr')->translatedFormat('F Y') }}) için bu carinin eksik dönem siparişleri oluşturulsun mu?');">
+                                        <form action="{{ route('subscription-monitor.enqueue-missing-for-cari') }}" method="POST" class="inline" onsubmit="return confirm('Seçilen ay ({{ $monthStart->locale('tr')->translatedFormat('F Y') }}) için bu carinin eksik dönem siparişleri oluşturulacak ve gerekiyorsa ilgili aboneliklerin bitiş tarihleri bu ay sonuna kadar güncellenecek. Devam etmek istiyor musunuz?');">
                                             @csrf
                                             <input type="hidden" name="customer_cari_id" value="{{ $row['customer']->id }}">
                                             <input type="hidden" name="year" value="{{ $year }}">
@@ -194,7 +194,7 @@
                                                         @endif
                                                     </td>
                                                     <td class="px-3 py-2">
-                                                        @if ($d['sales_invoiced'])
+                                                        @if ($d['sales_fat_invoiced'] ?? false)
                                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Evet</span>
                                                         @else
                                                             <span class="text-gray-500">—</span>

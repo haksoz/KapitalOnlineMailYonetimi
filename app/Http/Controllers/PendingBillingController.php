@@ -25,6 +25,15 @@ class PendingBillingController extends Controller
             $status = PendingBilling::STATUS_PENDING;
         }
 
+        // Faturalandı sekmesinde varsayılan olarak bu yıl/bu ay filtresi uygula
+        if ($status === PendingBilling::STATUS_INVOICED && ! $request->filled('period_year') && ! $request->filled('period_month')) {
+            $now = now();
+            $request->merge([
+                'period_year' => $now->year,
+                'period_month' => $now->month,
+            ]);
+        }
+
         $perPage = (int) $request->get('per_page', 20);
         if (! in_array($perPage, [15, 20, 25, 50, 100], true)) {
             $perPage = 20;

@@ -7,6 +7,7 @@ use App\Models\PendingBilling;
 use App\Models\SalesInvoiceLine;
 use App\Models\Subscription;
 use App\Services\PendingBillingService;
+use App\Services\SubscriptionRenewalService;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -132,11 +133,13 @@ class SubscriptionMonitorController extends Controller
                         || $pb->supplier_invoice_date !== null
                     );
                     $salesInvoiced = $pb && $invoicedPendingIds->contains($pb->id);
+                    $salesFatInvoiced = $pb && $pb->status === PendingBilling::STATUS_INVOICED;
 
                     $details[] = [
                         'subscription' => $sub,
                         'pending_billing' => $pb,
                         'supplier_invoiced' => $supplierInvoiced,
+                        'sales_fat_invoiced' => $salesFatInvoiced,
                         'sales_invoiced' => $salesInvoiced,
                     ];
                 }
@@ -216,7 +219,7 @@ class SubscriptionMonitorController extends Controller
      * Seçilen cari için, belirtilen aya kadar eksik dönem siparişlerini oluşturur.
      * Abone Takip listesinde "Bu ay için siparişleri oluştur" ile tetiklenir.
      */
-    public function enqueueMissingForCari(Request $request, PendingBillingService $pendingBillingService): RedirectResponse
+    public function enqueueMissingForCari(Request $request, PendingBillingService $pendingBillingService, SubscriptionRenewalService $renewalService): RedirectResponse
     {
         $validated = $request->validate([
             'customer_cari_id' => ['required', 'integer', 'exists:caris,id'],
@@ -230,6 +233,16 @@ class SubscriptionMonitorController extends Controller
 
         $upToDate = Carbon::create($year, $month, 1)->endOfMonth();
 
+        // Önce bu cariye ait uygun aboneliklerin bitiş tarihlerini bu ay sonuna kadar uzat
+        $subscriptionIds = Subscription::query()
+            ->where('durum', Subscription::DURUM_ACTIVE)
+            ->where('customer_cari_id', $customerCariId)
+            ->pluck('id')
+            ->all();
+
+        $renewalResult = $renewalService->processRenewalsUpToForSubscriptionIds($upToDate, $subscriptionIds);
+
+        // Ardından yenilenen dönemler dahil eksik siparişleri oluştur
         $added = $pendingBillingService->enqueueMissingPeriodsUpToForCustomer($upToDate, $customerCariId);
 
         $monthLabel = $upToDate->locale('tr')->translatedFormat('F Y');
@@ -239,9 +252,15 @@ class SubscriptionMonitorController extends Controller
             $query['status'] = $request->input('status');
         }
 
+        $renewedCount = count($renewalResult['renewed_ids'] ?? []);
+        $extensions = $renewalResult['total_extensions'] ?? 0;
+        $renewalPart = $extensions > 0
+            ? " Bazı aboneliklerin bitiş tarihleri bu ay sonuna kadar güncellendi ({$extensions} yenileme, {$renewedCount} abonelik)."
+            : '';
+
         return redirect()
             ->route('subscription-monitor.index', $query)
-            ->with('success', "{$monthLabel} için bu cariye ait eksik dönem siparişleri oluşturuldu. {$added} kayıt eklendi.");
+            ->with('success', "{$monthLabel} için bu cariye ait eksik dönem siparişleri oluşturuldu. {$added} kayıt eklendi." . $renewalPart);
     }
 }
 
