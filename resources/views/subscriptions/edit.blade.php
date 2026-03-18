@@ -137,6 +137,11 @@
                 var startVal = baslangic && baslangic.value;
                 var tip = taahhut && taahhut.value;
                 if (!startVal || !tip || !bitis) return;
+
+                // Kullanıcı zaten özel bir bitiş tarihi girdiyse, otomatik olarak değiştirmeyelim.
+                if (bitis.value) {
+                    return;
+                }
                 var d = new Date(startVal + 'T12:00:00');
                 if (isNaN(d.getTime())) return;
                 if (tip === 'monthly_no_commitment') {

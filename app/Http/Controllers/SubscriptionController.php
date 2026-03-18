@@ -87,6 +87,17 @@ class SubscriptionController extends Controller
             $validated['vat_rate'] = 20;
         }
 
+        // Başlangıç > bitiş ise izin verme
+        if (! empty($validated['bitis_tarihi'])) {
+            $baslangic = Carbon::parse($validated['baslangic_tarihi']);
+            $bitis = Carbon::parse($validated['bitis_tarihi']);
+            if ($bitis->lt($baslangic)) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['bitis_tarihi' => 'Bitiş tarihi başlangıç tarihinden önce olamaz.']);
+            }
+        }
+
         if (empty($validated['bitis_tarihi'])) {
             $validated['bitis_tarihi'] = $this->renewalService->computeInitialEndDate(
                 Carbon::parse($validated['baslangic_tarihi']),
@@ -221,6 +232,17 @@ class SubscriptionController extends Controller
         $validated['auto_renew'] = $request->boolean('auto_renew');
         if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
             $validated['vat_rate'] = 20;
+        }
+
+        // Başlangıç > bitiş ise izin verme
+        if (! empty($validated['bitis_tarihi'])) {
+            $baslangic = Carbon::parse($validated['baslangic_tarihi']);
+            $bitis = Carbon::parse($validated['bitis_tarihi']);
+            if ($bitis->lt($baslangic)) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['bitis_tarihi' => 'Bitiş tarihi başlangıç tarihinden önce olamaz.']);
+            }
         }
 
         if (empty($validated['bitis_tarihi'])) {
