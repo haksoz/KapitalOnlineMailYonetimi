@@ -1,20 +1,23 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center gap-2">
-            <a href="{{ route('dashboard') }}" class="text-gray-500 hover:text-gray-700">&larr;</a>
-            <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Kullanıcı Yönetimi</h1>
-        </div>
-    </x-slot>
-
     <x-flash-messages />
+
+    <x-page-toolbar title="Kullanıcı Yönetimi">
+        <x-slot name="left">
+            <a href="{{ route('dashboard') }}" class="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 touch-manipulation" aria-label="Geri">
+                <span aria-hidden="true">&larr;</span>
+            </a>
+        </x-slot>
+        <x-slot name="right">
+            <a href="{{ route('admin.users.create') }}" class="inline-flex items-center px-4 py-2 bg-slate-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition w-full sm:w-auto touch-manipulation">
+                Yeni kullanıcı
+            </a>
+        </x-slot>
+    </x-page-toolbar>
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-gray-600">
             Kayıtlı kullanıcılar. Rol ve aktiflik durumunu düzenleyebilirsiniz. Yeni kullanıcı ekleyebilir veya parola sıfırlayabilirsiniz.
         </p>
-        <a href="{{ route('admin.users.create') }}" class="inline-flex items-center px-4 py-2 bg-slate-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
-            Yeni kullanıcı
-        </a>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">

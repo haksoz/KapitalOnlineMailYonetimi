@@ -3,21 +3,21 @@
 @endphp
 
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-                <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Bu ay sonuna kadar bitiş güncelle</h1>
-                <p class="mt-0.5 text-sm text-gray-500">
-                    Bitiş tarihi <strong>{{ $upTo->locale('tr')->translatedFormat('d F Y') }}</strong> (ay sonu) veya öncesinde olan otomatik yenilemeli abonelikler. İstediğiniz carileri seçip güncelleyin.
-                </p>
-            </div>
-            <a href="{{ route('triggers.index') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
-                ← Tetikleyiciler
-            </a>
-        </div>
-    </x-slot>
-
     <x-flash-messages />
+
+    <x-page-toolbar title="Bu ay sonuna kadar bitiş güncelle">
+        <x-slot name="left">
+            <a href="{{ route('triggers.index') }}" class="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 touch-manipulation" aria-label="Geri">
+                <span aria-hidden="true">&larr;</span>
+            </a>
+        </x-slot>
+    </x-page-toolbar>
+
+    <div class="mt-1 mb-4">
+        <p class="text-sm text-gray-500">
+            Bitiş tarihi <strong>{{ $upTo->locale('tr')->translatedFormat('d F Y') }}</strong> (ay sonu) veya öncesinde olan otomatik yenilemeli abonelikler. İstediğiniz carileri seçip güncelleyin.
+        </p>
+    </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         @if ($subscriptions->isEmpty())

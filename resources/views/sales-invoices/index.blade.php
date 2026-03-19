@@ -1,14 +1,13 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
-            <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Faturalandı</h1>
-            <a href="{{ route('sales-invoices.sales-invoice-xml') }}" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-sm hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+    <x-flash-messages />
+
+    <x-page-toolbar title="Faturalandı">
+        <x-slot name="right">
+            <a href="{{ route('sales-invoices.sales-invoice-xml') }}" class="inline-flex items-center justify-center min-h-[40px] w-full sm:w-auto px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-sm hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition touch-manipulation">
                 Satış faturası XML gir
             </a>
-        </div>
-    </x-slot>
-
-    <x-flash-messages />
+        </x-slot>
+    </x-page-toolbar>
 
     <div class="mb-4">
         <p class="text-sm text-gray-600">

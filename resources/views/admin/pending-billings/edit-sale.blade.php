@@ -1,12 +1,13 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center gap-2">
-            <a href="{{ route('pending-billings.index', array_merge(request()->only('status', 'customer_cari_id', 'period_year', 'period_month'), ['status' => 'invoiced'])) }}" class="text-gray-500 hover:text-gray-700">&larr;</a>
-            <h1 class="text-xl font-semibold text-gray-800">Kesinleşen satış tutarını düzelt — #{{ $pendingBilling->id }}</h1>
-        </div>
-    </x-slot>
-
     <x-flash-messages />
+
+    <x-page-toolbar title="Kesinleşen satış tutarını düzelt — #{{ $pendingBilling->id }}">
+        <x-slot name="left">
+            <a href="{{ route('pending-billings.index', array_merge(request()->only('status', 'customer_cari_id', 'period_year', 'period_month'), ['status' => 'invoiced'])) }}" class="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 touch-manipulation" aria-label="Geri">
+                <span aria-hidden="true">&larr;</span>
+            </a>
+        </x-slot>
+    </x-page-toolbar>
 
     <div class="bg-white rounded-xl shadow-sm p-6 max-w-xl space-y-4">
         <div class="text-sm text-gray-600 space-y-1">

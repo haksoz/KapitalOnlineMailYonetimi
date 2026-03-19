@@ -1,24 +1,31 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
-            <div class="flex items-center gap-2">
-                <a href="{{ route('subscriptions.index') }}" class="text-gray-500 hover:text-gray-700">&larr;</a>
-                <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Abonelik — {{ $subscription->sozlesme_no }}</h1>
-            </div>
-            <div class="flex items-center gap-2">
+    <x-flash-messages />
+
+    <x-page-toolbar title="Abonelik — {{ $subscription->sozlesme_no }}">
+        <x-slot name="left">
+            <a href="{{ route('subscriptions.index') }}" class="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 touch-manipulation" aria-label="Geri">
+                <span aria-hidden="true">&larr;</span>
+            </a>
+        </x-slot>
+        <x-slot name="right">
+            <div class="flex items-center gap-2 flex-wrap justify-end">
                 @if ($subscription->durum === 'active')
                     <form action="{{ route('subscriptions.cancel', $subscription) }}" method="POST" class="inline" onsubmit="return confirm('Bu aboneliği iptal etmek istediğinize emin misiniz? İptal talimatı, aboneliğin bitiş tarihinde devreye girecek ve otomatik yenileme kapatılacaktır.');">
                         @csrf
-                        <button type="submit" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-white border border-amber-300 rounded-lg font-semibold text-xs text-amber-700 uppercase tracking-widest hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">İptal et</button>
+                        <button type="submit" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-white border border-amber-300 rounded-lg font-semibold text-xs text-amber-700 uppercase tracking-widest hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">
+                            İptal et
+                        </button>
                     </form>
                 @endif
-                <a href="{{ route('subscriptions.show-update-quantity', $subscription) }}" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">Adet güncelle</a>
-                <a href="{{ route('subscriptions.edit', $subscription) }}" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">Düzenle</a>
+                <a href="{{ route('subscriptions.show-update-quantity', $subscription) }}" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+                    Adet güncelle
+                </a>
+                <a href="{{ route('subscriptions.edit', $subscription) }}" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+                    Düzenle
+                </a>
             </div>
-        </div>
-    </x-slot>
-
-    <x-flash-messages />
+        </x-slot>
+    </x-page-toolbar>
 
     <div class="space-y-6">
         <div class="bg-white rounded-xl shadow-sm p-6">

@@ -3,16 +3,13 @@
 @endphp
 
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
-            <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Abone Takip</h1>
-        </div>
-        <p class="mt-0.5 text-sm text-gray-500">
-            Seçilen ay için carilerin abonelik, sipariş ve fatura durumunu tek ekranda izleyin.
-        </p>
-    </x-slot>
-
     <x-flash-messages />
+
+    <x-page-toolbar title="Abone Takip" />
+
+    <p class="mt-0.5 text-sm text-gray-500">
+        Seçilen ay için carilerin abonelik, sipariş ve fatura durumunu tek ekranda izleyin.
+    </p>
 
     <form method="GET" action="{{ route('subscription-monitor.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
         @php

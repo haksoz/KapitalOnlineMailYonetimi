@@ -1,11 +1,7 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center gap-2">
-            <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Alış faturası XML — Okunan bilgiler</h1>
-        </div>
-    </x-slot>
-
     <x-flash-messages />
+
+    <x-page-toolbar title="Alış faturası XML — Okunan bilgiler" />
 
     @if (!empty($unmatched))
         <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">

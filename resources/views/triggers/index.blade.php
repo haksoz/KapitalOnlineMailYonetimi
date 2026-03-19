@@ -1,9 +1,7 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h1 class="text-lg sm:text-xl font-semibold text-gray-800 truncate">Tetikleyiciler</h1>
-    </x-slot>
-
     <x-flash-messages />
+
+    <x-page-toolbar title="Tetikleyiciler" />
 
     <div class="mb-4">
         <p class="text-sm text-gray-600">
