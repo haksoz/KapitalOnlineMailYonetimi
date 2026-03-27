@@ -21,6 +21,11 @@ class PendingBillingService
             return false;
         }
 
+        // Alış faturası girildiyse beklenen alış 0 TL sabit; kur ile ezme
+        if ($pendingBilling->actual_alis_tl !== null && $pendingBilling->actual_alis_tl !== '') {
+            return false;
+        }
+
         if ($rate === null) {
             $usd = ExchangeRate::where('currency_code', 'USD')
                 ->where('effective_date', Carbon::today()->toDateString())

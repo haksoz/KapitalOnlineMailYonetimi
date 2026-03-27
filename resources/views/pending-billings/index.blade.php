@@ -12,7 +12,7 @@
     <div class="mb-4">
         <p class="text-sm text-gray-600">
             Önce öde sonra kullan mantığına göre dönem başı gelen siparişler burada listelenir. Yeni abonelik oluşturulunca ilk dönem, sonraki dönemler ise günlük <code class="text-xs bg-gray-100 px-1 rounded">pending-billings:enqueue</code> komutu ile eklenir.
-            Beklenen TL tutarlar işlem günü <strong>efektif satış</strong> kuru (USD) ile hesaplanır. Tabloda gördüğünüz tutarlar kayıtlı değilse anlık kur ile gösterilir; <strong>&quot;Hesapla&quot;</strong> butonu ile hesaplanan tutarlar <strong>veritabanına yazılır</strong> ve faturalandırma yaparken bu kayıtlı tutarlar kullanılır. Toplu güncelleme için <code class="text-xs bg-gray-100 px-1 rounded">pending-billings:refresh-amounts</code> komutu da kullanılabilir.
+            <strong>Beklemede / Ertelendi</strong> siparişlerde tabloda görünen beklenen alış/satış <strong>güncel USD efektif satış</strong> kuru ile hesaplanır (kur değiştikçe tutar güncellenir). <strong>&quot;Hesapla&quot;</strong> aynı hesabı veritabanına da yazar. <strong>Faturalandı</strong> sekmesinde beklenen alış/satış <strong>kayıtlı snapshot</strong> olarak gösterilir. Toplu DB güncelleme: <code class="text-xs bg-gray-100 px-1 rounded">pending-billings:refresh-amounts</code>.
         </p>
         @if ($usdEfektifSelling === null)
             <p class="text-sm text-amber-700 mt-1">
@@ -32,6 +32,11 @@
             $defaultPeriodYear = $defaultPeriodYear ?? now()->year;
             $defaultPeriodMonth = $defaultPeriodMonth ?? now()->month;
         }
+        $invoicedListQuery = array_merge(
+            request()->only(['customer_cari_id', 'period_year', 'period_month', 'has_supplier_invoice', 'per_page']),
+            ['status' => 'invoiced']
+        );
+        $bulkFormId = $currentStatus === 'pending' ? 'faturalandir-form' : 'bulk-to-pending-form';
     @endphp
 
     <div class="mb-4 border-b border-gray-200">
@@ -97,8 +102,14 @@
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         @if ($isSelectableStatus)
-            {{-- Seçilen siparişleri faturalandırma onay ekranına (sales-invoices.create) gönder --}}
-            <form action="{{ route('sales-invoices.create') }}" method="GET" id="faturalandir-form">
+            @if ($currentStatus === 'pending')
+                {{-- Seçilen siparişleri faturalandırma onay ekranına (sales-invoices.create) gönder. @csrf: toplu ertele POST için. --}}
+                <form action="{{ route('sales-invoices.create') }}" method="GET" id="faturalandir-form">
+                    @csrf
+            @else
+                <form action="{{ route('pending-billings.bulk-to-pending') }}" method="POST" id="bulk-to-pending-form">
+                    @csrf
+            @endif
         @endif
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -130,27 +141,41 @@
                     @forelse ($pendingBillings as $pb)
                         @php
                             $sub = $pb->subscription;
-                            $alisKdvHaric = isset($pb->expected_alis_tl) && $pb->expected_alis_tl !== '' ? (float) $pb->expected_alis_tl : null;
-                            $satisTl = isset($pb->expected_satis_tl) && $pb->expected_satis_tl !== '' ? (float) $pb->expected_satis_tl : null;
+                            $useSnapshotForExpected = $pb->status === 'invoiced';
                             $usdAlis = $sub->usd_birim_alis !== null && $sub->usd_birim_alis !== '' ? (float) $sub->usd_birim_alis : null;
                             $usdSatis = $sub->usd_birim_satis !== null && $sub->usd_birim_satis !== '' ? (float) $sub->usd_birim_satis : null;
-                            if ($alisKdvHaric === null && $usdEfektifSelling !== null && $usdAlis !== null) {
-                                $qty = (int) $sub->quantity;
+                            $qty = (int) ($sub->quantity ?? 1);
+                            $actualAlis = isset($pb->actual_alis_tl) && $pb->actual_alis_tl !== '' && $pb->actual_alis_tl !== null ? (float) $pb->actual_alis_tl : null;
+                            $alisKdvHaric = null;
+                            $satisTl = null;
+                            if ($actualAlis !== null) {
+                                $alisKdvHaric = isset($pb->expected_alis_tl) && $pb->expected_alis_tl !== '' ? (float) $pb->expected_alis_tl : $actualAlis;
+                                if (isset($pb->expected_satis_tl) && $pb->expected_satis_tl !== '') {
+                                    $satisTl = (float) $pb->expected_satis_tl;
+                                } elseif ($usdAlis > 0 && $usdSatis !== null) {
+                                    $satisTl = $actualAlis * ($usdSatis / $usdAlis);
+                                }
+                            } elseif ($useSnapshotForExpected) {
+                                $alisKdvHaric = isset($pb->expected_alis_tl) && $pb->expected_alis_tl !== '' ? (float) $pb->expected_alis_tl : null;
+                                $satisTl = isset($pb->expected_satis_tl) && $pb->expected_satis_tl !== '' ? (float) $pb->expected_satis_tl : null;
+                                if ($alisKdvHaric === null && $usdEfektifSelling !== null && $usdAlis !== null) {
+                                    $alisKdvHaric = $usdAlis * $qty * $usdEfektifSelling;
+                                    if ($satisTl === null && $usdAlis > 0 && $usdSatis !== null) {
+                                        $satisTl = $alisKdvHaric * ($usdSatis / $usdAlis);
+                                    }
+                                }
+                            } elseif ($usdEfektifSelling !== null && $usdAlis !== null) {
                                 $alisKdvHaric = $usdAlis * $qty * $usdEfektifSelling;
-                                if ($satisTl === null && $usdAlis > 0 && $usdSatis !== null) {
+                                if ($usdAlis > 0 && $usdSatis !== null) {
                                     $satisTl = $alisKdvHaric * ($usdSatis / $usdAlis);
                                 }
                             }
-                            $actualAlis = isset($pb->actual_alis_tl) && $pb->actual_alis_tl !== '' && $pb->actual_alis_tl !== null ? (float) $pb->actual_alis_tl : null;
                             // Faturalandıysa kesinleşen satışı fatura satırından al (fark eklendiyse orada doğru tutar var)
                             $actualSatis = null;
                             if ($pb->salesInvoiceLine && $pb->salesInvoiceLine->line_amount_tl !== null && $pb->salesInvoiceLine->line_amount_tl !== '') {
                                 $actualSatis = (float) $pb->salesInvoiceLine->line_amount_tl;
                             } elseif (isset($pb->actual_satis_tl) && $pb->actual_satis_tl !== '' && $pb->actual_satis_tl !== null) {
                                 $actualSatis = (float) $pb->actual_satis_tl;
-                            }
-                            if ($actualAlis !== null && $actualSatis === null && $usdAlis !== null && $usdAlis > 0 && $usdSatis !== null) {
-                                $satisTl = $actualAlis * ($usdSatis / $usdAlis);
                             }
                             $donemLabel = $pb->period_start ? $pb->period_start->locale('tr')->translatedFormat('F Y') : '—';
                             $accumulatedFark = $accumulatedFarkBySubscription[$pb->subscription_id ?? 0] ?? 0;
@@ -163,7 +188,7 @@
                                         type="checkbox"
                                         name="pending_billing_ids[]"
                                         value="{{ $pb->id }}"
-                                        form="faturalandir-form"
+                                        form="{{ $bulkFormId }}"
                                         class="pending-row-checkbox rounded border-gray-300 text-slate-600 focus:ring-slate-500"
                                         data-customer-id="{{ $sub->customer_cari_id }}"
                                         data-period-year="{{ $pb->period_start?->year }}"
@@ -187,15 +212,22 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ $donemLabel }}</td>
                             <td class="px-4 py-3 text-sm text-right text-gray-800">
                                 @if ($actualAlis !== null)
-                                    <span class="block text-gray-500">Beklenen 0,00 ₺</span>
+                                    <span class="block text-gray-500">Beklenen {{ number_format($alisKdvHaric, 2, ',', '.') }} ₺</span>
                                     <span class="block font-medium">Kesinleşen {{ number_format($actualAlis, 2, ',', '.') }} ₺</span>
                                 @elseif ($alisKdvHaric !== null)
                                     <span class="block font-medium">Beklenen {{ number_format($alisKdvHaric, 2, ',', '.') }} ₺</span>
-                                    @if ($pb->amounts_updated_at)
+                                    @if ($useSnapshotForExpected && $pb->amounts_updated_at)
                                         <span class="block text-xs text-gray-400">{{ $pb->amounts_updated_at->format('d.m.Y') }} kuru</span>
+                                    @elseif (! $useSnapshotForExpected && ! empty($usdEfektifSellingDate))
+                                        <span class="block text-xs text-gray-400">{{ \Carbon\Carbon::parse($usdEfektifSellingDate)->format('d.m.Y') }} kuru</span>
                                     @endif
                                 @else
                                     —
+                                @endif
+                                @if (($currentStatus ?? '') === 'invoiced' && auth()->user()?->isAdmin() && $actualAlis === null)
+                                    <a href="{{ route('admin.pending-billings.edit-expected-purchase', array_merge(['pending_billing' => $pb], $invoicedListQuery)) }}" class="mt-1 inline-block text-xs text-slate-600 hover:text-slate-900">
+                                        Beklenen alışı düzelt
+                                    </a>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-right text-gray-800">
@@ -215,7 +247,7 @@
                                     @endif
                                     <span class="block font-medium">Kesinleşen {{ number_format($actualSatis, 2, ',', '.') }} ₺</span>
                                     @if(($currentStatus ?? '') === 'invoiced' && auth()->user()?->isAdmin())
-                                        <a href="{{ route('admin.pending-billings.edit-sale', $pb) }}" class="mt-1 inline-block text-xs text-slate-600 hover:text-slate-900">
+                                        <a href="{{ route('admin.pending-billings.edit-sale', array_merge(['pending_billing' => $pb], $invoicedListQuery)) }}" class="mt-1 inline-block text-xs text-slate-600 hover:text-slate-900">
                                             Kesinleşen satışı düzelt
                                         </a>
                                     @endif
@@ -295,24 +327,38 @@
         </div>
         @if ($isSelectableStatus)
             <div class="px-4 py-3 border-t border-gray-200 bg-gray-50 flex flex-wrap items-center gap-3">
-                <button type="submit" form="faturalandir-form" class="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-sm hover:bg-slate-700">
-                    Seçilenleri faturaya geçir
-                </button>
+                @if ($currentStatus === 'pending')
+                    <button type="submit" form="faturalandir-form" class="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-sm hover:bg-slate-700">
+                        Seçilenleri faturaya geçir
+                    </button>
 
-                <button
-                    type="submit"
-                    form="faturalandir-form"
-                    formaction="{{ route('pending-billings.bulk-postpone') }}"
-                    formmethod="POST"
-                    class="inline-flex items-center px-4 py-2 bg-slate-500 text-white rounded-lg font-semibold text-sm hover:bg-slate-600"
-                    onclick="return confirm('Seçili siparişleri ileride faturalamak üzere ertele?');"
-                >
-                    Seçilenleri toplu ertele
-                </button>
+                    <button
+                        type="submit"
+                        form="faturalandir-form"
+                        formaction="{{ route('pending-billings.bulk-postpone') }}"
+                        formmethod="POST"
+                        class="inline-flex items-center px-4 py-2 bg-slate-500 text-white rounded-lg font-semibold text-sm hover:bg-slate-600"
+                        onclick="return confirm('Seçili siparişleri ileride faturalamak üzere ertele?');"
+                    >
+                        Seçilenleri toplu ertele
+                    </button>
 
-                <span class="text-sm text-gray-500">
-                    Faturalandırmak veya ertelemek istediğiniz siparişleri işaretleyip ilgili butona tıklayın.
-                </span>
+                    <span class="text-sm text-gray-500">
+                        Faturalandırmak veya ertelemek istediğiniz siparişleri işaretleyip ilgili butona tıklayın.
+                    </span>
+                @else
+                    <button
+                        type="submit"
+                        form="bulk-to-pending-form"
+                        class="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-lg font-semibold text-sm hover:bg-slate-700"
+                        onclick="return confirm('Seçili siparişler tekrar beklemede durumuna alınsın mı?');"
+                    >
+                        Seçilenleri bekleyen siparişlere taşı
+                    </button>
+                    <span class="text-sm text-gray-500">
+                        Ertelenmiş siparişleri seçip Beklemede sekmesine geri taşıyabilirsiniz.
+                    </span>
+                @endif
             </div>
             </form>
 
@@ -349,7 +395,7 @@
             @endif
         </div>
     </div>
-    @if ($isSelectableStatus)
+    @if ($isSelectableStatus && $currentStatus === 'pending')
         <div class="mx-4 mt-3 mb-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div id="pending-lock-banner" class="hidden px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700">
                 Seçim kilitlendi:
@@ -518,6 +564,29 @@
 
                 updateRulesLabel();
                 updateRowHighlight();
+            })();
+        </script>
+    @elseif ($isSelectableStatus && $currentStatus === 'postponed')
+        <script>
+            (function () {
+                const selectAll = document.getElementById('select-all-pending');
+                const checkboxes = Array.from(document.querySelectorAll('.pending-row-checkbox'));
+                const form = document.getElementById('bulk-to-pending-form');
+                if (selectAll) {
+                    selectAll.addEventListener('change', function () {
+                        checkboxes.forEach(function (cb) {
+                            cb.checked = selectAll.checked;
+                        });
+                    });
+                }
+                if (form) {
+                    form.addEventListener('submit', function (e) {
+                        if (!checkboxes.some(function (cb) { return cb.checked; })) {
+                            alert('En az bir sipariş seçin.');
+                            e.preventDefault();
+                        }
+                    });
+                }
             })();
         </script>
     @endif

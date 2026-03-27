@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -45,10 +48,58 @@ class Subscription extends Model
             'bitis_tarihi' => 'date',
             'planned_cancel_date' => 'date',
             'auto_renew' => 'boolean',
-            'usd_birim_alis' => 'decimal:4',
-            'usd_birim_satis' => 'decimal:4',
             'vat_rate' => 'decimal:2',
         ];
+    }
+
+    /**
+     * USD birim alış/satış: SQLite/PDO float sapmasını önlemek için decimal:4 cast yerine
+     * Brick\Math ile 4 haneye sabitlenir (ör. 6 → 6.0000, 5.9996 artefact düzeltilir).
+     */
+    protected function usdBirimAlis(): Attribute
+    {
+        return Attribute::make(
+            get: fn (mixed $value) => self::normalizeUsd4Raw($value),
+            set: fn ($value) => ['usd_birim_alis' => self::normalizeUsd4Input($value)],
+        );
+    }
+
+    protected function usdBirimSatis(): Attribute
+    {
+        return Attribute::make(
+            get: fn (mixed $value) => self::normalizeUsd4Raw($value),
+            set: fn ($value) => ['usd_birim_satis' => self::normalizeUsd4Input($value)],
+        );
+    }
+
+    protected static function normalizeUsd4Input(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (string) BigDecimal::of(trim((string) $value))->toScale(4, RoundingMode::HALF_UP);
+    }
+
+    protected static function normalizeUsd4Raw(mixed $raw): ?string
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            return (string) BigDecimal::of($raw)->toScale(4, RoundingMode::HALF_UP);
+        }
+
+        if (is_int($raw)) {
+            return (string) BigDecimal::of((string) $raw)->toScale(4, RoundingMode::HALF_UP);
+        }
+
+        if (is_float($raw)) {
+            return (string) BigDecimal::of(sprintf('%.12F', $raw))->toScale(4, RoundingMode::HALF_UP);
+        }
+
+        return (string) BigDecimal::of((string) $raw)->toScale(4, RoundingMode::HALF_UP);
     }
 
     public function customerCari(): BelongsTo

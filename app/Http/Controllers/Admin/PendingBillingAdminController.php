@@ -69,5 +69,93 @@ class PendingBillingAdminController extends Controller
             ))
             ->with('success', 'Kesinleşen satış tutarı güncellendi.');
     }
+
+    public function editExpectedPurchase(PendingBilling $pending_billing): View|RedirectResponse
+    {
+        if ($pending_billing->status !== PendingBilling::STATUS_INVOICED) {
+            abort(404);
+        }
+
+        if ($pending_billing->actual_alis_tl !== null && $pending_billing->actual_alis_tl !== '') {
+            return redirect()
+                ->route('pending-billings.index', array_merge(
+                    request()->only('status', 'customer_cari_id', 'period_year', 'period_month', 'has_supplier_invoice', 'per_page'),
+                    ['status' => 'invoiced']
+                ))
+                ->with('error', 'Alış kesinleştiği için beklenen alış düzenlenemez.');
+        }
+
+        $pending_billing->load([
+            'subscription.customerCari',
+            'subscription.product',
+            'salesInvoiceLine.salesInvoice',
+        ]);
+
+        return view('admin.pending-billings.edit-expected-purchase', [
+            'pendingBilling' => $pending_billing,
+        ]);
+    }
+
+    public function updateExpectedPurchase(Request $request, PendingBilling $pending_billing): RedirectResponse
+    {
+        if (! $request->user()?->isAdmin()) {
+            abort(403);
+        }
+
+        if ($pending_billing->status !== PendingBilling::STATUS_INVOICED) {
+            abort(404);
+        }
+
+        if ($pending_billing->actual_alis_tl !== null && $pending_billing->actual_alis_tl !== '') {
+            return redirect()
+                ->route('pending-billings.index', array_merge(
+                    request()->only('status', 'customer_cari_id', 'period_year', 'period_month', 'has_supplier_invoice', 'per_page'),
+                    ['status' => 'invoiced']
+                ))
+                ->with('error', 'Alış kesinleştiği için beklenen alış düzenlenemez.');
+        }
+
+        $validated = $request->validate([
+            'expected_alis_tl' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $newExpectedAlis = (float) str_replace(',', '.', (string) $validated['expected_alis_tl']);
+
+        DB::transaction(function () use ($pending_billing, $newExpectedAlis): void {
+            $pending_billing->load('subscription');
+            $subscription = $pending_billing->subscription;
+
+            $pending_billing->expected_alis_tl = $newExpectedAlis;
+
+            $satisFromAlis = null;
+            if ($subscription && (float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {
+                $satisFromAlis = $newExpectedAlis * ((float) $subscription->usd_birim_satis / (float) $subscription->usd_birim_alis);
+            }
+            $pending_billing->expected_satis_tl = $satisFromAlis;
+
+            $actualSatis = null;
+            $line = $pending_billing->salesInvoiceLine;
+            if ($line && $line->line_amount_tl !== null && $line->line_amount_tl !== '') {
+                $actualSatis = (float) $line->line_amount_tl;
+            } elseif ($pending_billing->actual_satis_tl !== null && $pending_billing->actual_satis_tl !== '') {
+                $actualSatis = (float) $pending_billing->actual_satis_tl;
+            }
+
+            if ($satisFromAlis !== null && $actualSatis !== null) {
+                $pending_billing->fee_difference_tl = $satisFromAlis - $actualSatis;
+            } else {
+                $pending_billing->fee_difference_tl = null;
+            }
+
+            $pending_billing->save();
+        });
+
+        return redirect()
+            ->route('pending-billings.index', array_merge(
+                request()->only('status', 'customer_cari_id', 'period_year', 'period_month', 'has_supplier_invoice', 'per_page'),
+                ['status' => request('status', 'invoiced')]
+            ))
+            ->with('success', 'Beklenen alış ve buna bağlı beklenen satış güncellendi.');
+    }
 }
 

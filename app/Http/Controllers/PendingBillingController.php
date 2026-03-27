@@ -110,19 +110,23 @@ class PendingBillingController extends Controller
         $usdToday = ExchangeRate::where('currency_code', 'USD')
             ->where('effective_date', now()->toDateString())
             ->first();
+        $usdEfektifSellingDate = null;
         if ($usdToday?->forex_selling !== null && $usdToday->forex_selling !== '') {
             $usdEfektifSelling = (float) $usdToday->forex_selling;
+            $usdEfektifSellingDate = $usdToday->effective_date;
         } else {
             $usdLast = ExchangeRate::where('currency_code', 'USD')
                 ->whereNotNull('forex_selling')
                 ->orderByDesc('effective_date')
                 ->first();
             $usdEfektifSelling = $usdLast?->forex_selling !== null && $usdLast->forex_selling !== '' ? (float) $usdLast->forex_selling : null;
+            $usdEfektifSellingDate = $usdLast?->effective_date;
         }
 
         return view('pending-billings.index', [
             'pendingBillings' => $pendingBillings,
             'usdEfektifSelling' => $usdEfektifSelling,
+            'usdEfektifSellingDate' => $usdEfektifSellingDate,
             'currentStatus' => $status,
             'accumulatedFarkBySubscription' => $accumulatedFarkBySubscription,
             'caris' => $caris,
@@ -177,13 +181,16 @@ class PendingBillingController extends Controller
         $newQuantity = (int) $validated['quantity'];
         $previousQuantity = (int) $subscription->quantity;
 
-        $pending_billing->update([
+        $supplierPayload = [
             'supplier_invoice_number' => $validated['supplier_invoice_number'],
             'supplier_invoice_date' => $effectiveDate,
             'actual_alis_tl' => $validated['actual_alis_tl'],
-            // İş kuralı: Alış faturası girildiyse beklenen alış = gerçekleşen alış
-            'expected_alis_tl' => $validated['actual_alis_tl'],
-        ]);
+        ];
+        // Beklemede/ertelendi iken alış faturası geldiğinde beklenen alış 0 TL (faturalamada snapshot)
+        if (in_array($pending_billing->status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED], true)) {
+            $supplierPayload['expected_alis_tl'] = 0;
+        }
+        $pending_billing->update($supplierPayload);
 
         $satisFromAlis = null;
         if ((float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {
@@ -227,6 +234,7 @@ class PendingBillingController extends Controller
             'supplier_invoice_number' => null,
             'supplier_invoice_date' => null,
             'actual_alis_tl' => null,
+            'expected_alis_tl' => null,
             'expected_satis_tl' => null,
             'fee_difference_tl' => null,
         ]);
@@ -275,6 +283,30 @@ class PendingBillingController extends Controller
         return redirect()
             ->route('pending-billings.index', ['status' => PendingBilling::STATUS_POSTPONED])
             ->with('success', $count . ' sipariş ertelendi. İleride Ertelendi sekmesinden faturalandırabilirsiniz.');
+    }
+
+    public function bulkToPending(Request $request): RedirectResponse
+    {
+        $ids = $request->get('pending_billing_ids', []);
+        if (! is_array($ids)) {
+            $ids = [];
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+
+        if ($ids === []) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => PendingBilling::STATUS_POSTPONED])
+                ->with('error', 'En az bir sipariş seçin.');
+        }
+
+        $count = PendingBilling::query()
+            ->whereIn('id', $ids)
+            ->where('status', PendingBilling::STATUS_POSTPONED)
+            ->update(['status' => PendingBilling::STATUS_PENDING]);
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => PendingBilling::STATUS_PENDING])
+            ->with('success', $count . ' sipariş beklemede durumuna alındı.');
     }
 
     public function showSupplierInvoiceXml(Request $request): View
@@ -541,13 +573,15 @@ class PendingBillingController extends Controller
             $pendingBilling = $row['pending_billing'];
             $amount = $row['amount'];
 
-            $pendingBilling->update([
+            $xmlPayload = [
                 'supplier_invoice_number' => $invoiceNo,
                 'supplier_invoice_date' => $issueDate,
                 'actual_alis_tl' => $amount,
-                // İş kuralı: Alış faturası girildiyse beklenen alış = gerçekleşen alış
-                'expected_alis_tl' => $amount,
-            ]);
+            ];
+            if (in_array($pendingBilling->status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED], true)) {
+                $xmlPayload['expected_alis_tl'] = 0;
+            }
+            $pendingBilling->update($xmlPayload);
 
             $satisFromAlis = null;
             if ((float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {

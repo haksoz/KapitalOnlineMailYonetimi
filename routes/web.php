@@ -49,6 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('pending-billings/{pending_billing}/clear-supplier-invoice', [PendingBillingController::class, 'clearSupplierInvoice'])->name('pending-billings.clear-supplier-invoice');
     Route::post('pending-billings/{pending_billing}/postpone', [PendingBillingController::class, 'postpone'])->name('pending-billings.postpone');
     Route::post('pending-billings/bulk-postpone', [PendingBillingController::class, 'bulkPostpone'])->name('pending-billings.bulk-postpone');
+    Route::post('pending-billings/bulk-to-pending', [PendingBillingController::class, 'bulkToPending'])->name('pending-billings.bulk-to-pending');
     Route::get('pending-billings/supplier-invoice-xml', [PendingBillingController::class, 'showSupplierInvoiceXml'])->name('pending-billings.supplier-invoice-xml');
     Route::post('pending-billings/supplier-invoice-xml', [PendingBillingController::class, 'storeSupplierInvoiceXml'])->name('pending-billings.store-supplier-invoice-xml');
     Route::get('pending-billings/supplier-invoice-xml-preview', [PendingBillingController::class, 'showSupplierInvoiceXmlPreview'])->name('pending-billings.supplier-invoice-xml-preview');
@@ -96,6 +97,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('pending-billings/{pending_billing}/edit-sale', [AdminPendingBillingController::class, 'editSale'])->name('pending-billings.edit-sale');
         Route::patch('pending-billings/{pending_billing}/edit-sale', [AdminPendingBillingController::class, 'updateSale'])->name('pending-billings.update-sale');
+        Route::get('pending-billings/{pending_billing}/edit-expected-purchase', [AdminPendingBillingController::class, 'editExpectedPurchase'])->name('pending-billings.edit-expected-purchase');
+        Route::patch('pending-billings/{pending_billing}/edit-expected-purchase', [AdminPendingBillingController::class, 'updateExpectedPurchase'])->name('pending-billings.update-expected-purchase');
     });
 });
 
