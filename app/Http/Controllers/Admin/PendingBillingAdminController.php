@@ -70,19 +70,10 @@ class PendingBillingAdminController extends Controller
             ->with('success', 'Kesinleşen satış tutarı güncellendi.');
     }
 
-    public function editExpectedPurchase(PendingBilling $pending_billing): View|RedirectResponse
+    public function editExpectedPurchase(PendingBilling $pending_billing): View
     {
         if ($pending_billing->status !== PendingBilling::STATUS_INVOICED) {
             abort(404);
-        }
-
-        if ($pending_billing->actual_alis_tl !== null && $pending_billing->actual_alis_tl !== '') {
-            return redirect()
-                ->route('pending-billings.index', array_merge(
-                    request()->only('status', 'customer_cari_id', 'period_year', 'period_month', 'has_supplier_invoice', 'per_page'),
-                    ['status' => 'invoiced']
-                ))
-                ->with('error', 'Alış kesinleştiği için beklenen alış düzenlenemez.');
         }
 
         $pending_billing->load([
@@ -104,15 +95,6 @@ class PendingBillingAdminController extends Controller
 
         if ($pending_billing->status !== PendingBilling::STATUS_INVOICED) {
             abort(404);
-        }
-
-        if ($pending_billing->actual_alis_tl !== null && $pending_billing->actual_alis_tl !== '') {
-            return redirect()
-                ->route('pending-billings.index', array_merge(
-                    request()->only('status', 'customer_cari_id', 'period_year', 'period_month', 'has_supplier_invoice', 'per_page'),
-                    ['status' => 'invoiced']
-                ))
-                ->with('error', 'Alış kesinleştiği için beklenen alış düzenlenemez.');
         }
 
         $validated = $request->validate([

@@ -224,7 +224,7 @@
                                 @else
                                     —
                                 @endif
-                                @if (($currentStatus ?? '') === 'invoiced' && auth()->user()?->isAdmin() && $actualAlis === null)
+                                @if (($currentStatus ?? '') === 'invoiced' && auth()->user()?->isAdmin())
                                     <a href="{{ route('admin.pending-billings.edit-expected-purchase', array_merge(['pending_billing' => $pb], $invoicedListQuery)) }}" class="mt-1 inline-block text-xs text-slate-600 hover:text-slate-900">
                                         Beklenen alışı düzelt
                                     </a>
