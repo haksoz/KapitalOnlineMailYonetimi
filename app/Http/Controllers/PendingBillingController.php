@@ -181,6 +181,8 @@ class PendingBillingController extends Controller
             'supplier_invoice_number' => $validated['supplier_invoice_number'],
             'supplier_invoice_date' => $effectiveDate,
             'actual_alis_tl' => $validated['actual_alis_tl'],
+            // İş kuralı: Alış faturası girildiyse beklenen alış = gerçekleşen alış
+            'expected_alis_tl' => $validated['actual_alis_tl'],
         ]);
 
         $satisFromAlis = null;
@@ -543,6 +545,8 @@ class PendingBillingController extends Controller
                 'supplier_invoice_number' => $invoiceNo,
                 'supplier_invoice_date' => $issueDate,
                 'actual_alis_tl' => $amount,
+                // İş kuralı: Alış faturası girildiyse beklenen alış = gerçekleşen alış
+                'expected_alis_tl' => $amount,
             ]);
 
             $satisFromAlis = null;

@@ -8,6 +8,7 @@ use App\Models\PendingBilling;
 use App\Models\SalesInvoice;
 use App\Models\SalesInvoiceLine;
 use App\Services\SalesInvoiceXmlParser;
+use App\Services\PendingBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -306,7 +307,7 @@ class SalesInvoiceController extends Controller
         return $alisKdvHaric * ($usdSatis / $usdAlis);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PendingBillingService $pendingBillingService): RedirectResponse
     {
         $validated = $request->validate([
             'customer_cari_id' => ['required', 'exists:caris,id'],
@@ -383,6 +384,20 @@ class SalesInvoiceController extends Controller
         }
 
         $usdRate = $this->getUsdEfektifSelling();
+
+        // Faturalama anında beklenen alış/satış tutarlarını snapshot olarak kaydet.
+        // Böylece kur güncellense bile, faturalanan kayıtların beklenen değerleri değişmez.
+        if ($usdRate !== null) {
+            foreach ($pendingBillings as $pb) {
+                $missingExpectedAlis = $pb->expected_alis_tl === null || $pb->expected_alis_tl === '';
+                $missingExpectedSatis = $pb->expected_satis_tl === null || $pb->expected_satis_tl === '';
+                if ($missingExpectedAlis || $missingExpectedSatis) {
+                    $pendingBillingService->refreshAmountsForRecord($pb, $usdRate);
+                    $pb->refresh();
+                }
+            }
+        }
+
         $farkAddedForSubscription = [];
         $total = 0;
         foreach ($pendingBillings as $pb) {
