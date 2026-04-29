@@ -10,7 +10,23 @@
     </x-page-toolbar>
 
     <div class="bg-white rounded-xl shadow-sm p-6 max-w-xl">
-        <form action="{{ route('subscriptions.update', $subscription) }}" method="POST">
+        <form action="{{ route('subscriptions.update', $subscription) }}" method="POST" x-data="{
+            endDate: '{{ old('bitis_tarihi', $subscription->bitis_tarihi?->format('Y-m-d')) }}',
+            canEnableAutoRenew: true,
+            recalcAutoRenew() {
+                if (!this.endDate) {
+                    this.canEnableAutoRenew = true;
+                    return;
+                }
+                const d = new Date(this.endDate + 'T00:00:00');
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                this.canEnableAutoRenew = d.getTime() > today.getTime();
+            },
+            init() {
+                this.recalcAutoRenew();
+            }
+        }" x-init="recalcAutoRenew()">
             @csrf
             @method('PATCH')
             <div class="space-y-4">
@@ -83,7 +99,7 @@
                     </div>
                     <div>
                         <x-input-label for="bitis_tarihi" value="Bitiş tarihi" />
-                        <x-text-input id="bitis_tarihi" name="bitis_tarihi" type="date" class="mt-1 block w-full" :value="old('bitis_tarihi', $subscription->bitis_tarihi?->format('Y-m-d'))" />
+                        <x-text-input id="bitis_tarihi" name="bitis_tarihi" type="date" class="mt-1 block w-full" x-model="endDate" @input="recalcAutoRenew()" :value="old('bitis_tarihi', $subscription->bitis_tarihi?->format('Y-m-d'))" />
                         <p id="bitis_tarihi_onerisi" class="mt-1 text-xs text-gray-500 hidden">Taahhüt tipi ve başlangıç tarihine göre öneri uygulanacak.</p>
                     </div>
                 </div>
@@ -114,10 +130,21 @@
                 </div>
                 <div>
                     <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="auto_renew" value="1" {{ old('auto_renew', $subscription->auto_renew) ? 'checked' : '' }} class="rounded border-gray-300 text-slate-600 focus:ring-slate-500">
+                        <input
+                            type="checkbox"
+                            name="auto_renew"
+                            value="1"
+                            {{ old('auto_renew', $subscription->auto_renew) ? 'checked' : '' }}
+                            class="rounded border-gray-300 text-slate-600 focus:ring-slate-500"
+                            :disabled="!canEnableAutoRenew"
+                            @click="if (!canEnableAutoRenew) { $event.preventDefault(); }"
+                        >
                         <span class="text-sm font-medium text-gray-700">Otomatik yenileme</span>
                     </label>
                     <p class="mt-1 text-xs text-gray-500">Açık ise ileride bitiş tarihi taahhüt tipine göre otomatik uzatılacak; kapalı ise abonelik bitişte sonlanacak.</p>
+                    <p class="mt-1 text-xs text-amber-700" x-show="!canEnableAutoRenew">
+                        Otomatik yenileme, bitiş tarihi geçmiş/bugün olan abonelikte açılamaz. Açmak için bitiş tarihini bugünden ileri bir güne güncelleyin.
+                    </p>
                 </div>
             </div>
             <div class="mt-6 flex gap-3">

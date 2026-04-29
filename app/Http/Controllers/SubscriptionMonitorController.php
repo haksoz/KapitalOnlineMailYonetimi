@@ -174,7 +174,6 @@ class SubscriptionMonitorController extends Controller
         $totals = [
             'customer_count' => count($customerSummaries),
             'subscription_count' => array_sum(array_column($customerSummaries, 'subscription_count')),
-            'expected_periods' => array_sum(array_column($customerSummaries, 'expected_periods')),
             'pending_count' => array_sum(array_column($customerSummaries, 'pending_count')),
             'supplier_invoiced_count' => array_sum(array_column($customerSummaries, 'supplier_invoiced_count')),
             'billed_count' => array_sum(array_column($customerSummaries, 'billed_count')),

@@ -24,6 +24,7 @@
     @php
         $currentStatus = $currentStatus ?? 'pending';
         $isSelectableStatus = in_array($currentStatus, ['pending', 'postponed'], true);
+        $showSupplierInvoiceColumn = $isSelectableStatus || $currentStatus === 'invoiced';
 
         // Faturalandı sekmesinde filtre alanında bu yıl/bu ay varsayılan seçili görünsün
         $defaultPeriodYear = request('period_year');
@@ -48,6 +49,7 @@
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'postponed'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'postponed' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Ertelendi</a>
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'invoiced'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'invoiced' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Faturalandı</a>
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'cancelled'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'cancelled' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">İptal</a>
+            <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'deleted'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'deleted' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Silinenler</a>
         </nav>
     </div>
 
@@ -123,14 +125,15 @@
                             </th>
                         @endif
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sözleşme no / Ürün</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri / Sözleşme / Ürün</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Adet</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dönem</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Alış (TL)</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Satış (TL)</th>
-                        @if ($isSelectableStatus)
+                        @if ($showSupplierInvoiceColumn)
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alış faturası</th>
+                        @endif
+                        @if ($isSelectableStatus)
                             <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Önceki dönemler farkı</th>
                         @endif
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Havuza düşme</th>
@@ -197,13 +200,12 @@
                                 </td>
                             @endif
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono">{{ $pb->id }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700">
-                                {{ $sub->customerCari?->short_name ?: $sub->customerCari?->name ?? '—' }}
-                            </td>
                             <td class="px-4 py-3 text-sm">
-                                <span class="font-medium text-gray-900">{{ $sub->sozlesme_no }}</span>
+                                <span class="font-medium text-gray-900">{{ $sub->customerCari?->short_name ?: $sub->customerCari?->name ?? '—' }}</span>
+                                <br>
+                                <span class="text-gray-700">{{ $sub->sozlesme_no }}</span>
                                 @if ($sub->product)
-                                    <br><span class="text-gray-500">{{ $sub->product->name }}</span>
+                                    <span class="text-gray-500"> / {{ $sub->product->name }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
@@ -257,7 +259,7 @@
                                     —
                                 @endif
                             </td>
-                            @if ($isSelectableStatus)
+                            @if ($showSupplierInvoiceColumn)
                                 <td class="px-4 py-3 text-sm text-gray-600">
                                     @if ($pb->supplier_invoice_number || $pb->supplier_invoice_date)
                                         @if ($pb->supplier_invoice_number)
@@ -269,18 +271,22 @@
                                             @endif
                                             <span class="text-gray-500">{{ $pb->supplier_invoice_date->format('d.m.Y') }}</span>
                                         @endif
-                                        <button
-                                            type="submit"
-                                            form="clear-supplier-{{ $pb->id }}"
-                                            class="mt-1 text-xs text-amber-700 hover:text-amber-900 font-medium"
-                                            onclick="return confirm('Bu siparişten alış faturası bilgileri kaldırılacak. Devam?');"
-                                        >
-                                            Alışı geri al
-                                        </button>
+                                        @if ($isSelectableStatus)
+                                            <button
+                                                type="submit"
+                                                form="clear-supplier-{{ $pb->id }}"
+                                                class="mt-1 text-xs text-amber-700 hover:text-amber-900 font-medium"
+                                                onclick="return confirm('Bu siparişten alış faturası bilgileri kaldırılacak. Devam?');"
+                                            >
+                                                Alışı geri al
+                                            </button>
+                                        @endif
                                     @else
                                         <span class="text-gray-400">—</span>
                                     @endif
                                 </td>
+                            @endif
+                            @if ($isSelectableStatus)
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-right">
                                     @if ($accumulatedFark != 0)
                                         <span class="{{ $accumulatedFark > 0 ? 'text-red-600' : 'text-slate-600' }} font-medium">{{ number_format($accumulatedFark, 2, ',', '.') }} ₺</span>
@@ -308,6 +314,21 @@
                                             <button type="submit" class="text-slate-500 hover:text-slate-800 font-medium whitespace-nowrap">Ertele</button>
                                         </form>
                                     @endif
+                                    @if (in_array($pb->status, ['pending', 'postponed'], true) && $currentStatus !== 'deleted' && ! ($pb->supplier_invoice_number || $pb->supplier_invoice_date))
+                                        <form action="{{ route('pending-billings.destroy', $pb) }}" method="POST" class="inline" onsubmit="return confirm('Bu sipariş silinecek. Devam?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <input type="hidden" name="status" value="{{ $currentStatus }}">
+                                            <button type="submit" class="text-red-600 hover:text-red-800 font-medium whitespace-nowrap">Sil</button>
+                                        </form>
+                                    @endif
+                                    @if ($currentStatus === 'deleted')
+                                        <form action="{{ route('pending-billings.restore', $pb->id) }}" method="POST" class="inline" onsubmit="return confirm('Bu sipariş geri alınacak. Devam?');">
+                                            @csrf
+                                            <input type="hidden" name="status" value="{{ $currentStatus }}">
+                                            <button type="submit" class="text-emerald-700 hover:text-emerald-900 font-medium whitespace-nowrap">Geri al</button>
+                                        </form>
+                                    @endif
                                     @if ($pb->status !== 'cancelled' && $actualAlis === null)
                                         <a href="{{ route('pending-billings.supplier-invoice', [$pb, 'status' => $currentStatus ?? 'pending']) }}" class="text-slate-600 hover:text-slate-900 font-medium whitespace-nowrap">Alış gir</a>
                                     @endif
@@ -317,7 +338,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $isSelectableStatus ? 12 : 9 }}" class="px-4 py-8 text-center text-sm text-gray-500">
+                            <td colspan="{{ $isSelectableStatus ? 11 : ($showSupplierInvoiceColumn ? 9 : 8) }}" class="px-4 py-8 text-center text-sm text-gray-500">
                                 Kayıt yok. Yeni abonelik eklediğinizde ilk dönem veya günlük komut çalıştığında burada görünecektir.
                             </td>
                         </tr>

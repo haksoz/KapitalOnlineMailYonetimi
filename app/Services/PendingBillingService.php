@@ -124,7 +124,22 @@ class PendingBillingService
             return null;
         }
 
-        if (PendingBilling::where('subscription_id', $subscription->id)->where('period_start', $periodStart->toDateString())->exists()) {
+        $existing = PendingBilling::query()
+            ->withDeleted()
+            ->where('subscription_id', $subscription->id)
+            ->where('period_start', $periodStart->toDateString())
+            ->first();
+
+        if ($existing !== null) {
+            if ($existing->is_deleted) {
+                $existing->update([
+                    'is_deleted' => false,
+                    'status' => PendingBilling::STATUS_PENDING,
+                ]);
+
+                return $existing->fresh();
+            }
+
             return null;
         }
 

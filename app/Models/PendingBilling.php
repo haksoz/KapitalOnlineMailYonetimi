@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -20,6 +21,7 @@ class PendingBilling extends Model
         'period_start',
         'period_end',
         'status',
+        'is_deleted',
         'expected_alis_tl',
         'expected_satis_tl',
         'exchange_rate_used',
@@ -38,6 +40,7 @@ class PendingBilling extends Model
         return [
             'period_start' => 'date',
             'period_end' => 'date',
+            'is_deleted' => 'boolean',
             'expected_alis_tl' => 'decimal:2',
             'expected_satis_tl' => 'decimal:2',
             'exchange_rate_used' => 'decimal:6',
@@ -49,6 +52,23 @@ class PendingBilling extends Model
             'actual_satis_tl' => 'decimal:2',
             'fee_difference_tl' => 'decimal:2',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('not_deleted', function (Builder $builder): void {
+            $builder->where('is_deleted', false);
+        });
+    }
+
+    public function scopeWithDeleted(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('not_deleted');
+    }
+
+    public function scopeOnlyDeleted(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('not_deleted')->where('is_deleted', true);
     }
 
     public function subscription(): BelongsTo

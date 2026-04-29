@@ -38,12 +38,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('products', ProductController::class)->except(['show']);
     Route::resource('subscriptions', SubscriptionController::class)->except(['destroy']);
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+    Route::post('subscriptions/{subscription}/toggle-auto-renew', [SubscriptionController::class, 'toggleAutoRenew'])->name('subscriptions.toggle-auto-renew');
     Route::post('subscriptions/{subscription}/create-projection', [SubscriptionController::class, 'createProjection'])->name('subscriptions.create-projection');
     Route::get('subscriptions/{subscription}/order-summary-totals', [SubscriptionController::class, 'orderSummaryTotals'])->name('subscriptions.order-summary-totals');
     Route::get('subscriptions/{subscription}/update-quantity', [SubscriptionController::class, 'showUpdateQuantity'])->name('subscriptions.show-update-quantity');
     Route::post('subscriptions/{subscription}/update-quantity', [SubscriptionController::class, 'updateQuantity'])->name('subscriptions.update-quantity');
     Route::get('pending-billings', [PendingBillingController::class, 'index'])->name('pending-billings.index');
     Route::post('pending-billings/{pending_billing}/refresh-amounts', [PendingBillingController::class, 'refreshAmounts'])->name('pending-billings.refresh-amounts');
+    Route::delete('pending-billings/{pending_billing}', [PendingBillingController::class, 'destroy'])->name('pending-billings.destroy');
+    Route::post('pending-billings/{pending_billing_id}/restore', [PendingBillingController::class, 'restore'])->whereNumber('pending_billing_id')->name('pending-billings.restore');
     Route::get('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'showSupplierInvoice'])->name('pending-billings.supplier-invoice');
     Route::post('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'storeSupplierInvoice'])->name('pending-billings.store-supplier-invoice');
     Route::post('pending-billings/{pending_billing}/clear-supplier-invoice', [PendingBillingController::class, 'clearSupplierInvoice'])->name('pending-billings.clear-supplier-invoice');

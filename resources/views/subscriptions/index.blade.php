@@ -77,7 +77,47 @@
                                     {{ $durumLabels[$sub->durum] ?? $sub->durum }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ $sub->auto_renew ? 'Açık' : 'Kapalı' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                <div class="flex items-center gap-2" x-data="{ autoRenew: {{ $sub->auto_renew ? 'true' : 'false' }}, busy: false }">
+                                    <button
+                                        type="button"
+                                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                                        :class="autoRenew ? 'bg-emerald-600 focus:ring-emerald-600' : 'bg-red-600 focus:ring-red-600'"
+                                        role="switch"
+                                        :aria-checked="autoRenew ? 'true' : 'false'"
+                                        :title="autoRenew ? 'Açık' : 'Kapalı'"
+                                        :disabled="busy"
+                                        @click="
+                                            if (busy) return;
+                                            if (!confirm('Otomatik yenileme durumu değiştirilsin mi?')) return;
+                                            busy = true;
+                                            const previous = autoRenew;
+                                            fetch('{{ route('subscriptions.toggle-auto-renew', $sub) }}', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Accept': 'application/json',
+                                                    'X-Requested-With': 'XMLHttpRequest',
+                                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '',
+                                                },
+                                            })
+                                                .then(r => r.ok ? r.json() : r.json().then(j => { throw j; }))
+                                                .then(data => { autoRenew = !!data.auto_renew; })
+                                                .catch((e) => {
+                                                    autoRenew = previous;
+                                                    const msg = (e && e.message) ? e.message : 'İşlem yapılamadı.';
+                                                    alert(msg);
+                                                })
+                                                .finally(() => { busy = false; });
+                                        "
+                                    >
+                                        <span
+                                            class="inline-block h-5 w-5 rounded-full bg-white transition-transform"
+                                            :class="autoRenew ? 'translate-x-5' : 'translate-x-1'"
+                                        ></span>
+                                    </button>
+                                    <span class="text-xs font-medium" :class="autoRenew ? 'text-emerald-700' : 'text-red-700'" x-text="autoRenew ? 'Açık' : 'Kapalı'"></span>
+                                </div>
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
                                 <a href="{{ route('subscriptions.show', $sub) }}" class="text-slate-600 hover:text-slate-900 font-medium">Detay</a>
                                 <a href="{{ route('subscriptions.edit', $sub) }}" class="ml-3 text-slate-600 hover:text-slate-900 font-medium">Düzenle</a>

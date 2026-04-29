@@ -252,6 +252,15 @@ class SubscriptionController extends Controller
             )->format('Y-m-d');
         }
 
+        if ($validated['auto_renew'] === true) {
+            $end = Carbon::parse($validated['bitis_tarihi'])->startOfDay();
+            if ($end->lte(now()->startOfDay())) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['auto_renew' => 'Bitiş tarihi geçmiş/bugün olan abonelikte otomatik yenileme açılamaz. Otomatik yenileme için bitiş tarihini bugünden ileri bir güne güncelleyin.']);
+            }
+        }
+
         $subscription->update($validated);
 
         return redirect()->route('subscriptions.index')->with('success', 'Abonelik güncellendi.');
@@ -284,6 +293,50 @@ class SubscriptionController extends Controller
         return redirect()
             ->route('subscriptions.show', $subscription)
             ->with('success', 'Abonelik, bitiş tarihinde iptal edilmek üzere işaretlendi.');
+    }
+
+    public function toggleAutoRenew(Request $request, Subscription $subscription): \Illuminate\Http\JsonResponse|RedirectResponse
+    {
+        $next = ! (bool) $subscription->auto_renew;
+
+        // Kural: Bitişi gelmiş ve durum iptal olmuş aboneliklerde otomatik yenileme tekrar açılamaz.
+        if (
+            $next === true
+            && $subscription->durum === Subscription::DURUM_CANCELLED
+            && $subscription->bitis_tarihi !== null
+            && $subscription->bitis_tarihi->lte(now()->startOfDay())
+        ) {
+            $message = 'Bu abonelik bitişi geldiği için iptal olmuş. Otomatik yenileme tekrar açılamaz.';
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'auto_renew' => (bool) $subscription->auto_renew,
+                    'message' => $message,
+                ], 422);
+            }
+
+            return redirect()
+                ->route('subscriptions.index', $request->query())
+                ->with('error', $message);
+        }
+
+        $subscription->update(['auto_renew' => $next]);
+
+        $fresh = $subscription->fresh();
+        $label = $fresh->auto_renew ? 'açıldı' : 'kapatıldı';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'auto_renew' => (bool) $fresh->auto_renew,
+                'message' => 'Otomatik yenileme ' . $label . '.',
+            ]);
+        }
+
+        return redirect()
+            ->route('subscriptions.index', $request->query())
+            ->with('success', 'Otomatik yenileme ' . $label . '.');
     }
 
     public function createProjection(Request $request, Subscription $subscription): RedirectResponse

@@ -19,7 +19,7 @@ class PendingBillingController extends Controller
     public function index(Request $request): View
     {
         $status = $request->get('status', PendingBilling::STATUS_PENDING);
-        if (in_array($status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED, PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_CANCELLED], true)) {
+        if (in_array($status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED, PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_CANCELLED, 'deleted'], true)) {
             // ok
         } else {
             $status = PendingBilling::STATUS_PENDING;
@@ -40,8 +40,13 @@ class PendingBillingController extends Controller
         }
 
         $query = PendingBilling::query()
-            ->with(['subscription.customerCari', 'subscription.product', 'salesInvoiceLine'])
-            ->where('status', $status);
+            ->with(['subscription.customerCari', 'subscription.product', 'salesInvoiceLine']);
+
+        if ($status === 'deleted') {
+            $query->onlyDeleted();
+        } else {
+            $query->where('status', $status);
+        }
 
         if ($request->filled('customer_cari_id')) {
             $query->whereHas('subscription', fn ($q) => $q->where('customer_cari_id', (int) $request->customer_cari_id));
@@ -131,6 +136,24 @@ class PendingBillingController extends Controller
             'accumulatedFarkBySubscription' => $accumulatedFarkBySubscription,
             'caris' => $caris,
         ]);
+    }
+
+    public function restore(Request $request, int $pending_billing_id): RedirectResponse
+    {
+        $backStatus = $request->get('status', PendingBilling::STATUS_PENDING);
+
+        $pb = PendingBilling::query()->withDeleted()->findOrFail($pending_billing_id);
+        if (! $pb->is_deleted) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $backStatus])
+                ->with('info', 'Sipariş zaten aktif.');
+        }
+
+        $pb->update(['is_deleted' => false]);
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => $backStatus])
+            ->with('success', 'Sipariş geri alındı.');
     }
 
     public function refreshAmounts(PendingBilling $pending_billing, PendingBillingService $pendingBillingService): RedirectResponse
@@ -259,6 +282,36 @@ class PendingBillingController extends Controller
         return redirect()
             ->route('pending-billings.index', ['status' => $request->get('status', PendingBilling::STATUS_PENDING)])
             ->with('success', 'Sipariş ertelendi. İleride Ertelendi sekmesinden faturalandırabilirsiniz.');
+    }
+
+    public function destroy(Request $request, PendingBilling $pending_billing): RedirectResponse
+    {
+        $backStatus = $request->get('status', $pending_billing->status ?? PendingBilling::STATUS_PENDING);
+
+        if (! in_array($pending_billing->status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED], true)) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $backStatus])
+                ->with('error', 'Sadece beklemede veya ertelenmiş siparişler silinebilir.');
+        }
+
+        if ($pending_billing->supplier_invoice_number || $pending_billing->supplier_invoice_date) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $backStatus])
+                ->with('error', 'Alış faturası gelen sipariş silinemez. Önce alış faturası bilgilerini geri alın.');
+        }
+
+        $pending_billing->loadMissing('salesInvoiceLine');
+        if ($pending_billing->salesInvoiceLine !== null) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $backStatus])
+                ->with('error', 'Faturalandırılmış sipariş silinemez.');
+        }
+
+        $pending_billing->update(['is_deleted' => true]);
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => $backStatus])
+            ->with('success', 'Sipariş silindi.');
     }
 
     public function bulkPostpone(Request $request): RedirectResponse
