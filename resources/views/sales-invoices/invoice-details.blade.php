@@ -39,6 +39,14 @@
                     <x-input-error :messages="$errors->get('our_invoice_date')" class="mt-1" />
                 </div>
                 <div>
+                    <x-input-label for="order_number" value="Satış faturalarımı takip ettim (FTN)" />
+                    <x-text-input id="order_number" name="order_number" type="text"
+                        class="mt-1 block w-full" :value="old('order_number', $salesInvoice->order_number)"
+                        maxlength="64" />
+                    <p class="mt-1 text-xs text-gray-500">Boş bırakırsanız sistem otomatik FTN üretir.</p>
+                    <x-input-error :messages="$errors->get('order_number')" class="mt-1" />
+                </div>
+                <div>
                     <x-input-label for="invoice_total_net_tl" value="Kestiğin faturanın KDV hariç toplamı (TL)" />
                     <x-text-input id="invoice_total_net_tl" name="invoice_total_net_tl" type="number" step="0.01" min="0"
                         class="mt-1 block w-full"

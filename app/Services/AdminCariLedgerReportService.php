@@ -2,12 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\ExchangeRate;
 use App\Models\PendingBilling;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class AdminCariLedgerReportService
 {
+    private ?float $fallbackUsdRate = null;
+
     /**
      * Filtrelere göre yalnızca genel (grand) finansal toplamları hesaplar.
      *
@@ -152,8 +156,29 @@ class AdminCariLedgerReportService
      */
     private function makeAlisRow(PendingBilling $pendingBilling): array
     {
-        $expected = $this->toFloatOrZero($pendingBilling->expected_alis_tl);
         $actual = $this->toFloatOrZero($pendingBilling->actual_alis_tl);
+        $expected = $this->toFloatOrZero($pendingBilling->expected_alis_tl);
+
+        if ($actual > 0) {
+            $expected = $actual;
+        }
+
+        if (($pendingBilling->expected_alis_tl === null || $pendingBilling->expected_alis_tl === '') && $actual === 0.0) {
+            $sub = $pendingBilling->subscription;
+            $usdAlis = $sub?->usd_birim_alis !== null && $sub->usd_birim_alis !== '' ? (float) $sub->usd_birim_alis : null;
+            $qty = (int) ($sub?->quantity ?? 1);
+
+            if ($usdAlis !== null && $usdAlis > 0 && $qty > 0) {
+                $rate = $pendingBilling->exchange_rate_used !== null && $pendingBilling->exchange_rate_used !== ''
+                    ? (float) $pendingBilling->exchange_rate_used
+                    : $this->getFallbackUsdRate();
+
+                if ($rate !== null) {
+                    $expected = $usdAlis * $qty * $rate;
+                }
+            }
+        }
+
         $supplierInvoiceDate = $pendingBilling->supplier_invoice_date?->format('Y-m-d');
 
         return [
@@ -256,6 +281,33 @@ class AdminCariLedgerReportService
             'gerceklesen_satis_tl' => (float) $rows->sum('gerceklesen_satis_tl'),
             'fark_satis_tl' => (float) $rows->sum('fark_satis_tl'),
         ];
+    }
+
+    private function getFallbackUsdRate(): ?float
+    {
+        if ($this->fallbackUsdRate !== null) {
+            return $this->fallbackUsdRate;
+        }
+
+        $usd = ExchangeRate::where('currency_code', 'USD')
+            ->where('effective_date', Carbon::today()->toDateString())
+            ->first();
+
+        if ($usd?->forex_selling !== null && $usd->forex_selling !== '') {
+            $this->fallbackUsdRate = (float) $usd->forex_selling;
+            return $this->fallbackUsdRate;
+        }
+
+        $usdLast = ExchangeRate::where('currency_code', 'USD')
+            ->whereNotNull('forex_selling')
+            ->orderByDesc('effective_date')
+            ->first();
+
+        $this->fallbackUsdRate = $usdLast?->forex_selling !== null && $usdLast->forex_selling !== ''
+            ? (float) $usdLast->forex_selling
+            : null;
+
+        return $this->fallbackUsdRate;
     }
 
     private function toFloatOrZero(mixed $value): float

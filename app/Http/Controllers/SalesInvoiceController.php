@@ -466,11 +466,18 @@ class SalesInvoiceController extends Controller
         $validated = $request->validate([
             'our_invoice_number' => ['required', 'string', 'max:64'],
             'our_invoice_date' => ['required', 'date'],
+            'order_number' => ['nullable', 'string', 'max:64'],
             'invoice_total_net_tl' => ['nullable', 'numeric', 'min:0'],
             'invoice_total_diff_reason' => ['nullable', 'string', 'max:255'],
         ]);
 
         $orderNumber = $sales_invoice->order_number;
+        if (array_key_exists('order_number', $validated)) {
+            $orderNumber = trim((string) ($validated['order_number'] ?? ''));
+            if ($orderNumber === '') {
+                $orderNumber = null;
+            }
+        }
         if ($orderNumber === null || $orderNumber === '') {
             $orderNumber = SalesInvoice::getNextFaturaTakipNo();
         }

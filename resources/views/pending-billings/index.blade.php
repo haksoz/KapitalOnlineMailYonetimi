@@ -152,7 +152,7 @@
                             $alisKdvHaric = null;
                             $satisTl = null;
                             if ($actualAlis !== null) {
-                                $alisKdvHaric = isset($pb->expected_alis_tl) && $pb->expected_alis_tl !== '' ? (float) $pb->expected_alis_tl : $actualAlis;
+                                $alisKdvHaric = $actualAlis;
                                 if (isset($pb->expected_satis_tl) && $pb->expected_satis_tl !== '') {
                                     $satisTl = (float) $pb->expected_satis_tl;
                                 } elseif ($usdAlis > 0 && $usdSatis !== null) {
