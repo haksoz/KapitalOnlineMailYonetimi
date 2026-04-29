@@ -111,9 +111,16 @@
                                             default => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
                                         };
                                     @endphp
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ring-1 ring-inset {{ $classes }}">
-                                        {{ $status }}
-                                    </span>
+                                    <div class="flex flex-col gap-1">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ring-1 ring-inset {{ $classes }}">
+                                            {{ $status }}
+                                        </span>
+                                        @if (($row['purchase_missing'] ?? false) && $status === 'Tamamlandı')
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200">
+                                                Alış Eksik
+                                            </span>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="px-4 py-2 whitespace-nowrap" @click.stop>
                                     @if ($row['status'] === 'Eksik sipariş var' && $row['customer']?->id)

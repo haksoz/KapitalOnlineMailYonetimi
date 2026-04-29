@@ -113,6 +113,8 @@ class SubscriptionMonitorController extends Controller
                     return $hasNumber || $hasDate;
                 })->count();
 
+                $purchaseMissing = $supplierInvoicedCount < $pendingCount;
+
                 $invoicedCount = $pendingForCustomer
                     ->whereIn('id', $invoicedPendingIds)
                     ->count();
@@ -150,6 +152,7 @@ class SubscriptionMonitorController extends Controller
                     'expected_periods' => $expectedPeriods,
                     'pending_count' => $pendingCount,
                     'supplier_invoiced_count' => $supplierInvoicedCount,
+                    'purchase_missing' => $purchaseMissing,
                     'billed_count' => $billedCount,
                     'invoiced_count' => $invoicedCount,
                     'status' => $status,
