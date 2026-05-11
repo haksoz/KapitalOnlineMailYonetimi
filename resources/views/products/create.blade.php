@@ -34,6 +34,50 @@
                     <x-input-label for="description" value="Açıklama" />
                     <textarea id="description" name="description" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">{{ old('description') }}</textarea>
                 </div>
+                {{-- Aylık Taahhütlü --}}
+                <div class="pt-3 border-t border-blue-100">
+                    <p class="text-sm font-semibold text-blue-700 mb-2">Aylık Taahhütlü</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="alis_usd_monthly_commitment" value="Alış USD" />
+                            <x-text-input id="alis_usd_monthly_commitment" name="alis_usd_monthly_commitment" type="number" step="0.01" min="0" class="mt-1 block w-full" :value="old('alis_usd_monthly_commitment')" placeholder="0.00" />
+                        </div>
+                        <div>
+                            <x-input-label for="satis_usd_monthly_commitment" value="Satış USD" />
+                            <x-text-input id="satis_usd_monthly_commitment" name="satis_usd_monthly_commitment" type="number" step="0.01" min="0" class="mt-1 block w-full" :value="old('satis_usd_monthly_commitment')" placeholder="0.00" />
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Aylık Taahhütsüz --}}
+                <div class="pt-3 border-t border-gray-100">
+                    <p class="text-sm font-semibold text-gray-700 mb-2">Aylık Taahhütsüz</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="alis_usd_monthly_no_commitment" value="Alış USD" />
+                            <x-text-input id="alis_usd_monthly_no_commitment" name="alis_usd_monthly_no_commitment" type="number" step="0.01" min="0" class="mt-1 block w-full" :value="old('alis_usd_monthly_no_commitment')" placeholder="0.00" />
+                        </div>
+                        <div>
+                            <x-input-label for="satis_usd_monthly_no_commitment" value="Satış USD" />
+                            <x-text-input id="satis_usd_monthly_no_commitment" name="satis_usd_monthly_no_commitment" type="number" step="0.01" min="0" class="mt-1 block w-full" :value="old('satis_usd_monthly_no_commitment')" placeholder="0.00" />
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Yıllık Taahhütlü --}}
+                <div class="pt-3 border-t border-emerald-100">
+                    <p class="text-sm font-semibold text-emerald-700 mb-2">Yıllık Taahhütlü</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="alis_usd_yearly_commitment" value="Alış USD" />
+                            <x-text-input id="alis_usd_yearly_commitment" name="alis_usd_yearly_commitment" type="number" step="0.01" min="0" class="mt-1 block w-full" :value="old('alis_usd_yearly_commitment')" placeholder="0.00" />
+                        </div>
+                        <div>
+                            <x-input-label for="satis_usd_yearly_commitment" value="Satış USD" />
+                            <x-text-input id="satis_usd_yearly_commitment" name="satis_usd_yearly_commitment" type="number" step="0.01" min="0" class="mt-1 block w-full" :value="old('satis_usd_yearly_commitment')" placeholder="0.00" />
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="mt-6 flex gap-3">
                 <x-primary-button>Kaydet</x-primary-button>

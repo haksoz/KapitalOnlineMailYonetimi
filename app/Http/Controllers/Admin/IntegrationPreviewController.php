@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Integration\CariIntegrationResource;
 use App\Http\Resources\Integration\InvoicedOrderIntegrationResource;
 use App\Http\Resources\Integration\PendingBillingIntegrationResource;
+use App\Http\Resources\Integration\ProductIntegrationResource;
 use App\Http\Resources\Integration\SubscriptionIntegrationResource;
 use App\Models\Cari;
 use App\Models\ExchangeRate;
 use App\Models\PendingBilling;
+use App\Models\Product;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -172,6 +174,35 @@ class IntegrationPreviewController extends Controller
                 'per_page' => $billings->perPage(),
                 'current_page' => $billings->currentPage(),
                 'last_page' => $billings->lastPage(),
+            ],
+        ]);
+    }
+
+    public function productIndex(Request $request): View
+    {
+        return view('admin.integration.product-preview');
+    }
+
+    public function productData(Request $request): JsonResponse
+    {
+        $products = Product::query()
+            ->with('serviceProvider:id,name,code')
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('stock_code', 'like', '%' . $request->search . '%');
+            })
+            ->orderBy('name')
+            ->paginate(20);
+
+        $resource = ProductIntegrationResource::collection($products);
+
+        return response()->json([
+            'data' => $resource->toArray($request),
+            'meta' => [
+                'total' => $products->total(),
+                'per_page' => $products->perPage(),
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
             ],
         ]);
     }

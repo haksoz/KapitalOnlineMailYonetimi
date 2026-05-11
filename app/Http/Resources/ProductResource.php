@@ -14,6 +14,7 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'stock_code' => $this->stock_code,
             'description' => $this->description,
+            'satis_usd' => $this->satis_usd !== null ? (float) $this->satis_usd : null,
             'service_provider' => new ServiceProviderResource($this->whenLoaded('serviceProvider')),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

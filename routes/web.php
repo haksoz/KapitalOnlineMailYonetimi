@@ -37,7 +37,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('caris', CariController::class)->except(['show']);
     Route::resource('service-providers', ServiceProviderController::class)->except(['show']);
-    Route::resource('products', ProductController::class)->except(['show']);
+    Route::resource('products', ProductController::class);
+    Route::get('products/api/data', [ProductController::class, 'api'])->name('products.api');
     Route::resource('subscriptions', SubscriptionController::class)->except(['destroy']);
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
     Route::post('subscriptions/{subscription}/toggle-auto-renew', [SubscriptionController::class, 'toggleAutoRenew'])->name('subscriptions.toggle-auto-renew');
@@ -127,6 +128,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('open-order-preview/data', [AdminIntegrationPreviewController::class, 'openOrderData'])->name('open-order-preview.data');
             Route::get('invoiced-order-preview', [AdminIntegrationPreviewController::class, 'invoicedOrderIndex'])->name('invoiced-order-preview');
             Route::get('invoiced-order-preview/data', [AdminIntegrationPreviewController::class, 'invoicedOrderData'])->name('invoiced-order-preview.data');
+            Route::get('product-preview', [AdminIntegrationPreviewController::class, 'productIndex'])->name('product-preview');
+            Route::get('product-preview/data', [AdminIntegrationPreviewController::class, 'productData'])->name('product-preview.data');
         });
     });
 });
