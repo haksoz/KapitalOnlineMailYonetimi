@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\MailSettingController as AdminMailSettingControll
 use App\Http\Controllers\Admin\CariLedgerReportController as AdminCariLedgerReportController;
 use App\Http\Controllers\Admin\PendingBillingAdminController as AdminPendingBillingController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\IntegrationPreviewController as AdminIntegrationPreviewController;
+use App\Http\Controllers\Admin\ApiSettingsController as AdminApiSettingsController;
 use App\Http\Controllers\TriggersController;
 use Illuminate\Support\Facades\Route;
 
@@ -102,6 +104,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('pending-billings/{pending_billing}/edit-sale', [AdminPendingBillingController::class, 'updateSale'])->name('pending-billings.update-sale');
         Route::get('pending-billings/{pending_billing}/edit-expected-purchase', [AdminPendingBillingController::class, 'editExpectedPurchase'])->name('pending-billings.edit-expected-purchase');
         Route::patch('pending-billings/{pending_billing}/edit-expected-purchase', [AdminPendingBillingController::class, 'updateExpectedPurchase'])->name('pending-billings.update-expected-purchase');
+
+        Route::prefix('api-settings')->name('api-settings.')->group(function () {
+            Route::get('/', [AdminApiSettingsController::class, 'index'])->name('index');
+            Route::post('integrations', [AdminApiSettingsController::class, 'storeIntegration'])->name('integrations.store');
+            Route::patch('integrations/{integration}', [AdminApiSettingsController::class, 'updateIntegration'])->name('integrations.update');
+            Route::post('integrations/{integration}/keys', [AdminApiSettingsController::class, 'generateKey'])->name('keys.generate');
+            Route::patch('keys/{apiKey}/revoke', [AdminApiSettingsController::class, 'revokeKey'])->name('keys.revoke');
+            Route::patch('keys/{apiKey}/toggle', [AdminApiSettingsController::class, 'toggleKey'])->name('keys.toggle');
+            Route::post('integrations/{integration}/webhooks', [AdminApiSettingsController::class, 'storeWebhook'])->name('webhooks.store');
+            Route::patch('webhooks/{webhook}/toggle', [AdminApiSettingsController::class, 'toggleWebhook'])->name('webhooks.toggle');
+            Route::post('webhooks/{webhook}/test', [AdminApiSettingsController::class, 'testWebhook'])->name('webhooks.test');
+            Route::get('logs', [AdminApiSettingsController::class, 'logs'])->name('logs');
+        });
+
+        Route::prefix('integration')->name('integration.')->group(function () {
+            Route::get('cari-preview', [AdminIntegrationPreviewController::class, 'cariIndex'])->name('cari-preview');
+            Route::get('cari-preview/data', [AdminIntegrationPreviewController::class, 'cariData'])->name('cari-preview.data');
+            Route::get('subscription-preview', [AdminIntegrationPreviewController::class, 'subscriptionIndex'])->name('subscription-preview');
+            Route::get('subscription-preview/data', [AdminIntegrationPreviewController::class, 'subscriptionData'])->name('subscription-preview.data');
+            Route::get('open-order-preview', [AdminIntegrationPreviewController::class, 'openOrderIndex'])->name('open-order-preview');
+            Route::get('open-order-preview/data', [AdminIntegrationPreviewController::class, 'openOrderData'])->name('open-order-preview.data');
+            Route::get('invoiced-order-preview', [AdminIntegrationPreviewController::class, 'invoicedOrderIndex'])->name('invoiced-order-preview');
+            Route::get('invoiced-order-preview/data', [AdminIntegrationPreviewController::class, 'invoicedOrderData'])->name('invoiced-order-preview.data');
+        });
     });
 });
 
