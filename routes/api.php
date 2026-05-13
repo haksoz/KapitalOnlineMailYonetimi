@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ApiCariController;
+use App\Http\Controllers\Api\ApiMasterController;
 use App\Http\Controllers\Api\ApiPendingBillingController;
 use App\Http\Controllers\Api\ApiProductRequestController;
 use App\Http\Controllers\Api\ApiSalesInvoiceController;
@@ -56,4 +57,12 @@ Route::prefix('product-requests')->name('api.product-requests.')->group(function
     Route::get('/', [ApiProductRequestController::class, 'index'])->name('index');
     Route::post('/', [ApiProductRequestController::class, 'store'])->name('store');
     Route::get('/{productRequest}', [ApiProductRequestController::class, 'show'])->name('show');
+});
+
+// Master Platform endpoint'leri
+Route::prefix('master')->name('api.master.')->group(function () {
+    Route::get('/products', [ApiMasterController::class, 'products'])->name('products');
+    Route::get('/subscriptions', [ApiMasterController::class, 'subscriptions'])->name('subscriptions');
+    Route::get('/orders', [ApiMasterController::class, 'orders'])->name('orders');
+    Route::get('/subscription-summary', [ApiMasterController::class, 'subscriptionSummary'])->name('subscription-summary');
 });
