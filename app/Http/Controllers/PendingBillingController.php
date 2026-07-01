@@ -424,6 +424,18 @@ class PendingBillingController extends Controller
                 ->with('error', 'Fatura vergi numarası (' . $parsed['seller_vkn'] . ') seçilen tedarikçi ile uyuşmuyor.');
         }
 
+        if (! empty($parsed['invoice_no'])) {
+            $duplicate = PendingBilling::withoutGlobalScope('not_deleted')
+                ->where('supplier_invoice_number', $parsed['invoice_no'])
+                ->first();
+            if ($duplicate !== null) {
+                return redirect()
+                    ->route('pending-billings.supplier-invoice-xml', ['status' => $request->get('status', 'pending')])
+                    ->withInput()
+                    ->with('error', 'Bu fatura daha önce sisteme girilmiş. Fatura No: ' . $parsed['invoice_no']);
+            }
+        }
+
         $request->session()->put('supplier_invoice_xml_parsed', [
             'provider_cari_id' => (int) $validated['provider_cari_id'],
             'provider_cari_name' => $cari->short_name ?: $cari->name,
