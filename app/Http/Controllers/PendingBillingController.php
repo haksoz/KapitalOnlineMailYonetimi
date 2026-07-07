@@ -471,6 +471,7 @@ class PendingBillingController extends Controller
         $linePeriods = [];
         $lineRecentBillings = [];
         $lineCustomerNames = [];
+        $lineSuggestedPeriods = [];
         foreach ($lines as $index => $line) {
             $sozlesmeNo = trim((string) ($line['sozlesme_no'] ?? ''));
             $periods = [];
@@ -482,29 +483,26 @@ class PendingBillingController extends Controller
                     ->with('customerCari')
                     ->first();
                 if ($subscription) {
-                    $starts = PendingBilling::query()
+                    $billingRows = PendingBilling::query()
                         ->where('subscription_id', $subscription->id)
                         ->orderBy('period_start')
-                        ->get(['period_start'])
-                        ->pluck('period_start')
-                        ->unique()
-                        ->values();
-                    foreach ($starts as $ps) {
-                        if ($ps) {
+                        ->get(['period_start', 'supplier_invoice_number', 'supplier_invoice_date']);
+                    foreach ($billingRows as $br) {
+                        if ($br->period_start) {
                             $periods[] = [
-                                'year' => (int) $ps->year,
-                                'month' => (int) $ps->month,
-                                'label' => $ps->locale('tr')->translatedFormat('F Y'),
+                                'year' => (int) $br->period_start->year,
+                                'month' => (int) $br->period_start->month,
+                                'label' => $br->period_start->locale('tr')->translatedFormat('F Y'),
+                                'has_supplier_invoice' => $br->supplier_invoice_number !== null && trim((string) $br->supplier_invoice_number) !== '' || $br->supplier_invoice_date !== null,
                             ];
                         }
                     }
 
-                    // İlişkili son 3 sipariş (en güncel dönem önce)
+                    // İlişkili siparişler (en güncel dönem önce)
                     $recent = PendingBilling::query()
                         ->where('subscription_id', $subscription->id)
                         ->with('salesInvoiceLine')
                         ->orderByDesc('period_start')
-                        ->limit(3)
                         ->get(['id', 'period_start', 'period_end', 'status', 'supplier_invoice_number', 'supplier_invoice_date']);
                     foreach ($recent as $pb) {
                         $recentBillings[] = [
@@ -519,6 +517,8 @@ class PendingBillingController extends Controller
                             },
                             'has_supplier_invoice' => $pb->supplier_invoice_number !== null && trim((string) $pb->supplier_invoice_number) !== '' || $pb->supplier_invoice_date !== null,
                             'has_sales_invoice' => $pb->salesInvoiceLine !== null,
+                            'supplier_invoice_number' => $pb->supplier_invoice_number,
+                            'supplier_invoice_date' => $pb->supplier_invoice_date?->format('d.m.Y'),
                         ];
                     }
                     // Cari kısa adı / unvanı
@@ -527,6 +527,40 @@ class PendingBillingController extends Controller
             }
             $linePeriods[$index] = $periods;
             $lineRecentBillings[$index] = $recentBillings;
+
+            // Fatura tarihine göre önerilen dönem:
+            // önce alış faturası olmayan dönemler arasında tarihe en yakın,
+            // yoksa tüm dönemler arasında tarihe en yakını seç.
+            $suggestedKey = null;
+            if (count($periods) > 0 && $defaultPeriodYear !== null && $defaultPeriodMonth !== null) {
+                $refMonths = $defaultPeriodYear * 12 + $defaultPeriodMonth;
+                $bestDiff = null;
+                // Önce alış faturası olmayan dönemler
+                foreach ($periods as $p) {
+                    if ($p['has_supplier_invoice']) {
+                        continue;
+                    }
+                    $diff = abs(($p['year'] * 12 + $p['month']) - $refMonths);
+                    if ($bestDiff === null || $diff < $bestDiff) {
+                        $bestDiff = $diff;
+                        $suggestedKey = $p['year'] . '-' . str_pad((string) $p['month'], 2, '0', STR_PAD_LEFT);
+                    }
+                }
+                // Hepsi faturalıysa tüm dönemler arasında en yakını
+                if ($suggestedKey === null) {
+                    foreach ($periods as $p) {
+                        $diff = abs(($p['year'] * 12 + $p['month']) - $refMonths);
+                        if ($bestDiff === null || $diff < $bestDiff) {
+                            $bestDiff = $diff;
+                            $suggestedKey = $p['year'] . '-' . str_pad((string) $p['month'], 2, '0', STR_PAD_LEFT);
+                        }
+                    }
+                }
+            } elseif (count($periods) > 0) {
+                $last = end($periods);
+                $suggestedKey = $last['year'] . '-' . str_pad((string) $last['month'], 2, '0', STR_PAD_LEFT);
+            }
+            $lineSuggestedPeriods[$index] = $suggestedKey;
         }
 
         return view('pending-billings.supplier-invoice-xml-preview', [
@@ -534,6 +568,7 @@ class PendingBillingController extends Controller
             'linePeriods' => $linePeriods,
             'lineRecentBillings' => $lineRecentBillings,
             'lineCustomerNames' => $lineCustomerNames,
+            'lineSuggestedPeriods' => $lineSuggestedPeriods,
             'defaultPeriodYear' => $defaultPeriodYear,
             'defaultPeriodMonth' => $defaultPeriodMonth,
             'unmatched' => $request->session()->get('unmatched', []),

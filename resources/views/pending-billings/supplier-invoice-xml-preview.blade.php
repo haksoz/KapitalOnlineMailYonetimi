@@ -29,6 +29,21 @@
         </p>
     </div>
 
+    @php
+        $defKey = ($defaultPeriodYear && $defaultPeriodMonth)
+            ? $defaultPeriodYear . '-' . str_pad((string) $defaultPeriodMonth, 2, '0', STR_PAD_LEFT)
+            : null;
+        $periodMismatch = false;
+        if ($defKey !== null) {
+            foreach ($lineSuggestedPeriods as $sugKey) {
+                if ($sugKey !== null && $sugKey !== $defKey) {
+                    $periodMismatch = true;
+                    break;
+                }
+            }
+        }
+    @endphp
+
     <div class="space-y-6">
         <div class="bg-white rounded-xl shadow-sm p-6">
             <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Fatura başlığı</h2>
@@ -42,12 +57,14 @@
                     <dd class="font-medium text-gray-900">{{ $parsed['invoice_no'] ?? '—' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-gray-500">Fatura tarihi</dt>
-                    <dd class="font-medium text-gray-900">{{ $parsed['issue_date'] ? \Carbon\Carbon::parse($parsed['issue_date'])->format('d.m.Y') : '—' }}</dd>
+                    <dt class="{{ $periodMismatch ? 'text-red-500 font-semibold' : 'text-gray-500' }}">Fatura tarihi</dt>
+                    <dd class="{{ $periodMismatch ? 'text-base font-bold text-red-600' : 'font-medium text-gray-900' }}">
+                        {{ $parsed['issue_date'] ? \Carbon\Carbon::parse($parsed['issue_date'])->format('d.m.Y') : '—' }}
+                    </dd>
                 </div>
                 <div>
-                    <dt class="text-gray-500">Varsayılan hizmet dönemi</dt>
-                    <dd class="font-medium text-gray-900">
+                    <dt class="{{ $periodMismatch ? 'text-red-500 font-semibold' : 'text-gray-500' }}">Varsayılan hizmet dönemi</dt>
+                    <dd class="{{ $periodMismatch ? 'text-base font-bold text-red-600' : 'font-medium text-gray-900' }}">
                         @if ($defaultPeriodYear && $defaultPeriodMonth)
                             {{ \Carbon\Carbon::createFromDate($defaultPeriodYear, $defaultPeriodMonth, 1)->locale('tr')->translatedFormat('F Y') }}
                         @else
@@ -70,8 +87,7 @@
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ürün</th>
                                 <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Adet</th>
                                 <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">KDV hariç toplam (₺)</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sistemdeki dönemler</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Son 3 sipariş</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Siparişler</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hizmet dönemi</th>
                             </tr>
                         </thead>
@@ -79,23 +95,9 @@
                             @foreach(($parsed['lines'] ?? []) as $index => $line)
                                 @php
                                     $periods = $linePeriods[$index] ?? [];
-                                    $defaultSel = null;
-                                    if ($defaultPeriodYear && $defaultPeriodMonth) {
-                                        $defKey = $defaultPeriodYear . '-' . str_pad((string) $defaultPeriodMonth, 2, '0', STR_PAD_LEFT);
-                                        foreach ($periods as $p) {
-                                            $key = $p['year'] . '-' . str_pad((string) $p['month'], 2, '0', STR_PAD_LEFT);
-                                            if ($key === $defKey) {
-                                                $defaultSel = $key;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if ($defaultSel === null && count($periods) > 0) {
-                                        $first = $periods[0];
-                                        $defaultSel = $first['year'] . '-' . str_pad((string) $first['month'], 2, '0', STR_PAD_LEFT);
-                                    }
+                                    $suggested = $lineSuggestedPeriods[$index] ?? null;
                                     $oldPeriod = old('lines.'.$index.'.period');
-                                    $selected = $oldPeriod !== null ? $oldPeriod : $defaultSel;
+                                    $selected = $oldPeriod !== null ? $oldPeriod : $suggested;
                                     $recentBillings = $lineRecentBillings[$index] ?? [];
                                     $customerName = $lineCustomerNames[$index] ?? null;
                                 @endphp
@@ -111,27 +113,28 @@
                                     <td class="px-4 py-3 text-sm text-gray-600">{{ $line['item_name'] ?? '—' }}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ isset($line['quantity']) ? number_format((float) $line['quantity'], 0, ',', '.') : '—' }}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">{{ isset($line['line_extension_amount_try']) ? number_format((float) $line['line_extension_amount_try'], 2, ',', '.') : '—' }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">
-                                        @if (count($periods) > 0)
-                                            <ul class="space-y-0.5">
-                                                @foreach ($periods as $p)
-                                                    <li>{{ $p['label'] }}</li>
-                                                @endforeach
-                                            </ul>
-                                        @else
-                                            <span class="text-amber-600">Sipariş yok</span>
-                                        @endif
-                                    </td>
                                     <td class="px-4 py-3 text-sm text-gray-700">
                                         @if (count($recentBillings) > 0)
-                                            <ul class="space-y-1">
+                                            <ul class="space-y-1.5">
                                                 @foreach ($recentBillings as $rb)
-                                                    <li class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                                                        <span class="font-medium text-gray-900">{{ $rb['period_label'] }}</span>
+                                                    <li>
+                                                        <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                                            <span class="font-medium text-gray-900">{{ $rb['period_label'] }}</span>
+                                                            @if($rb['has_supplier_invoice'])
+                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200">Alış faturası VAR</span>
+                                                            @else
+                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 ring-1 ring-amber-200">Alış faturası YOK</span>
+                                                            @endif
+                                                        </div>
                                                         @if($rb['has_supplier_invoice'])
-                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200">Alış faturası VAR</span>
-                                                        @else
-                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 ring-1 ring-amber-200">Alış faturası YOK</span>
+                                                            <div class="mt-0.5 text-xs text-gray-500 space-y-0.5">
+                                                                @if(!empty($rb['supplier_invoice_number']))
+                                                                    <div>Fatura no: <span class="font-mono text-gray-700">{{ $rb['supplier_invoice_number'] }}</span></div>
+                                                                @endif
+                                                                @if(!empty($rb['supplier_invoice_date']))
+                                                                    <div>Alış tarihi: <span class="text-gray-700">{{ $rb['supplier_invoice_date'] }}</span></div>
+                                                                @endif
+                                                            </div>
                                                         @endif
                                                     </li>
                                                 @endforeach
