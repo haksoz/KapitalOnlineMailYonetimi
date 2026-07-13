@@ -137,6 +137,16 @@ class Subscription extends Model
         return $this->hasMany(SubscriptionQuantityChange::class)->orderByDesc('effective_date')->orderByDesc('created_at');
     }
 
+    public function priceHistories(): HasMany
+    {
+        return $this->hasMany(SubscriptionPriceHistory::class, 'subscription_id')->latest('created_at');
+    }
+
+    public function quantityHistories(): HasMany
+    {
+        return $this->hasMany(SubscriptionQuantityHistory::class, 'subscription_id')->latest('effective_date')->latest('created_at');
+    }
+
     public function pendingBillings(): HasMany
     {
         return $this->hasMany(PendingBilling::class)->orderByDesc('period_start');

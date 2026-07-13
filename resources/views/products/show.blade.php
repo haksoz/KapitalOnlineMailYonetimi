@@ -137,6 +137,39 @@
         </div>
     </div>
 
+    @if ($product->priceHistories->isNotEmpty())
+    <div class="mt-6 bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-700">Son Fiyat Değişimleri</h2>
+            <a href="{{ route('admin.activity-logs.index', ['product_id' => $product->id]) }}" class="text-xs font-medium text-slate-600 hover:text-slate-900">Tüm tarihçe &rarr;</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alan</th>
+                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Eski</th>
+                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Yeni</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @foreach ($product->priceHistories as $history)
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ $history->created_at?->format('d.m.Y H:i') }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{{ $history->fieldLabel() }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ $history->old_value !== null ? number_format((float) $history->old_value, 4, ',', '.') : '—' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ $history->new_value !== null ? number_format((float) $history->new_value, 4, ',', '.') : '—' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{{ $history->changedBy?->name ?? '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
+
     {{-- Metadata --}}
     <div class="mt-6 bg-gray-50 rounded-lg p-4 text-xs text-gray-500">
         <div class="flex justify-between">

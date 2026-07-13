@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ServiceProvider;
 use App\Models\Subscription;
 use App\Models\SubscriptionQuantityChange;
+use App\Models\SubscriptionQuantityHistory;
 use App\Models\PendingBilling;
 use App\Services\PendingBillingService;
 use App\Services\SubscriptionProjectionService;
@@ -116,6 +117,8 @@ class SubscriptionController extends Controller
         $subscription->load([
             'customerCari', 'providerCari', 'product', 'serviceProvider',
             'quantityChanges',
+            'priceHistories' => fn ($q) => $q->with('changedBy:id,name')->limit(10),
+            'quantityHistories' => fn ($q) => $q->with('changedBy:id,name')->limit(10),
         ]);
 
         $orderSummaries = PendingBilling::where('subscription_id', $subscription->id)
@@ -188,6 +191,15 @@ class SubscriptionController extends Controller
             'previous_quantity' => $previousQuantity,
             'new_quantity' => $newQuantity,
             'effective_date' => $validated['effective_date'],
+        ]);
+
+        SubscriptionQuantityHistory::create([
+            'subscription_id' => $subscription->id,
+            'previous_quantity' => $previousQuantity,
+            'new_quantity' => $newQuantity,
+            'effective_date' => $validated['effective_date'],
+            'changed_by' => auth()->id(),
+            'reason' => null,
         ]);
 
         $subscription->update(['quantity' => $newQuantity]);

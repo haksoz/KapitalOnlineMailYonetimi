@@ -13,10 +13,13 @@ return new class extends Migration
             $table->foreignId('provider_cari_id')->nullable()->after('customer_cari_id')->constrained('caris')->nullOnDelete();
         });
         Schema::table('subscriptions', function (Blueprint $table) {
+            $table->dropIndex(['company_id']);
+            $table->dropIndex(['company_id', 'durum']);
             $table->dropForeign(['company_id']);
             $table->dropColumn('company_id');
         });
         Schema::table('subscriptions', function (Blueprint $table) {
+            $table->dropIndex(['supplier_id', 'sozlesme_no']);
             $table->dropForeign(['supplier_id']);
             $table->dropColumn('supplier_id');
         });
@@ -30,6 +33,7 @@ return new class extends Migration
         });
         Schema::table('supplier_invoices', function (Blueprint $table) {
             $table->dropUnique(['supplier_id', 'fatura_no']);
+            $table->dropIndex(['supplier_id']);
             $table->dropForeign(['supplier_id']);
             $table->dropColumn('supplier_id');
         });

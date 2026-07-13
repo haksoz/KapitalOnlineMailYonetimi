@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\CariLedgerReportController as AdminCariLedgerRepo
 use App\Http\Controllers\Admin\PendingBillingAdminController as AdminPendingBillingController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\IntegrationPreviewController as AdminIntegrationPreviewController;
+use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
 use App\Http\Controllers\Admin\ApiSettingsController as AdminApiSettingsController;
 use App\Http\Controllers\TriggersController;
 use Illuminate\Support\Facades\Route;
@@ -100,6 +101,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('reports/cari-ledger', [AdminCariLedgerReportController::class, 'index'])->name('reports.cari-ledger');
         Route::get('reports/cari-ledger/export', [AdminCariLedgerReportController::class, 'export'])->name('reports.cari-ledger.export');
         Route::get('reports/cari-ledger/totals', [AdminCariLedgerReportController::class, 'totals'])->name('reports.cari-ledger.totals');
+
+        Route::get('activity-logs', [AdminActivityLogController::class, 'index'])->name('activity-logs.index');
 
         Route::get('pending-billings/{pending_billing}/edit-sale', [AdminPendingBillingController::class, 'editSale'])->name('pending-billings.edit-sale');
         Route::patch('pending-billings/{pending_billing}/edit-sale', [AdminPendingBillingController::class, 'updateSale'])->name('pending-billings.update-sale');

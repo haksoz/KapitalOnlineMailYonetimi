@@ -51,7 +51,10 @@ class ProductController extends Controller
 
     public function show(Product $product): View
     {
-        $product->load('serviceProvider:id,name,code');
+        $product->load([
+            'serviceProvider:id,name,code',
+            'priceHistories' => fn ($q) => $q->with('changedBy:id,name')->limit(10),
+        ]);
         return view('products.show', compact('product'));
     }
 

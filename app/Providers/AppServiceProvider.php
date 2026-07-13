@@ -4,6 +4,10 @@ namespace App\Providers;
 
 use App\Contracts\SubscriptionRepositoryInterface;
 use App\Models\MailSetting;
+use App\Models\Product;
+use App\Models\Subscription;
+use App\Observers\ProductObserver;
+use App\Observers\SubscriptionObserver;
 use App\Repositories\SubscriptionRepository;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Product::observe(ProductObserver::class);
+        Subscription::observe(SubscriptionObserver::class);
+
         $this->applyMailSettingsFromDatabase();
     }
 

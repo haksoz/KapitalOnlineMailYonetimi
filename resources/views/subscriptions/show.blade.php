@@ -111,22 +111,64 @@
             </dl>
         </div>
 
-        @if ($subscription->quantityChanges->isNotEmpty())
+        @if ($subscription->priceHistories->isNotEmpty())
         <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-            <h2 class="px-4 py-3 text-sm font-semibold text-gray-700 border-b border-gray-200">Adet güncellemeleri</h2>
+            <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-gray-700">Fiyat Değişimleri</h2>
+                <a href="{{ route('admin.activity-logs.index', ['subscription_id' => $subscription->id]) }}" class="text-xs font-medium text-slate-600 hover:text-slate-900">Tüm tarihçe &rarr;</a>
+            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
-                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Adet</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alan</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Eski</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Yeni</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach ($subscription->quantityChanges as $change)
+                        @foreach ($subscription->priceHistories as $history)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ $change->effective_date?->format('d.m.Y') }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ $change->new_quantity }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ $history->created_at?->format('d.m.Y H:i') }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{{ $history->fieldLabel() }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ $history->old_value !== null ? number_format((float) $history->old_value, 4, ',', '.') : '—' }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ $history->new_value !== null ? number_format((float) $history->new_value, 4, ',', '.') : '—' }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{{ $history->changedBy?->name ?? '—' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
+
+        @if ($subscription->quantityHistories->isNotEmpty())
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-gray-700">Adet Değişimleri</h2>
+                <a href="{{ route('admin.activity-logs.index', ['subscription_id' => $subscription->id]) }}" class="text-xs font-medium text-slate-600 hover:text-slate-900">Tüm tarihçe &rarr;</a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kayıt Tarihi</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geçerlilik</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Eski Adet</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Yeni Adet</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach ($subscription->quantityHistories as $history)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ $history->created_at?->format('d.m.Y H:i') }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{{ $history->effective_date?->format('d.m.Y') }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ $history->previous_quantity }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">{{ $history->new_quantity }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{{ $history->changedBy?->name ?? '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

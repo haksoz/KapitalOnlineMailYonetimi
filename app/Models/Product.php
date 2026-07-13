@@ -68,4 +68,9 @@ class Product extends Model
     {
         return $this->hasMany(Subscription::class, 'product_id');
     }
+
+    public function priceHistories(): HasMany
+    {
+        return $this->hasMany(ProductPriceHistory::class, 'product_id')->latest('created_at');
+    }
 }
