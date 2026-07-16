@@ -35,6 +35,14 @@
                     <dt class="text-gray-500">KDV hariç toplam (XML)</dt>
                     <dd class="font-medium text-gray-900">{{ number_format($xmlTaxExclusiveAmount, 2, ',', '.') }} ₺</dd>
                 </div>
+                <div>
+                    <dt class="text-gray-500">KDV toplamı (XML)</dt>
+                    <dd class="font-medium text-gray-900">{{ number_format($xmlTaxAmount, 2, ',', '.') }} ₺</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">KDV dahil toplam (XML)</dt>
+                    <dd class="font-medium text-gray-900">{{ number_format($xmlTaxInclusiveAmount, 2, ',', '.') }} ₺</dd>
+                </div>
             </dl>
             @if(!empty($parsed['sozlesme_nos']))
                 <div class="mt-3 pt-3 border-t border-gray-100">

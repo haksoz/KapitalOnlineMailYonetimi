@@ -9,6 +9,21 @@
         </x-slot>
     </x-page-toolbar>
 
+    @php
+        $systemNetTotal = (float) ($salesInvoice->total_amount_tl ?? 0);
+        $systemVatTotal = 0.0;
+        foreach ($salesInvoice->lines as $line) {
+            $vatRate = $line->pendingBilling?->subscription?->vat_rate !== null
+                ? (float) $line->pendingBilling->subscription->vat_rate
+                : 20.0;
+            $systemVatTotal += round((float) $line->line_amount_tl * ($vatRate / 100), 2);
+        }
+        $systemGrossTotal = $systemNetTotal + $systemVatTotal;
+        $invoiceTotalDiff = $salesInvoice->invoice_total_net_tl !== null
+            ? (float) $salesInvoice->invoice_total_net_tl - $systemNetTotal
+            : null;
+    @endphp
+
     <div x-data="{ atmacayaKopyalaOpen: {{ request()->boolean('atmacaya') ? 'true' : 'false' }} }" class="space-y-6">
         <div class="bg-white rounded-xl shadow-sm p-6">
             <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Fatura bilgileri</h2>
@@ -32,23 +47,42 @@
                 </div>
                 @endif
                 <div>
-                    <dt class="text-gray-500">Toplam (TL)</dt>
-                    <dd class="font-medium text-gray-900">{{ $salesInvoice->total_amount_tl !== null ? number_format((float) $salesInvoice->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}</dd>
+                    <dt class="text-gray-500">Sistem toplamı (KDV hariç)</dt>
+                    <dd class="font-medium text-gray-900">{{ number_format($systemNetTotal, 2, ',', '.') }} ₺</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">KDV toplamı</dt>
+                    <dd class="font-medium text-gray-900">{{ number_format($systemVatTotal, 2, ',', '.') }} ₺</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Sistem toplamı (KDV dahil)</dt>
+                    <dd class="font-medium text-gray-900">{{ number_format($systemGrossTotal, 2, ',', '.') }} ₺</dd>
                 </div>
             </dl>
-            @if ($salesInvoice->invoice_total_net_tl !== null)
-                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                @if ($salesInvoice->invoice_total_net_tl !== null)
                     <div>
-                        <dt class="text-gray-500">Fatura KDV hariç toplamı (girdiğin)</dt>
+                        <dt class="text-gray-500">Fatura toplamı (KDV hariç)</dt>
                         <dd class="font-medium text-gray-900">
                             {{ number_format((float) $salesInvoice->invoice_total_net_tl, 2, ',', '.') }} ₺
                         </dd>
                     </div>
-                    @if ($salesInvoice->invoice_total_diff_tl !== null)
+                    @if ($salesInvoice->invoice_total_vat_tl !== null)
+                        <div>
+                            <dt class="text-gray-500">Fatura KDV toplamı</dt>
+                            <dd class="font-medium text-gray-900">{{ number_format((float) $salesInvoice->invoice_total_vat_tl, 2, ',', '.') }} ₺</dd>
+                        </div>
+                    @endif
+                    @if ($salesInvoice->invoice_total_gross_tl !== null)
+                        <div>
+                            <dt class="text-gray-500">Fatura toplamı (KDV dahil)</dt>
+                            <dd class="font-medium text-gray-900">{{ number_format((float) $salesInvoice->invoice_total_gross_tl, 2, ',', '.') }} ₺</dd>
+                        </div>
+                    @endif
                     <div>
-                        <dt class="text-gray-500">Sistem toplamı ile fark</dt>
-                        <dd class="font-medium {{ (float) $salesInvoice->invoice_total_diff_tl === 0.0 ? 'text-emerald-700' : 'text-amber-700' }}">
-                            {{ number_format((float) $salesInvoice->invoice_total_diff_tl, 2, ',', '.') }} ₺
+                        <dt class="text-gray-500">Sistem toplamı ile fark (KDV hariç)</dt>
+                        <dd class="font-medium {{ $invoiceTotalDiff === 0.0 ? 'text-emerald-700' : 'text-amber-700' }}">
+                            {{ number_format($invoiceTotalDiff, 2, ',', '.') }} ₺
                         </dd>
                         @if ($salesInvoice->invoice_total_diff_reason)
                             <p class="mt-1 text-xs text-gray-600">
@@ -56,9 +90,13 @@
                             </p>
                         @endif
                     </div>
-                    @endif
-                </div>
-            @endif
+                @else
+                    <div>
+                        <dt class="text-gray-500">Fark kontrolü</dt>
+                        <dd class="font-medium text-amber-700">Gerçek faturanın KDV hariç toplamı girilmemiş.</dd>
+                    </div>
+                @endif
+            </div>
             @if ($salesInvoice->notes)
                 <div class="mt-3 pt-3 border-t border-gray-100">
                     <dt class="text-gray-500 text-sm">Not</dt>

@@ -47,7 +47,12 @@ class SalesInvoiceXmlParser
         if ($taxExclusive === 0.0) {
             $taxExclusive = (float) $this->firstNodeValue($xpath->query('//cac:LegalMonetaryTotal/cbc:LineExtensionAmount[@currencyID="TRY"]'), 0);
         }
+        $taxAmount = (float) $this->firstNodeValue($xpath->query('//cac:TaxTotal/cbc:TaxAmount[@currencyID="TRY"]'), 0);
+        $taxInclusive = (float) $this->firstNodeValue($xpath->query('//cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount[@currencyID="TRY"]'), 0);
         $payableAmount = (float) $this->firstNodeValue($xpath->query('//cac:LegalMonetaryTotal/cbc:PayableAmount[@currencyID="TRY"]'), 0);
+        if ($taxInclusive === 0.0) {
+            $taxInclusive = $payableAmount;
+        }
 
         $sozlesmeNos = [];
         $invoiceLines = $xpath->query('//cac:InvoiceLine');
@@ -66,6 +71,8 @@ class SalesInvoiceXmlParser
             'customer_vkn' => $customerVkn !== '' ? $customerVkn : null,
             'sozlesme_nos' => $sozlesmeNos,
             'tax_exclusive_amount' => $taxExclusive,
+            'tax_amount' => $taxAmount,
+            'tax_inclusive_amount' => $taxInclusive,
             'payable_amount' => $payableAmount,
         ];
     }

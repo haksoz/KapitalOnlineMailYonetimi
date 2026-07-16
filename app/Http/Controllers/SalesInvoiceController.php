@@ -140,12 +140,16 @@ class SalesInvoiceController extends Controller
         $parsed = $data['parsed'];
         $candidates = $data['candidates'];
         $xmlTaxExclusive = (float) ($parsed['tax_exclusive_amount'] ?? 0);
+        $xmlTaxAmount = (float) ($parsed['tax_amount'] ?? 0);
+        $xmlTaxInclusive = (float) ($parsed['tax_inclusive_amount'] ?? 0);
 
         return view('sales-invoices.sales-invoice-xml-match-preview', [
             'parsed' => $parsed,
             'cariName' => $data['cari_name'] ?? '',
             'candidates' => $candidates,
             'xmlTaxExclusiveAmount' => $xmlTaxExclusive,
+            'xmlTaxAmount' => $xmlTaxAmount,
+            'xmlTaxInclusiveAmount' => $xmlTaxInclusive,
         ]);
     }
 
@@ -179,9 +183,19 @@ class SalesInvoiceController extends Controller
         $parsed = $data['parsed'];
         $salesInvoice = SalesInvoice::findOrFail($salesInvoiceId);
 
+        $invoiceTotalNet = (float) ($parsed['tax_exclusive_amount'] ?? 0);
+        $invoiceTotalVat = (float) ($parsed['tax_amount'] ?? 0);
+        $invoiceTotalGross = (float) ($parsed['tax_inclusive_amount'] ?? 0);
+        $systemTotalNet = (float) ($salesInvoice->total_amount_tl ?? 0);
+
         $update = [
             'our_invoice_number' => $parsed['invoice_id'] ?? '',
             'our_invoice_date' => $parsed['issue_date'] ?? null,
+            'invoice_total_net_tl' => $invoiceTotalNet,
+            'invoice_total_vat_tl' => $invoiceTotalVat,
+            'invoice_total_gross_tl' => $invoiceTotalGross,
+            'invoice_total_diff_tl' => $invoiceTotalNet - $systemTotalNet,
+            'invoice_total_diff_reason' => null,
         ];
         if ($salesInvoice->order_number === null || $salesInvoice->order_number === '') {
             $update['order_number'] = SalesInvoice::getNextFaturaTakipNo();
