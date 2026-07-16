@@ -66,7 +66,7 @@
                 </div>
             @endif
 
-            <div class="mt-4">
+            <div class="mt-4 flex flex-wrap gap-2">
                 <button
                     type="button"
                     @click="atmacayaKopyalaOpen = true"
@@ -74,6 +74,14 @@
                 >
                     Atmaca’ya kopyala
                 </button>
+                @if (blank($salesInvoice->our_invoice_number) && $salesInvoice->our_invoice_date === null)
+                    <form method="POST" action="{{ route('sales-invoices.revert', $salesInvoice) }}" onsubmit="return confirm('Bu faturalandırma silinecek; bağlı siparişler tekrar bekleyen siparişlere dönecek. Devam etmek istiyor musunuz?');">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-lg border border-red-300 text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                            Faturalandırmayı geri al
+                        </button>
+                    </form>
+                @endif
             </div>
         </div>
 

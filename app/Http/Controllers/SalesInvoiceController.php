@@ -12,6 +12,7 @@ use App\Services\PendingBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
 
 class SalesInvoiceController extends Controller
 {
@@ -441,6 +442,64 @@ class SalesInvoiceController extends Controller
         return redirect()
             ->route('sales-invoices.show', $salesInvoice)
             ->with('success', 'Faturalandırma oluşturuldu. ' . $pendingBillings->count() . ' kayıt faturalandı.');
+    }
+
+    public function revert(SalesInvoice $sales_invoice): RedirectResponse
+    {
+        if (
+            ($sales_invoice->our_invoice_number !== null && trim($sales_invoice->our_invoice_number) !== '')
+            || $sales_invoice->our_invoice_date !== null
+        ) {
+            return redirect()
+                ->route('sales-invoices.show', $sales_invoice)
+                ->with('error', 'Fatura numarası veya tarihi girilmiş kayıt geri alınamaz. Önce gerçek faturayı iptal edin.');
+        }
+
+        $revertedCount = 0;
+        $reverted = DB::transaction(function () use ($sales_invoice, &$revertedCount): bool {
+            $lines = $sales_invoice->lines()
+                ->select(['id', 'pending_billing_id'])
+                ->lockForUpdate()
+                ->get();
+
+            $pendingBillingIds = $lines->pluck('pending_billing_id')->filter()->values()->all();
+            if ($pendingBillingIds === []) {
+                return false;
+            }
+
+            $pendingBillings = PendingBilling::query()
+                ->whereIn('id', $pendingBillingIds)
+                ->lockForUpdate()
+                ->get();
+
+            if ($pendingBillings->count() !== count($pendingBillingIds)
+                || $pendingBillings->contains(fn (PendingBilling $pendingBilling): bool => $pendingBilling->status !== PendingBilling::STATUS_INVOICED)) {
+                return false;
+            }
+
+            PendingBilling::query()
+                ->whereIn('id', $pendingBillingIds)
+                ->update([
+                    'status' => PendingBilling::STATUS_PENDING,
+                    'actual_satis_tl' => null,
+                ]);
+
+            $sales_invoice->lines()->delete();
+            $sales_invoice->delete();
+            $revertedCount = count($pendingBillingIds);
+
+            return true;
+        });
+
+        if (! $reverted) {
+            return redirect()
+                ->route('sales-invoices.show', $sales_invoice)
+                ->with('error', 'Faturalandırma geri alınamadı. Faturaya bağlı siparişlerin durumunu kontrol edin.');
+        }
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => PendingBilling::STATUS_PENDING])
+            ->with('success', $revertedCount . ' sipariş tekrar bekleyen siparişlere alındı.');
     }
 
     public function show(SalesInvoice $sales_invoice): View
