@@ -11,7 +11,19 @@ class CariController extends Controller
 {
     public function index(Request $request): View
     {
-        $caris = Cari::query()
+        $query = Cari::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('short_name', 'like', "%{$search}%")
+                  ->orWhere('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('tax_number', 'like', "%{$search}%");
+            });
+        }
+
+        $caris = $query
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();

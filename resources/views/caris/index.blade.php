@@ -9,6 +9,30 @@
         </x-slot>
     </x-page-toolbar>
 
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+        <form action="{{ route('caris.index') }}" method="GET" class="p-4">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <div class="flex-1">
+                    <input type="text" 
+                           name="search" 
+                           value="{{ request('search') }}" 
+                           placeholder="Kısa ad, ünvan, e-posta veya vergi numarası ile ara..." 
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent">
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 bg-slate-800 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition">
+                        Ara
+                    </button>
+                    @if (request('search'))
+                        <a href="{{ route('caris.index') }}" class="inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 bg-gray-200 border border-transparent rounded-lg font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition">
+                            Temizle
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
