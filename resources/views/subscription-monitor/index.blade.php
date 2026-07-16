@@ -41,8 +41,12 @@
                 <option value="faturalanmamis" @selected(($statusFilter ?? '') === 'faturalanmamis')>Faturalandırılmamış siparişler var</option>
             </select>
         </div>
+        <div class="min-w-[250px]">
+            <x-input-label for="search" value="Cari Ara" />
+            <input id="search" name="search" type="search" value="{{ $search }}" placeholder="Cari kısa adı veya ünvanı" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+        </div>
         <div class="pb-1">
-            <x-primary-button type="submit">Filtrele</x-primary-button>
+            <x-primary-button type="submit">Ara</x-primary-button>
         </div>
     </form>
 

@@ -25,6 +25,7 @@ class SubscriptionMonitorController extends Controller
         $year = (int) $request->input('year', Carbon::today()->year);
         $month = (int) $request->input('month', Carbon::today()->month);
         $statusFilter = $request->input('status', '');
+        $search = trim((string) $request->input('search', ''));
 
         $monthStart = Carbon::create($year, $month, 1)->startOfDay();
         $monthEnd = $monthStart->copy()->endOfMonth();
@@ -173,6 +174,18 @@ class SubscriptionMonitorController extends Controller
             }));
         }
 
+        if ($search !== '') {
+            $normalizedSearch = mb_strtolower($search);
+            $customerSummaries = array_values(array_filter($customerSummaries, function (array $row) use ($normalizedSearch): bool {
+                $cari = $row['customer'];
+
+                return $cari !== null && (
+                    str_contains(mb_strtolower((string) $cari->short_name), $normalizedSearch)
+                    || str_contains(mb_strtolower((string) $cari->name), $normalizedSearch)
+                );
+            }));
+        }
+
         // İstatistik kutucukları için toplamlar (filtrelenmiş listeye göre)
         $totals = [
             'customer_count' => count($customerSummaries),
@@ -212,6 +225,7 @@ class SubscriptionMonitorController extends Controller
             'monthStart' => $monthStart,
             'monthEnd' => $monthEnd,
             'statusFilter' => $statusFilter,
+            'search' => $search,
             'customerSummaries' => $customerSummariesPaginated,
             'totals' => $totals,
         ]);
