@@ -115,6 +115,15 @@
                         <p class="mt-1 text-xs text-gray-500">Değiştirilmediği sürece abonelikte sabit kalır.</p>
                     </div>
                 </div>
+                <div class="flex items-end gap-2">
+                    <div class="w-40">
+                        <x-input-label for="margin_percentage" value="Kar marjı (%)" />
+                        <x-text-input id="margin_percentage" type="number" step="0.01" min="0" class="mt-1 block w-full" placeholder="0.00" />
+                    </div>
+                    <button type="button" onclick="applyMargin('usd_birim_alis', 'margin_percentage', 'usd_birim_satis')" class="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 whitespace-nowrap">
+                        Uygula
+                    </button>
+                </div>
                 <div class="max-w-xs">
                     <x-input-label for="vat_rate" value="KDV (%) *" />
                     <x-text-input id="vat_rate" name="vat_rate" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full" :value="old('vat_rate', $subscription->vat_rate ?? 20)" required />
@@ -155,6 +164,16 @@
     </div>
 
     <script>
+        function applyMargin(alisId, marginId, satisId) {
+            const alis = parseFloat(document.getElementById(alisId).value);
+            const margin = parseFloat(document.getElementById(marginId).value);
+            if (isNaN(alis) || isNaN(margin)) {
+                return;
+            }
+            const satis = alis * (1 + margin / 100);
+            document.getElementById(satisId).value = satis.toFixed(4);
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             var baslangic = document.getElementById('baslangic_tarihi');
             var bitis = document.getElementById('bitis_tarihi');
