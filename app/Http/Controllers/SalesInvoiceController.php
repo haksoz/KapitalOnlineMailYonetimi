@@ -16,12 +16,24 @@ use Illuminate\Support\Facades\DB;
 
 class SalesInvoiceController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $salesInvoices = SalesInvoice::query()
-            ->with(['customerCari', 'lines.pendingBilling.subscription.product'])
-            ->latest()
-            ->paginate(15);
+        $search = $request->get('search');
+
+        $query = SalesInvoice::query()
+            ->with(['customerCari', 'lines.pendingBilling.subscription.product']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('our_invoice_number', 'like', '%' . $search . '%')
+                  ->orWhereHas('customerCari', function ($q) use ($search) {
+                      $q->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('short_name', 'like', '%' . $search . '%');
+                  });
+            });
+        }
+
+        $salesInvoices = $query->latest()->paginate(15);
 
         return view('sales-invoices.index', compact('salesInvoices'));
     }

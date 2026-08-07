@@ -3,9 +3,16 @@
 
     <x-page-toolbar title="Yeni Faturalandırma">
         <x-slot name="left">
-            <a href="{{ route('sales-invoices.index') }}" class="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 touch-manipulation" aria-label="Geri">
-                <span aria-hidden="true">&larr;</span>
-            </a>
+            @if ($fromSelection ?? false)
+                <a href="{{ route('pending-billings.index', ['status' => 'pending']) }}" class="inline-flex items-center gap-2 px-4 h-10 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 touch-manipulation text-sm font-medium text-gray-700" aria-label="Siparişlere geri dön">
+                    <span aria-hidden="true">&larr;</span>
+                    Siparişlere geri dön
+                </a>
+            @else
+                <a href="{{ route('sales-invoices.index') }}" class="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 touch-manipulation" aria-label="Geri">
+                    <span aria-hidden="true">&larr;</span>
+                </a>
+            @endif
         </x-slot>
     </x-page-toolbar>
 

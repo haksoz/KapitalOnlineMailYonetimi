@@ -15,6 +15,34 @@
         </p>
     </div>
 
+    <div class="mb-4">
+        <form method="GET" action="{{ route('sales-invoices.index') }}">
+            <div class="flex gap-2">
+                <input
+                    type="text"
+                    name="search"
+                    value="{{ request('search') }}"
+                    placeholder="Müşteri adı veya fatura numarası ile ara..."
+                    class="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500"
+                >
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition"
+                >
+                    Ara
+                </button>
+                @if(request('search'))
+                    <a
+                        href="{{ route('sales-invoices.index') }}"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition"
+                    >
+                        Temizle
+                    </a>
+                @endif
+            </div>
+        </form>
+    </div>
+
     <div x-data="{ atmacayaKopyalaOpen: false, atmacaText: '' }" class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
