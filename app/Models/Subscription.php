@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\PendingBillingService;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -150,5 +151,25 @@ class Subscription extends Model
     public function pendingBillings(): HasMany
     {
         return $this->hasMany(PendingBilling::class)->orderByDesc('period_start');
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(function (Subscription $subscription): void {
+            if (! $subscription->isDirty(['usd_birim_alis', 'usd_birim_satis'])) {
+                return;
+            }
+
+            $service = new PendingBillingService();
+
+            PendingBilling::query()
+                ->where('subscription_id', $subscription->id)
+                ->whereIn('status', [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED])
+                ->chunkById(100, function ($pendingBillings) use ($service): void {
+                    foreach ($pendingBillings as $pb) {
+                        $service->refreshAmountsForRecord($pb);
+                    }
+                });
+        });
     }
 }

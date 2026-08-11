@@ -17,13 +17,35 @@ class PendingBillingService
      */
     public function refreshAmountsForRecord(PendingBilling $pendingBilling, ?float $rate = null): bool
     {
-        if ($pendingBilling->status !== PendingBilling::STATUS_PENDING) {
+        if (! in_array($pendingBilling->status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED], true)) {
             return false;
         }
 
-        // Alış faturası girildiyse beklenen alış 0 TL sabit; kur ile ezme
-        if ($pendingBilling->actual_alis_tl !== null && $pendingBilling->actual_alis_tl !== '') {
+        $subscription = $pendingBilling->subscription;
+        if ($subscription === null || $subscription->usd_birim_alis === null) {
             return false;
+        }
+
+        $usdAlis = (float) $subscription->usd_birim_alis;
+        if ($usdAlis <= 0) {
+            return false;
+        }
+
+        $usdSatis = $subscription->usd_birim_satis !== null && $subscription->usd_birim_satis !== ''
+            ? (float) $subscription->usd_birim_satis
+            : null;
+
+        // Alış faturası gelmişse beklenen alış 0 TL sabit; beklenen satışı güncel satış/alış oranına göre yeniden hesapla
+        if ($pendingBilling->actual_alis_tl !== null && $pendingBilling->actual_alis_tl !== '') {
+            $actualAlis = (float) $pendingBilling->actual_alis_tl;
+            $satisTl = $usdSatis !== null ? $actualAlis * ($usdSatis / $usdAlis) : null;
+
+            $pendingBilling->update([
+                'expected_satis_tl' => $satisTl,
+                'amounts_updated_at' => now(),
+            ]);
+
+            return true;
         }
 
         if ($rate === null) {
@@ -45,16 +67,11 @@ class PendingBillingService
             return false;
         }
 
-        $subscription = $pendingBilling->subscription;
-        if ($subscription->usd_birim_alis === null) {
-            return false;
-        }
-
         $quantity = (int) $subscription->quantity;
-        $alisKdvHaric = (float) $subscription->usd_birim_alis * $quantity * $rate;
+        $alisKdvHaric = $usdAlis * $quantity * $rate;
         $satisTl = null;
-        if ((float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {
-            $satisTl = $alisKdvHaric * ((float) $subscription->usd_birim_satis / (float) $subscription->usd_birim_alis);
+        if ($usdSatis !== null) {
+            $satisTl = $alisKdvHaric * ($usdSatis / $usdAlis);
         }
 
         $pendingBilling->update([
