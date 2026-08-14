@@ -472,15 +472,6 @@ class SalesInvoiceController extends Controller
 
     public function revert(SalesInvoice $sales_invoice): RedirectResponse
     {
-        if (
-            ($sales_invoice->our_invoice_number !== null && trim($sales_invoice->our_invoice_number) !== '')
-            || $sales_invoice->our_invoice_date !== null
-        ) {
-            return redirect()
-                ->route('sales-invoices.show', $sales_invoice)
-                ->with('error', 'Fatura numarası veya tarihi girilmiş kayıt geri alınamaz. Önce gerçek faturayı iptal edin.');
-        }
-
         $revertedCount = 0;
         $reverted = DB::transaction(function () use ($sales_invoice, &$revertedCount): bool {
             $lines = $sales_invoice->lines()
@@ -508,6 +499,7 @@ class SalesInvoiceController extends Controller
                 ->update([
                     'status' => PendingBilling::STATUS_PENDING,
                     'actual_satis_tl' => null,
+                    'fee_difference_tl' => null,
                 ]);
 
             $sales_invoice->lines()->delete();
