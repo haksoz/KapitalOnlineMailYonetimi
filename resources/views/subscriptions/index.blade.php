@@ -38,13 +38,11 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sözleşme No</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tedarikçi</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sözleşme / Müşteri</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ürün</th>
                         <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Adet</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başlangıç</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bitiş</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alış / Satış / Kar %</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başlangıç / Bitiş</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Otomatik</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
@@ -53,13 +51,39 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse ($subscriptions as $sub)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ $sub->sozlesme_no }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700">{{ $sub->customerCari?->short_name ?: $sub->customerCari?->name ?? '—' }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700">{{ $sub->providerCari?->short_name ?: $sub->providerCari?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">
+                                <div class="text-xs">
+                                    <span class="text-gray-500">Sözleşme:</span> <span class="font-medium text-gray-900">{{ $sub->sozlesme_no }}</span><br>
+                                    <span class="text-gray-500">Müşteri:</span> <span class="font-medium text-base">{{ $sub->customerCari?->short_name ?: $sub->customerCari?->name ?? '—' }}</span>
+                                </div>
+                            </td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $sub->product?->name ?? '—' }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">{{ $sub->quantity ?? 1 }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ $sub->baslangic_tarihi?->format('d.m.Y') ?? '—' }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ $sub->bitis_tarihi?->format('d.m.Y') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                @php
+                                    $alis = $sub->usd_birim_alis;
+                                    $satis = $sub->usd_birim_satis;
+                                    $kar = null;
+                                    if ($alis && $satis && $alis > 0) {
+                                        $kar = (($satis - $alis) / $alis) * 100;
+                                    }
+                                @endphp
+                                <div class="text-xs">
+                                    <span class="text-gray-500">Alış:</span> ${{ number_format($alis, 4) ?? '—' }}<br>
+                                    <span class="text-gray-500">Satış:</span> ${{ number_format($satis, 4) ?? '—' }}<br>
+                                    @if($kar !== null)
+                                        <span class="text-gray-500">Kar:</span> <span class="{{ $kar >= 0 ? 'text-green-600' : 'text-red-600' }}">{{ number_format($kar, 2) }}%</span>
+                                    @else
+                                        <span class="text-gray-500">Kar:</span> —
+                                    @endif
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                <div class="text-xs">
+                                    <span class="text-gray-500">Başlangıç:</span> {{ $sub->baslangic_tarihi?->format('d.m.Y') ?? '—' }}<br>
+                                    <span class="text-gray-500">Bitiş:</span> {{ $sub->bitis_tarihi?->format('d.m.Y') ?? '—' }}
+                                </div>
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 @php
                                     $durumLabels = [
@@ -131,7 +155,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="px-4 py-8 text-center text-sm text-gray-500">Henüz abonelik eklenmemiş.</td>
+                            <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">Henüz abonelik eklenmemiş.</td>
                         </tr>
                     @endforelse
                 </tbody>
