@@ -17,6 +17,20 @@
                         </button>
                     </form>
                 @endif
+                @if (in_array($subscription->durum, ['cancelled', 'pending'], true))
+                    <form
+                        action="{{ route('subscriptions.destroy', $subscription) }}"
+                        method="POST"
+                        class="inline"
+                        onsubmit="return confirm('DİKKAT: Bu abonelik kalıcı olarak silinecek.\n\nBağlı siparişler, fiyat/adet geçmişi ve projeksiyonlar da silinir. Bu işlem geri alınamaz.\n\nFaturalanmış sipariş varsa silme engellenir.\n\nDevam etmek istiyor musunuz?');"
+                    >
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-red-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                            Tamamen sil
+                        </button>
+                    </form>
+                @endif
                 <a href="{{ route('subscriptions.show-update-quantity', $subscription) }}" class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
                     Adet güncelle
                 </a>

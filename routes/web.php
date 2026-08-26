@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('products/api/data', [ProductController::class, 'api'])->name('products.api');
     Route::resource('subscriptions', SubscriptionController::class)->except(['destroy']);
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+    Route::delete('subscriptions/{subscription}', [SubscriptionController::class, 'destroy'])->name('subscriptions.destroy');
     Route::post('subscriptions/{subscription}/toggle-auto-renew', [SubscriptionController::class, 'toggleAutoRenew'])->name('subscriptions.toggle-auto-renew');
     Route::post('subscriptions/{subscription}/create-projection', [SubscriptionController::class, 'createProjection'])->name('subscriptions.create-projection');
     Route::get('subscriptions/{subscription}/order-summary-totals', [SubscriptionController::class, 'orderSummaryTotals'])->name('subscriptions.order-summary-totals');

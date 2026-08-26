@@ -173,4 +173,124 @@ class PendingBillingServiceTest extends TestCase
         $this->assertEquals(1000, (float) $pendingBilling->expected_alis_tl);
         $this->assertEquals(1200, (float) $pendingBilling->expected_satis_tl);
     }
+
+    public function test_add_first_period_skips_future_start_date(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-26'));
+
+        $customerCari = Cari::create([
+            'name' => 'Musteri Future',
+            'short_name' => 'Musteri Future',
+            'cari_type' => 'customer',
+            'tax_number' => '5555555555',
+        ]);
+
+        $subscription = Subscription::create([
+            'customer_cari_id' => $customerCari->id,
+            'provider_cari_id' => $customerCari->id,
+            'sozlesme_no' => 'SOZ-FUTURE-001',
+            'baslangic_tarihi' => '2026-09-01',
+            'bitis_tarihi' => '2027-09-01',
+            'taahhut_tipi' => Subscription::TAAHHUT_MONTHLY_COMMITMENT,
+            'faturalama_periyodu' => Subscription::FATURALAMA_MONTHLY,
+            'durum' => Subscription::DURUM_ACTIVE,
+            'quantity' => 1,
+            'currency' => Subscription::CURRENCY_TRY,
+            'usd_birim_alis' => 0,
+            'usd_birim_satis' => 500,
+            'vat_rate' => 20,
+        ]);
+
+        $service = new PendingBillingService();
+        $result = $service->addFirstPeriodForSubscription($subscription);
+
+        $this->assertNull($result);
+        $this->assertDatabaseMissing('pending_billings', [
+            'subscription_id' => $subscription->id,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_add_first_period_creates_when_start_is_today_or_past(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-26'));
+
+        $customerCari = Cari::create([
+            'name' => 'Musteri Today',
+            'short_name' => 'Musteri Today',
+            'cari_type' => 'customer',
+            'tax_number' => '6666666666',
+        ]);
+
+        $subscription = Subscription::create([
+            'customer_cari_id' => $customerCari->id,
+            'provider_cari_id' => $customerCari->id,
+            'sozlesme_no' => 'SOZ-TODAY-001',
+            'baslangic_tarihi' => '2026-08-26',
+            'bitis_tarihi' => '2027-08-26',
+            'taahhut_tipi' => Subscription::TAAHHUT_MONTHLY_COMMITMENT,
+            'faturalama_periyodu' => Subscription::FATURALAMA_MONTHLY,
+            'durum' => Subscription::DURUM_ACTIVE,
+            'quantity' => 1,
+            'currency' => Subscription::CURRENCY_TRY,
+            'usd_birim_alis' => 0,
+            'usd_birim_satis' => 500,
+            'vat_rate' => 20,
+        ]);
+
+        $service = new PendingBillingService();
+        $result = $service->addFirstPeriodForSubscription($subscription);
+
+        $this->assertNotNull($result);
+        $this->assertSame(1, PendingBilling::where('subscription_id', $subscription->id)->count());
+        $this->assertTrue(
+            PendingBilling::where('subscription_id', $subscription->id)
+                ->whereDate('period_start', '2026-08-26')
+                ->where('status', PendingBilling::STATUS_PENDING)
+                ->exists()
+        );
+
+        Carbon::setTestNow();
+    }
+
+    public function test_enqueue_due_periods_creates_order_on_future_start_day(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-01'));
+
+        $customerCari = Cari::create([
+            'name' => 'Musteri Enqueue',
+            'short_name' => 'Musteri Enqueue',
+            'cari_type' => 'customer',
+            'tax_number' => '7777777777',
+        ]);
+
+        $subscription = Subscription::create([
+            'customer_cari_id' => $customerCari->id,
+            'provider_cari_id' => $customerCari->id,
+            'sozlesme_no' => 'SOZ-ENQ-001',
+            'baslangic_tarihi' => '2026-09-01',
+            'bitis_tarihi' => '2027-09-01',
+            'taahhut_tipi' => Subscription::TAAHHUT_MONTHLY_COMMITMENT,
+            'faturalama_periyodu' => Subscription::FATURALAMA_MONTHLY,
+            'durum' => Subscription::DURUM_ACTIVE,
+            'quantity' => 1,
+            'currency' => Subscription::CURRENCY_TRY,
+            'usd_birim_alis' => 0,
+            'usd_birim_satis' => 500,
+            'vat_rate' => 20,
+        ]);
+
+        $service = new PendingBillingService();
+        $added = $service->enqueueDuePeriods(Carbon::parse('2026-09-01'));
+
+        $this->assertSame(1, $added);
+        $this->assertTrue(
+            PendingBilling::where('subscription_id', $subscription->id)
+                ->whereDate('period_start', '2026-09-01')
+                ->exists()
+        );
+
+        Carbon::setTestNow();
+    }
 }

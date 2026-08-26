@@ -162,7 +162,8 @@ class PendingBillingService
 
     /**
      * Abonelik oluşturulduğunda ilk dönemi ödeme bekleyenlere ekler.
-     * Koşul: baslangic_tarihi <= period_start < bitis_tarihi (ilk dönem için sağlanır).
+     * Koşul: baslangic_tarihi <= bugün ve baslangic_tarihi < bitis_tarihi.
+     * Başlangıç gelecekteyse sipariş oluşturulmaz; dönem başında pending-billings:enqueue ekler.
      */
     public function addFirstPeriodForSubscription(Subscription $subscription): ?PendingBilling
     {
@@ -171,6 +172,11 @@ class PendingBillingService
         $bitis = $subscription->bitis_tarihi;
 
         if (! $baslangic || ! $bitis) {
+            return null;
+        }
+
+        // Gelecek başlangıçlı abonelik: siparişi henüz açma
+        if ($baslangic->copy()->startOfDay()->gt(Carbon::today())) {
             return null;
         }
 

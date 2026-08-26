@@ -335,6 +335,37 @@ class SubscriptionController extends Controller
             ->with('success', 'Abonelik, bitiş tarihinde iptal edilmek üzere işaretlendi.');
     }
 
+    public function destroy(Subscription $subscription): RedirectResponse
+    {
+        if (! in_array($subscription->durum, [Subscription::DURUM_CANCELLED, Subscription::DURUM_PENDING], true)) {
+            return redirect()
+                ->route('subscriptions.show', $subscription)
+                ->with('error', 'Yalnızca iptal edilmiş veya iptali planlanmış abonelikler tamamen silinebilir.');
+        }
+
+        $hasInvoiced = PendingBilling::query()
+            ->withDeleted()
+            ->where('subscription_id', $subscription->id)
+            ->where(function ($q) {
+                $q->where('status', PendingBilling::STATUS_INVOICED)
+                    ->orWhereHas('salesInvoiceLine');
+            })
+            ->exists();
+
+        if ($hasInvoiced) {
+            return redirect()
+                ->route('subscriptions.show', $subscription)
+                ->with('error', 'Bu aboneliğe bağlı faturalanmış sipariş/satış faturası satırı var. Muhasebe kayıtlarını korumak için silinemez.');
+        }
+
+        $sozlesmeNo = $subscription->sozlesme_no;
+        $subscription->delete();
+
+        return redirect()
+            ->route('subscriptions.index')
+            ->with('success', "Abonelik ({$sozlesmeNo}) ve bağlı sipariş/geçmiş kayıtları tamamen silindi.");
+    }
+
     public function toggleAutoRenew(Request $request, Subscription $subscription): \Illuminate\Http\JsonResponse|RedirectResponse
     {
         $next = ! (bool) $subscription->auto_renew;
