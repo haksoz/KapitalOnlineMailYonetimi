@@ -85,11 +85,15 @@
                     <dd class="font-medium text-gray-900">{{ $subscription->auto_renew ? 'Açık' : 'Kapalı' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-gray-500">USD birim alış (sabit)</dt>
+                    <dt class="text-gray-500">Para birimi</dt>
+                    <dd class="font-medium text-gray-900">{{ $subscription->currencyLabel() }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">{{ $subscription->currencyLabel() }} birim alış (sabit)</dt>
                     <dd class="font-medium text-gray-900">{{ $subscription->usd_birim_alis !== null ? number_format((float) $subscription->usd_birim_alis, 4, ',', '.') : '—' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-gray-500">USD birim satış (sabit)</dt>
+                    <dt class="text-gray-500">{{ $subscription->currencyLabel() }} birim satış (sabit)</dt>
                     <dd class="font-medium text-gray-900">{{ $subscription->usd_birim_satis !== null ? number_format((float) $subscription->usd_birim_satis, 4, ',', '.') : '—' }}</dd>
                 </div>
                 <div>

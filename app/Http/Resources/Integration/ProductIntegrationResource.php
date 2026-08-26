@@ -14,6 +14,7 @@ class ProductIntegrationResource extends JsonResource
             'name' => $this->name,
             'stock_code' => $this->stock_code,
             'description' => $this->description,
+            'currency' => $this->currency ?? 'USD',
             // Aylık Taahhütlü
             'satis_usd_monthly_commitment' => $this->satis_usd_monthly_commitment !== null ? (float) $this->satis_usd_monthly_commitment : null,
             // Aylık Taahhütsüz

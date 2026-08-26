@@ -20,6 +20,7 @@ class SubscriptionResource extends JsonResource
             'durum' => $this->durum,
             'auto_renew' => $this->auto_renew,
             'quantity' => $this->quantity,
+            'currency' => $this->currency ?? 'USD',
             'usd_birim_satis' => $this->usd_birim_satis,
             'vat_rate' => $this->vat_rate,
             'customer_cari' => new CariResource($this->whenLoaded('customerCari')),

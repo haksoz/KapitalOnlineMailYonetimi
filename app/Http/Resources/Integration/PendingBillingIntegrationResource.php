@@ -48,8 +48,21 @@ class PendingBillingIntegrationResource extends JsonResource
 
         $usdAlis  = $subscription->usd_birim_alis  !== null && $subscription->usd_birim_alis  !== '' ? (float) $subscription->usd_birim_alis  : null;
         $usdSatis = $subscription->usd_birim_satis !== null && $subscription->usd_birim_satis !== '' ? (float) $subscription->usd_birim_satis : null;
+        $qty = (int) $subscription->quantity;
 
-        if ($usdAlis === null || $usdAlis <= 0 || $usdSatis === null) {
+        if ($usdSatis === null) {
+            return null;
+        }
+
+        if ($subscription->isTry()) {
+            if ($usdAlis !== null && $usdAlis > 0) {
+                return round($usdAlis * $qty * ($usdSatis / $usdAlis), 2);
+            }
+
+            return round($usdSatis * $qty, 2);
+        }
+
+        if ($usdAlis === null || $usdAlis <= 0) {
             return null;
         }
 
@@ -61,7 +74,6 @@ class PendingBillingIntegrationResource extends JsonResource
             return null;
         }
 
-        $qty = (int) $subscription->quantity;
         $alisKdvHaric = $usdAlis * $qty * $rate;
 
         return round($alisKdvHaric * ($usdSatis / $usdAlis), 2);

@@ -218,6 +218,8 @@ class PendingBillingController extends Controller
         $satisFromAlis = null;
         if ((float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {
             $satisFromAlis = (float) $validated['actual_alis_tl'] * ((float) $subscription->usd_birim_satis / (float) $subscription->usd_birim_alis);
+        } elseif ($subscription->isTry() && $subscription->usd_birim_satis !== null) {
+            $satisFromAlis = (float) $subscription->usd_birim_satis * (int) $subscription->quantity;
         }
 
         $line = $pending_billing->salesInvoiceLine;
@@ -686,6 +688,8 @@ class PendingBillingController extends Controller
             $satisFromAlis = null;
             if ((float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {
                 $satisFromAlis = (float) $amount * ((float) $subscription->usd_birim_satis / (float) $subscription->usd_birim_alis);
+            } elseif ($subscription->isTry() && $subscription->usd_birim_satis !== null) {
+                $satisFromAlis = (float) $subscription->usd_birim_satis * (int) $subscription->quantity;
             }
 
             $salesLine = $pendingBilling->salesInvoiceLine;

@@ -59,12 +59,13 @@
                 </div>
                 <div>
                     <x-input-label for="product_id" value="Ürün" />
-                    <select id="product_id" name="product_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
-                        <option value="">— Seçin —</option>
-                        @foreach ($products as $p)
-                            <option value="{{ $p->id }}" @selected(old('product_id', $subscription->product_id) == $p->id)>{{ $p->name }} @if($p->stock_code)({{ $p->stock_code }})@endif</option>
-                        @endforeach
-                    </select>
+                    <x-searchable-product-select :products="$products" :selected="old('product_id', $subscription->product_id)" />
+                    <p class="mt-1 text-xs text-gray-500">Yazarak ara; yeni ürünler üstte listelenir.</p>
+                </div>
+                <div>
+                    <x-input-label value="Para birimi" />
+                    <p id="currency_display" class="mt-1 text-sm font-medium text-gray-900">{{ ($subscription->currency ?? 'USD') === 'TRY' ? 'TL' : 'USD' }}</p>
+                    <p class="mt-1 text-xs text-gray-500">Abonelikte kilitlidir. Ürün değişirse yeni ürünün para birimi uygulanır.</p>
                 </div>
                 <div>
                     <x-input-label value="Ürün adeti" />
@@ -105,12 +106,12 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <x-input-label for="usd_birim_alis" value="USD birim alış (sabit)" />
+                        <x-input-label for="usd_birim_alis" id="label_birim_alis" :value="(($subscription->currency ?? 'USD') === 'TRY' ? 'TL birim alış (sabit)' : 'USD birim alış (sabit)')" />
                         <x-text-input id="usd_birim_alis" name="usd_birim_alis" type="number" step="0.0001" min="0" class="mt-1 block w-full" :value="old('usd_birim_alis', $subscription->usd_birim_alis)" placeholder="0,0000" />
                         <p class="mt-1 text-xs text-gray-500">Değiştirilmediği sürece abonelikte sabit kalır.</p>
                     </div>
                     <div>
-                        <x-input-label for="usd_birim_satis" value="USD birim satış (sabit)" />
+                        <x-input-label for="usd_birim_satis" id="label_birim_satis" :value="(($subscription->currency ?? 'USD') === 'TRY' ? 'TL birim satış (sabit)' : 'USD birim satış (sabit)')" />
                         <x-text-input id="usd_birim_satis" name="usd_birim_satis" type="number" step="0.0001" min="0" class="mt-1 block w-full" :value="old('usd_birim_satis', $subscription->usd_birim_satis)" placeholder="0,0000" />
                         <p class="mt-1 text-xs text-gray-500">Değiştirilmediği sürece abonelikte sabit kalır.</p>
                     </div>
@@ -205,6 +206,25 @@
 
             if (baslangic) baslangic.addEventListener('change', suggestBitis);
             if (taahhut) taahhut.addEventListener('change', suggestBitis);
+
+            var currencyDisplay = document.getElementById('currency_display');
+            var labelAlis = document.getElementById('label_birim_alis');
+            var labelSatis = document.getElementById('label_birim_satis');
+            var lockedCurrency = @json(($subscription->currency ?? 'USD') === 'TRY' ? 'TRY' : 'USD');
+
+            function syncCurrencyUi(currency) {
+                var unit = currency === 'TRY' ? 'TL' : 'USD';
+                if (currencyDisplay) currencyDisplay.textContent = unit;
+                if (labelAlis) labelAlis.textContent = unit + ' birim alış (sabit)';
+                if (labelSatis) labelSatis.textContent = unit + ' birim satış (sabit)';
+            }
+
+            window.addEventListener('subscription-product-changed', function (event) {
+                var product = event.detail && event.detail.product ? event.detail.product : null;
+                syncCurrencyUi(product ? (product.currency || 'USD') : lockedCurrency);
+            });
+
+            syncCurrencyUi(lockedCurrency);
         });
     </script>
 </x-app-layout>

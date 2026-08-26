@@ -25,6 +25,7 @@ class ActivityLogTest extends TestCase
 
         $product = Product::create([
             'name' => 'Test Ürün',
+            'currency' => 'USD',
             'alis_usd_monthly_commitment' => 10,
             'satis_usd_monthly_commitment' => 20,
         ]);
@@ -32,6 +33,7 @@ class ActivityLogTest extends TestCase
         $this->actingAs($admin)
             ->patch(route('products.update', $product), [
                 'name' => 'Test Ürün Güncel',
+                'currency' => 'USD',
                 'alis_usd_monthly_commitment' => 12,
                 'satis_usd_monthly_commitment' => 22,
             ])

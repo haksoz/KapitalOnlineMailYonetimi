@@ -42,12 +42,14 @@
                 </div>
                 <div>
                     <x-input-label for="product_id" value="Ürün" />
-                    <select id="product_id" name="product_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
-                        <option value="">— Seçin —</option>
-                        @foreach ($products as $p)
-                            <option value="{{ $p->id }}" @selected(old('product_id') == $p->id)>{{ $p->name }} @if($p->stock_code)({{ $p->stock_code }})@endif</option>
-                        @endforeach
-                    </select>
+                    <x-searchable-product-select :products="$products" :selected="old('product_id')" />
+                    <p class="mt-1 text-xs text-gray-500">Yazarak ara; yeni ürünler üstte listelenir.</p>
+                </div>
+                <input type="hidden" id="currency" name="currency" value="{{ old('currency', 'USD') }}">
+                <div>
+                    <x-input-label value="Para birimi" />
+                    <p id="currency_display" class="mt-1 text-sm font-medium text-gray-900">USD</p>
+                    <p class="mt-1 text-xs text-gray-500">Üründen gelir; abonelikte sabitlenir.</p>
                 </div>
                 <div>
                     <x-input-label for="quantity" value="Ürün adeti *" />
@@ -87,14 +89,14 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <x-input-label for="usd_birim_alis" value="USD birim alış (sabit)" />
+                        <x-input-label for="usd_birim_alis" id="label_birim_alis" value="USD birim alış (sabit)" />
                         <x-text-input id="usd_birim_alis" name="usd_birim_alis" type="number" step="0.0001" min="0" class="mt-1 block w-full" :value="old('usd_birim_alis')" placeholder="0,0000" />
-                        <p class="mt-1 text-xs text-gray-500">Abonelik oluşturulduğunda sabitlenir; beklenen TL hesabında kullanılır.</p>
+                        <p id="hint_birim_alis" class="mt-1 text-xs text-gray-500">Abonelik oluşturulduğunda sabitlenir; beklenen TL hesabında kullanılır.</p>
                     </div>
                     <div>
-                        <x-input-label for="usd_birim_satis" value="USD birim satış (sabit)" />
+                        <x-input-label for="usd_birim_satis" id="label_birim_satis" value="USD birim satış (sabit)" />
                         <x-text-input id="usd_birim_satis" name="usd_birim_satis" type="number" step="0.0001" min="0" class="mt-1 block w-full" :value="old('usd_birim_satis')" placeholder="0,0000" />
-                        <p class="mt-1 text-xs text-gray-500">Abonelik oluşturulduğunda sabitlenir.</p>
+                        <p id="hint_birim_satis" class="mt-1 text-xs text-gray-500">Abonelik oluşturulduğunda sabitlenir.</p>
                     </div>
                 </div>
                 <div class="max-w-xs">
@@ -131,13 +133,66 @@
             var bitis = document.getElementById('bitis_tarihi');
             var taahhut = document.getElementById('taahhut_tipi');
             var oneriText = document.getElementById('bitis_tarihi_onerisi');
+            var currencyInput = document.getElementById('currency');
+            var currencyDisplay = document.getElementById('currency_display');
+            var alisInput = document.getElementById('usd_birim_alis');
+            var satisInput = document.getElementById('usd_birim_satis');
+            var selectedProduct = null;
+
+            function updateCurrencyUi(currency) {
+                var isTry = currency === 'TRY';
+                var unit = isTry ? 'TL' : 'USD';
+                currencyInput.value = currency;
+                currencyDisplay.textContent = unit;
+                document.getElementById('label_birim_alis').textContent = unit + ' birim alış (sabit)';
+                document.getElementById('label_birim_satis').textContent = unit + ' birim satış (sabit)';
+                document.getElementById('hint_birim_alis').textContent = isTry
+                    ? 'Sabit TL; kur uygulanmaz. Destek hizmetinde alış 0 olabilir.'
+                    : 'Abonelik oluşturulduğunda sabitlenir; beklenen TL hesabında kullanılır.';
+                document.getElementById('hint_birim_satis').textContent = isTry
+                    ? 'Sabit TL; dönem tutarı kurdan etkilenmez.'
+                    : 'Abonelik oluşturulduğunda sabitlenir.';
+            }
+
+            function applyProductPrices(fillPrices) {
+                if (!selectedProduct) {
+                    updateCurrencyUi(currencyInput.value || 'USD');
+                    return;
+                }
+
+                updateCurrencyUi(selectedProduct.currency || 'USD');
+
+                if (!fillPrices) {
+                    return;
+                }
+
+                var tip = taahhut.value;
+                var alis = null;
+                var satis = null;
+                if (tip === 'monthly_no_commitment') {
+                    alis = selectedProduct.alis_monthly_no_commitment;
+                    satis = selectedProduct.satis_monthly_no_commitment;
+                } else if (tip === 'annual_commitment') {
+                    alis = selectedProduct.alis_yearly_commitment;
+                    satis = selectedProduct.satis_yearly_commitment;
+                } else {
+                    alis = selectedProduct.alis_monthly_commitment;
+                    satis = selectedProduct.satis_monthly_commitment;
+                }
+
+                if (alis !== null && alis !== '') {
+                    alisInput.value = parseFloat(alis).toFixed(4);
+                }
+                if (satis !== null && satis !== '') {
+                    satisInput.value = parseFloat(satis).toFixed(4);
+                }
+            }
 
             function suggestBitis() {
                 var startVal = baslangic && baslangic.value;
                 var tip = taahhut && taahhut.value;
                 if (!startVal || !tip || !bitis) return;
 
-                // Kullanıcı zaten özel bir bitiş tarihi girdiyse, otomatik olarak değiştirmeyelim.
                 if (bitis.value) {
                     return;
                 }
@@ -156,7 +211,19 @@
             }
 
             if (baslangic) baslangic.addEventListener('change', suggestBitis);
-            if (taahhut) taahhut.addEventListener('change', suggestBitis);
+            if (taahhut) {
+                taahhut.addEventListener('change', function () {
+                    suggestBitis();
+                    applyProductPrices(true);
+                });
+            }
+
+            window.addEventListener('subscription-product-changed', function (event) {
+                selectedProduct = event.detail && event.detail.product ? event.detail.product : null;
+                applyProductPrices(true);
+            });
+
+            applyProductPrices(false);
         });
     </script>
 </x-app-layout>

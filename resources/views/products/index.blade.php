@@ -9,6 +9,24 @@
         </x-slot>
     </x-page-toolbar>
 
+    <form method="GET" action="{{ route('products.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        <div class="min-w-[220px] flex-1">
+            <x-input-label for="search" value="Ara" />
+            <x-text-input id="search" name="search" type="text" class="mt-1 block w-full" :value="request('search')" placeholder="Ürün adı veya stok kodu" />
+        </div>
+        <div class="min-w-[140px]">
+            <x-input-label for="currency" value="Para birimi" />
+            <select id="currency" name="currency" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                <option value="">— Tümü —</option>
+                <option value="USD" @selected(request('currency') === 'USD')>USD</option>
+                <option value="TRY" @selected(request('currency') === 'TRY')>TL</option>
+            </select>
+        </div>
+        <div class="pb-1">
+            <x-primary-button type="submit">Filtrele</x-primary-button>
+        </div>
+    </form>
+
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -29,6 +47,7 @@
                             <td class="px-3 py-3">
                                 <a href="{{ route('products.show', $product) }}" class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline block">{{ $product->name }}</a>
                                 <span class="text-xs text-gray-500">{{ $product->serviceProvider?->name ?? '—' }}</span>
+                                <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold {{ $product->isTry() ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800' }}">{{ $product->currencyLabel() }}</span>
                             </td>
                             {{-- Stok Kodu --}}
                             <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-500">{{ $product->stock_code ?? '—' }}</td>

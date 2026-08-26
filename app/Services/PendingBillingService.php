@@ -22,23 +22,35 @@ class PendingBillingService
         }
 
         $subscription = $pendingBilling->subscription;
-        if ($subscription === null || $subscription->usd_birim_alis === null) {
+        if ($subscription === null) {
             return false;
         }
 
-        $usdAlis = (float) $subscription->usd_birim_alis;
-        if ($usdAlis <= 0) {
-            return false;
-        }
-
-        $usdSatis = $subscription->usd_birim_satis !== null && $subscription->usd_birim_satis !== ''
+        $birimAlis = $subscription->usd_birim_alis !== null && $subscription->usd_birim_alis !== ''
+            ? (float) $subscription->usd_birim_alis
+            : null;
+        $birimSatis = $subscription->usd_birim_satis !== null && $subscription->usd_birim_satis !== ''
             ? (float) $subscription->usd_birim_satis
             : null;
 
-        // Alış faturası gelmişse beklenen alış 0 TL sabit; beklenen satışı güncel satış/alış oranına göre yeniden hesapla
+        if ($birimAlis === null && $birimSatis === null) {
+            return false;
+        }
+
+        $quantity = (int) $subscription->quantity;
+        $isTry = $subscription->isTry();
+
+        // Alış faturası gelmişse beklenen alış 0 TL sabit; beklenen satışı orana göre yeniden hesapla
         if ($pendingBilling->actual_alis_tl !== null && $pendingBilling->actual_alis_tl !== '') {
             $actualAlis = (float) $pendingBilling->actual_alis_tl;
-            $satisTl = $usdSatis !== null ? $actualAlis * ($usdSatis / $usdAlis) : null;
+            $satisTl = null;
+
+            if ($birimAlis !== null && $birimAlis > 0 && $birimSatis !== null) {
+                $satisTl = $actualAlis * ($birimSatis / $birimAlis);
+            } elseif ($isTry && ($birimAlis === null || $birimAlis <= 0) && $birimSatis !== null) {
+                // Sabit TL destek: alış 0/yok; satış birim × adet
+                $satisTl = $birimSatis * $quantity;
+            }
 
             $pendingBilling->update([
                 'expected_satis_tl' => $satisTl,
@@ -46,6 +58,33 @@ class PendingBillingService
             ]);
 
             return true;
+        }
+
+        if ($isTry) {
+            $alisTl = ($birimAlis !== null && $birimAlis > 0) ? $birimAlis * $quantity : 0.0;
+            $satisTl = null;
+
+            if ($birimSatis !== null) {
+                if ($birimAlis !== null && $birimAlis > 0) {
+                    $satisTl = $alisTl * ($birimSatis / $birimAlis);
+                } else {
+                    $satisTl = $birimSatis * $quantity;
+                }
+            }
+
+            $pendingBilling->update([
+                'expected_alis_tl' => $alisTl,
+                'expected_satis_tl' => $satisTl,
+                'exchange_rate_used' => 1,
+                'amounts_updated_at' => now(),
+            ]);
+
+            return true;
+        }
+
+        // USD: kur gerekir; alış birimi zorunlu
+        if ($birimAlis === null || $birimAlis <= 0) {
+            return false;
         }
 
         if ($rate === null) {
@@ -67,11 +106,10 @@ class PendingBillingService
             return false;
         }
 
-        $quantity = (int) $subscription->quantity;
-        $alisKdvHaric = $usdAlis * $quantity * $rate;
+        $alisKdvHaric = $birimAlis * $quantity * $rate;
         $satisTl = null;
-        if ($usdSatis !== null) {
-            $satisTl = $alisKdvHaric * ($usdSatis / $usdAlis);
+        if ($birimSatis !== null) {
+            $satisTl = $alisKdvHaric * ($birimSatis / $birimAlis);
         }
 
         $pendingBilling->update([
@@ -162,12 +200,16 @@ class PendingBillingService
 
         $periodEnd = $this->computePeriodEnd($periodStart, $subscription->faturalama_periyodu);
 
-        return PendingBilling::create([
+        $pending = PendingBilling::create([
             'subscription_id' => $subscription->id,
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
             'status' => PendingBilling::STATUS_PENDING,
         ]);
+
+        $this->refreshAmountsForRecord($pending->fresh(['subscription']));
+
+        return $pending->fresh();
     }
 
     /**

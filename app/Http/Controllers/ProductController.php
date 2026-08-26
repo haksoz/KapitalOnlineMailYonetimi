@@ -14,10 +14,24 @@ class ProductController extends Controller
 {
     public function index(Request $request): View
     {
-        $products = Product::query()
-            ->with('serviceProvider:id,name,code')
-            ->orderBy('name')
-            ->paginate(15)
+        $query = Product::query()
+            ->with('serviceProvider:id,name,code');
+
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('stock_code', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('currency') && in_array($request->currency, [Product::CURRENCY_USD, Product::CURRENCY_TRY], true)) {
+            $query->where('currency', $request->currency);
+        }
+
+        $products = $query
+            ->orderByDesc('id')
+            ->paginate(50)
             ->withQueryString();
 
         return view('products.index', compact('products'));
@@ -35,6 +49,7 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'stock_code' => ['nullable', 'string', 'max:64'],
             'description' => ['nullable', 'string', 'max:500'],
+            'currency' => ['required', 'string', 'in:USD,TRY'],
             'service_provider_id' => ['nullable', 'exists:service_providers,id'],
             'alis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
             'satis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
@@ -70,6 +85,7 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'stock_code' => ['nullable', 'string', 'max:64'],
             'description' => ['nullable', 'string', 'max:500'],
+            'currency' => ['required', 'string', 'in:USD,TRY'],
             'service_provider_id' => ['nullable', 'exists:service_providers,id'],
             'alis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
             'satis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],

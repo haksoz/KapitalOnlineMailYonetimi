@@ -59,7 +59,12 @@ class SubscriptionController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'short_name']);
         $serviceProviders = ServiceProvider::orderBy('name')->get(['id', 'name', 'code']);
-        $products = Product::orderBy('name')->get(['id', 'name', 'stock_code']);
+        $products = Product::orderByDesc('id')->get([
+            'id', 'name', 'stock_code', 'currency',
+            'alis_usd_monthly_commitment', 'satis_usd_monthly_commitment',
+            'alis_usd_monthly_no_commitment', 'satis_usd_monthly_no_commitment',
+            'alis_usd_yearly_commitment', 'satis_usd_yearly_commitment',
+        ]);
 
         return view('subscriptions.create', compact('customerCaris', 'providerCaris', 'serviceProviders', 'products'));
     }
@@ -82,10 +87,19 @@ class SubscriptionController extends Controller
             'usd_birim_alis' => ['nullable', 'numeric', 'min:0'],
             'usd_birim_satis' => ['nullable', 'numeric', 'min:0'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'currency' => ['nullable', 'string', 'in:USD,TRY'],
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
         if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
             $validated['vat_rate'] = 20;
+        }
+
+        // Para birimi üründen kilitlenir; ürün yoksa formdan veya USD
+        if (! empty($validated['product_id'])) {
+            $product = Product::find($validated['product_id']);
+            $validated['currency'] = $product?->currency ?? Subscription::CURRENCY_USD;
+        } else {
+            $validated['currency'] = $validated['currency'] ?? Subscription::CURRENCY_USD;
         }
 
         // Başlangıç > bitiş ise izin verme
@@ -218,7 +232,12 @@ class SubscriptionController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'short_name']);
         $serviceProviders = ServiceProvider::orderBy('name')->get(['id', 'name', 'code']);
-        $products = Product::orderBy('name')->get(['id', 'name', 'stock_code']);
+        $products = Product::orderByDesc('id')->get([
+            'id', 'name', 'stock_code', 'currency',
+            'alis_usd_monthly_commitment', 'satis_usd_monthly_commitment',
+            'alis_usd_monthly_no_commitment', 'satis_usd_monthly_no_commitment',
+            'alis_usd_yearly_commitment', 'satis_usd_yearly_commitment',
+        ]);
 
         return view('subscriptions.edit', compact('subscription', 'customerCaris', 'providerCaris', 'serviceProviders', 'products'));
     }
@@ -244,6 +263,15 @@ class SubscriptionController extends Controller
         $validated['auto_renew'] = $request->boolean('auto_renew');
         if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
             $validated['vat_rate'] = 20;
+        }
+
+        // Para birimi abonelikte kilitli kalır; ürün değişirse yeni ürünün currency'sini al
+        if (! empty($validated['product_id'])) {
+            $productIdChanged = (int) $validated['product_id'] !== (int) $subscription->product_id;
+            if ($productIdChanged || empty($subscription->currency)) {
+                $product = Product::find($validated['product_id']);
+                $validated['currency'] = $product?->currency ?? $subscription->currency ?? Subscription::CURRENCY_USD;
+            }
         }
 
         // Başlangıç > bitiş ise izin verme

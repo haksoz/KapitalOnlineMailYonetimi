@@ -42,13 +42,16 @@ class ProductPriceHistory extends Model
 
     public function fieldLabel(): string
     {
+        $currency = $this->product?->currencyLabel() ?? 'USD';
+
         return match ($this->field_name) {
-            'alis_usd_monthly_commitment' => 'Aylık Taahhütlü Alış Fiyatı (USD)',
-            'satis_usd_monthly_commitment' => 'Aylık Taahhütlü Satış Fiyatı (USD)',
-            'alis_usd_monthly_no_commitment' => 'Aylık Taahhütsüz Alış Fiyatı (USD)',
-            'satis_usd_monthly_no_commitment' => 'Aylık Taahhütsüz Satış Fiyatı (USD)',
-            'alis_usd_yearly_commitment' => 'Yıllık Taahhütlü Alış Fiyatı (USD)',
-            'satis_usd_yearly_commitment' => 'Yıllık Taahhütlü Satış Fiyatı (USD)',
+            'alis_usd_monthly_commitment' => "Aylık Taahhütlü Alış Fiyatı ({$currency})",
+            'satis_usd_monthly_commitment' => "Aylık Taahhütlü Satış Fiyatı ({$currency})",
+            'alis_usd_monthly_no_commitment' => "Aylık Taahhütsüz Alış Fiyatı ({$currency})",
+            'satis_usd_monthly_no_commitment' => "Aylık Taahhütsüz Satış Fiyatı ({$currency})",
+            'alis_usd_yearly_commitment' => "Yıllık Taahhütlü Alış Fiyatı ({$currency})",
+            'satis_usd_yearly_commitment' => "Yıllık Taahhütlü Satış Fiyatı ({$currency})",
+            'currency' => 'Para Birimi',
             default => $this->field_name,
         };
     }

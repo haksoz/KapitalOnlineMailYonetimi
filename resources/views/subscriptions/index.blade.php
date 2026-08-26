@@ -67,10 +67,12 @@
                                     if ($alis && $satis && $alis > 0) {
                                         $kar = (($satis - $alis) / $alis) * 100;
                                     }
+                                    $sym = $sub->currencySymbol();
                                 @endphp
                                 <div class="text-xs">
-                                    <span class="text-gray-500">Alış:</span> ${{ number_format($alis, 4) ?? '—' }}<br>
-                                    <span class="text-gray-500">Satış:</span> ${{ number_format($satis, 4) ?? '—' }}<br>
+                                    <span class="text-gray-500">Para:</span> {{ $sub->currencyLabel() }}<br>
+                                    <span class="text-gray-500">Alış:</span> {{ $sym }}{{ $alis !== null ? number_format((float) $alis, 4) : '—' }}<br>
+                                    <span class="text-gray-500">Satış:</span> {{ $sym }}{{ $satis !== null ? number_format((float) $satis, 4) : '—' }}<br>
                                     @if($kar !== null)
                                         <span class="text-gray-500">Kar:</span> <span class="{{ $kar >= 0 ? 'text-green-600' : 'text-red-600' }}">{{ number_format($kar, 2) }}%</span>
                                     @else

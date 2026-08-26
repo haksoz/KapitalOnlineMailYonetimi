@@ -31,6 +31,14 @@
                     <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Servis Sağlayıcı</p>
                     <p class="text-base text-gray-700">{{ $product->serviceProvider?->name ?? '—' }}</p>
                 </div>
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Para Birimi</p>
+                    <p class="text-base text-gray-700">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold {{ $product->isTry() ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800' }}">
+                            {{ $product->currencyLabel() }}
+                        </span>
+                    </p>
+                </div>
                 @if($product->description)
                 <div>
                     <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Açıklama</p>
@@ -49,13 +57,13 @@
                 </div>
                 <div class="grid grid-cols-3 gap-6">
                     <div class="text-center">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Alış USD</p>
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Alış {{ $product->currencyLabel() }}</p>
                         <p class="text-xl font-semibold text-gray-700">
                             {{ $product->alis_usd_monthly_commitment ? number_format($product->alis_usd_monthly_commitment, 2) : '—' }}
                         </p>
                     </div>
                     <div class="text-center">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Satış USD</p>
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Satış {{ $product->currencyLabel() }}</p>
                         <p class="text-xl font-semibold text-emerald-600">
                             {{ $product->satis_usd_monthly_commitment ? number_format($product->satis_usd_monthly_commitment, 2) : '—' }}
                         </p>
@@ -80,13 +88,13 @@
                 </div>
                 <div class="grid grid-cols-3 gap-6">
                     <div class="text-center">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Alış USD</p>
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Alış {{ $product->currencyLabel() }}</p>
                         <p class="text-xl font-semibold text-gray-700">
                             {{ $product->alis_usd_monthly_no_commitment ? number_format($product->alis_usd_monthly_no_commitment, 2) : '—' }}
                         </p>
                     </div>
                     <div class="text-center">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Satış USD</p>
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Satış {{ $product->currencyLabel() }}</p>
                         <p class="text-xl font-semibold text-emerald-600">
                             {{ $product->satis_usd_monthly_no_commitment ? number_format($product->satis_usd_monthly_no_commitment, 2) : '—' }}
                         </p>
@@ -111,13 +119,13 @@
                 </div>
                 <div class="grid grid-cols-3 gap-6">
                     <div class="text-center">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Alış USD</p>
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Alış {{ $product->currencyLabel() }}</p>
                         <p class="text-xl font-semibold text-gray-700">
                             {{ $product->alis_usd_yearly_commitment ? number_format($product->alis_usd_yearly_commitment, 2) : '—' }}
                         </p>
                     </div>
                     <div class="text-center">
-                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Satış USD</p>
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Satış {{ $product->currencyLabel() }}</p>
                         <p class="text-xl font-semibold text-emerald-600">
                             {{ $product->satis_usd_yearly_commitment ? number_format($product->satis_usd_yearly_commitment, 2) : '—' }}
                         </p>

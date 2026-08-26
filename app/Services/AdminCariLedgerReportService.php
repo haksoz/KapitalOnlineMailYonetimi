@@ -169,12 +169,16 @@ class AdminCariLedgerReportService
             $qty = (int) ($sub?->quantity ?? 1);
 
             if ($usdAlis !== null && $usdAlis > 0 && $qty > 0) {
-                $rate = $pendingBilling->exchange_rate_used !== null && $pendingBilling->exchange_rate_used !== ''
-                    ? (float) $pendingBilling->exchange_rate_used
-                    : $this->getFallbackUsdRate();
+                if ($sub?->isTry()) {
+                    $expected = $usdAlis * $qty;
+                } else {
+                    $rate = $pendingBilling->exchange_rate_used !== null && $pendingBilling->exchange_rate_used !== ''
+                        ? (float) $pendingBilling->exchange_rate_used
+                        : $this->getFallbackUsdRate();
 
-                if ($rate !== null) {
-                    $expected = $usdAlis * $qty * $rate;
+                    if ($rate !== null) {
+                        $expected = $usdAlis * $qty * $rate;
+                    }
                 }
             }
         }

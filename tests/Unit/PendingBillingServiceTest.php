@@ -84,4 +84,93 @@ class PendingBillingServiceTest extends TestCase
         // 250 TL × (15/10) = 375 TL beklenen satış güncellenmeli
         $this->assertEquals(375, (float) $pendingBilling->expected_satis_tl);
     }
+
+    public function test_try_subscription_amounts_ignore_exchange_rate(): void
+    {
+        $customerCari = Cari::create([
+            'name' => 'Musteri B',
+            'short_name' => 'Musteri B',
+            'cari_type' => 'customer',
+            'tax_number' => '9876543210',
+        ]);
+
+        $subscription = Subscription::create([
+            'customer_cari_id' => $customerCari->id,
+            'provider_cari_id' => $customerCari->id,
+            'sozlesme_no' => 'SOZ-TRY-001',
+            'baslangic_tarihi' => '2026-01-01',
+            'bitis_tarihi' => '2027-01-01',
+            'taahhut_tipi' => Subscription::TAAHHUT_MONTHLY_COMMITMENT,
+            'faturalama_periyodu' => Subscription::FATURALAMA_MONTHLY,
+            'durum' => Subscription::DURUM_ACTIVE,
+            'auto_renew' => true,
+            'quantity' => 2,
+            'currency' => Subscription::CURRENCY_TRY,
+            'usd_birim_alis' => 0,
+            'usd_birim_satis' => 1500,
+            'vat_rate' => 20,
+        ]);
+
+        $pendingBilling = PendingBilling::create([
+            'subscription_id' => $subscription->id,
+            'period_start' => '2026-02-01',
+            'period_end' => '2026-02-28',
+            'status' => PendingBilling::STATUS_PENDING,
+        ]);
+
+        ExchangeRate::create([
+            'currency_code' => 'USD',
+            'effective_date' => Carbon::today()->toDateString(),
+            'forex_selling' => 30,
+        ]);
+
+        $service = new PendingBillingService();
+        $service->refreshAmountsForRecord($pendingBilling);
+        $pendingBilling->refresh();
+
+        // Destek: alış 0, satış 1500 TL × 2 adet = 3000 TL (kur yok)
+        $this->assertEquals(0, (float) $pendingBilling->expected_alis_tl);
+        $this->assertEquals(3000, (float) $pendingBilling->expected_satis_tl);
+        $this->assertEquals(1, (float) $pendingBilling->exchange_rate_used);
+    }
+
+    public function test_try_subscription_with_purchase_and_sale_prices(): void
+    {
+        $customerCari = Cari::create([
+            'name' => 'Musteri C',
+            'short_name' => 'Musteri C',
+            'cari_type' => 'customer',
+            'tax_number' => '1112223334',
+        ]);
+
+        $subscription = Subscription::create([
+            'customer_cari_id' => $customerCari->id,
+            'provider_cari_id' => $customerCari->id,
+            'sozlesme_no' => 'SOZ-TRY-002',
+            'baslangic_tarihi' => '2026-01-01',
+            'bitis_tarihi' => '2027-01-01',
+            'taahhut_tipi' => Subscription::TAAHHUT_MONTHLY_COMMITMENT,
+            'faturalama_periyodu' => Subscription::FATURALAMA_MONTHLY,
+            'durum' => Subscription::DURUM_ACTIVE,
+            'quantity' => 1,
+            'currency' => Subscription::CURRENCY_TRY,
+            'usd_birim_alis' => 1000,
+            'usd_birim_satis' => 1200,
+            'vat_rate' => 20,
+        ]);
+
+        $pendingBilling = PendingBilling::create([
+            'subscription_id' => $subscription->id,
+            'period_start' => '2026-03-01',
+            'period_end' => '2026-03-31',
+            'status' => PendingBilling::STATUS_PENDING,
+        ]);
+
+        $service = new PendingBillingService();
+        $service->refreshAmountsForRecord($pendingBilling);
+        $pendingBilling->refresh();
+
+        $this->assertEquals(1000, (float) $pendingBilling->expected_alis_tl);
+        $this->assertEquals(1200, (float) $pendingBilling->expected_satis_tl);
+    }
 }

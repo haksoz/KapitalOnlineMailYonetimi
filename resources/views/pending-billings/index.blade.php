@@ -157,15 +157,31 @@
                                     $satisTl = (float) $pb->expected_satis_tl;
                                 } elseif ($usdAlis > 0 && $usdSatis !== null) {
                                     $satisTl = $actualAlis * ($usdSatis / $usdAlis);
+                                } elseif ($sub->isTry() && ($usdAlis === null || $usdAlis <= 0) && $usdSatis !== null) {
+                                    $satisTl = $usdSatis * $qty;
                                 }
                             } elseif ($useSnapshotForExpected) {
                                 $alisKdvHaric = isset($pb->expected_alis_tl) && $pb->expected_alis_tl !== '' ? (float) $pb->expected_alis_tl : null;
                                 $satisTl = isset($pb->expected_satis_tl) && $pb->expected_satis_tl !== '' ? (float) $pb->expected_satis_tl : null;
-                                if ($alisKdvHaric === null && $usdEfektifSelling !== null && $usdAlis !== null) {
+                                if ($alisKdvHaric === null && $sub->isTry()) {
+                                    $alisKdvHaric = ($usdAlis !== null && $usdAlis > 0) ? $usdAlis * $qty : 0.0;
+                                    if ($satisTl === null && $usdSatis !== null) {
+                                        $satisTl = ($usdAlis !== null && $usdAlis > 0)
+                                            ? $alisKdvHaric * ($usdSatis / $usdAlis)
+                                            : $usdSatis * $qty;
+                                    }
+                                } elseif ($alisKdvHaric === null && $usdEfektifSelling !== null && $usdAlis !== null) {
                                     $alisKdvHaric = $usdAlis * $qty * $usdEfektifSelling;
                                     if ($satisTl === null && $usdAlis > 0 && $usdSatis !== null) {
                                         $satisTl = $alisKdvHaric * ($usdSatis / $usdAlis);
                                     }
+                                }
+                            } elseif ($sub->isTry()) {
+                                $alisKdvHaric = ($usdAlis !== null && $usdAlis > 0) ? $usdAlis * $qty : 0.0;
+                                if ($usdSatis !== null) {
+                                    $satisTl = ($usdAlis !== null && $usdAlis > 0)
+                                        ? $alisKdvHaric * ($usdSatis / $usdAlis)
+                                        : $usdSatis * $qty;
                                 }
                             } elseif ($usdEfektifSelling !== null && $usdAlis !== null) {
                                 $alisKdvHaric = $usdAlis * $qty * $usdEfektifSelling;

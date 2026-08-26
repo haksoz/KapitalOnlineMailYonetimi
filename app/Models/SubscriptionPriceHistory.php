@@ -42,9 +42,12 @@ class SubscriptionPriceHistory extends Model
 
     public function fieldLabel(): string
     {
+        $currency = $this->subscription?->currencyLabel() ?? 'USD';
+
         return match ($this->field_name) {
-            'usd_birim_alis' => 'Birim Alış Fiyatı (USD)',
-            'usd_birim_satis' => 'Birim Satış Fiyatı (USD)',
+            'usd_birim_alis' => "Birim Alış Fiyatı ({$currency})",
+            'usd_birim_satis' => "Birim Satış Fiyatı ({$currency})",
+            'currency' => 'Para Birimi',
             default => $this->field_name,
         };
     }

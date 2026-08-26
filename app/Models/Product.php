@@ -8,11 +8,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
+    public const CURRENCY_USD = 'USD';
+    public const CURRENCY_TRY = 'TRY';
+
     protected $fillable = [
         'service_provider_id',
         'name',
         'stock_code',
         'description',
+        'currency',
         'alis_usd_monthly_commitment',
         'satis_usd_monthly_commitment',
         'alis_usd_monthly_no_commitment',
@@ -31,6 +35,47 @@ class Product extends Model
             'alis_usd_yearly_commitment' => 'decimal:2',
             'satis_usd_yearly_commitment' => 'decimal:2',
         ];
+    }
+
+    public function isTry(): bool
+    {
+        return ($this->currency ?? self::CURRENCY_USD) === self::CURRENCY_TRY;
+    }
+
+    public function isUsd(): bool
+    {
+        return ! $this->isTry();
+    }
+
+    public function currencySymbol(): string
+    {
+        return $this->isTry() ? '₺' : '$';
+    }
+
+    public function currencyLabel(): string
+    {
+        return $this->isTry() ? 'TL' : 'USD';
+    }
+
+    /**
+     * @return array{alis: ?string, satis: ?string}
+     */
+    public function pricesForCommitment(string $taahhutTipi): array
+    {
+        return match ($taahhutTipi) {
+            Subscription::TAAHHUT_MONTHLY_NO_COMMITMENT => [
+                'alis' => $this->alis_usd_monthly_no_commitment,
+                'satis' => $this->satis_usd_monthly_no_commitment,
+            ],
+            Subscription::TAAHHUT_ANNUAL_COMMITMENT => [
+                'alis' => $this->alis_usd_yearly_commitment,
+                'satis' => $this->satis_usd_yearly_commitment,
+            ],
+            default => [
+                'alis' => $this->alis_usd_monthly_commitment,
+                'satis' => $this->satis_usd_monthly_commitment,
+            ],
+        };
     }
 
     public function getProfitPercentageMonthlyCommitmentAttribute(): ?float

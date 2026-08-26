@@ -179,6 +179,10 @@ class DashboardController extends Controller
             return 0.0;
         }
 
+        if ($sub->isTry()) {
+            return $usdAlis * $qty;
+        }
+
         $rate = $pb->exchange_rate_used !== null && $pb->exchange_rate_used !== ''
             ? (float) $pb->exchange_rate_used
             : $this->getFallbackUsdRate();
@@ -203,7 +207,17 @@ class DashboardController extends Controller
 
         $usdAlis = $sub->usd_birim_alis !== null && $sub->usd_birim_alis !== '' ? (float) $sub->usd_birim_alis : null;
         $usdSatis = $sub->usd_birim_satis !== null && $sub->usd_birim_satis !== '' ? (float) $sub->usd_birim_satis : null;
-        if ($usdAlis === null || $usdAlis <= 0 || $usdSatis === null) {
+        $qty = (int) ($sub->quantity ?? 1);
+
+        if ($usdSatis === null) {
+            return 0.0;
+        }
+
+        if ($sub->isTry() && ($usdAlis === null || $usdAlis <= 0)) {
+            return $usdSatis * $qty;
+        }
+
+        if ($usdAlis === null || $usdAlis <= 0) {
             return 0.0;
         }
 

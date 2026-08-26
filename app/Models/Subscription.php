@@ -23,6 +23,9 @@ class Subscription extends Model
     public const FATURALAMA_MONTHLY = 'monthly';
     public const FATURALAMA_YEARLY = 'yearly';
 
+    public const CURRENCY_USD = 'USD';
+    public const CURRENCY_TRY = 'TRY';
+
     protected $fillable = [
         'customer_cari_id',
         'provider_cari_id',
@@ -40,6 +43,7 @@ class Subscription extends Model
         'usd_birim_alis',
         'usd_birim_satis',
         'vat_rate',
+        'currency',
     ];
 
     protected function casts(): array
@@ -57,6 +61,26 @@ class Subscription extends Model
      * USD birim alış/satış: SQLite/PDO float sapmasını önlemek için decimal:4 cast yerine
      * Brick\Math ile 4 haneye sabitlenir (ör. 6 → 6.0000, 5.9996 artefact düzeltilir).
      */
+    public function isTry(): bool
+    {
+        return ($this->currency ?? self::CURRENCY_USD) === self::CURRENCY_TRY;
+    }
+
+    public function isUsd(): bool
+    {
+        return ! $this->isTry();
+    }
+
+    public function currencySymbol(): string
+    {
+        return $this->isTry() ? '₺' : '$';
+    }
+
+    public function currencyLabel(): string
+    {
+        return $this->isTry() ? 'TL' : 'USD';
+    }
+
     protected function usdBirimAlis(): Attribute
     {
         return Attribute::make(

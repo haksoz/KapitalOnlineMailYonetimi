@@ -112,6 +112,8 @@ class PendingBillingAdminController extends Controller
             $satisFromAlis = null;
             if ($subscription && (float) $subscription->usd_birim_alis > 0 && $subscription->usd_birim_satis !== null) {
                 $satisFromAlis = $newExpectedAlis * ((float) $subscription->usd_birim_satis / (float) $subscription->usd_birim_alis);
+            } elseif ($subscription && $subscription->isTry() && $subscription->usd_birim_satis !== null) {
+                $satisFromAlis = (float) $subscription->usd_birim_satis * (int) $subscription->quantity;
             }
             $pending_billing->expected_satis_tl = $satisFromAlis;
 

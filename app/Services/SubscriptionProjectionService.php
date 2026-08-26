@@ -42,11 +42,16 @@ class SubscriptionProjectionService
         ?float $estimatedExchangeRate = null
     ): SubscriptionMonthlyProjection {
         $quantity = $expectedQuantity ?? (int) ($subscription->quantity ?? 1);
-        $unitCostUsd = $expectedUnitCostUsd ?? (float) ($subscription->usd_birim_alis ?? 0);
+        $unitCost = $expectedUnitCostUsd ?? (float) ($subscription->usd_birim_alis ?? 0);
 
         $rateDate = Carbon::createFromDate($year, $month, 1);
-        $rate = $estimatedExchangeRate ?? $this->getUsdTryRateForDate($rateDate);
-        $expectedTotalTry = round($quantity * $unitCostUsd * $rate, 2);
+        if ($subscription->isTry()) {
+            $rate = $estimatedExchangeRate ?? 1.0;
+            $expectedTotalTry = round($quantity * $unitCost, 2);
+        } else {
+            $rate = $estimatedExchangeRate ?? $this->getUsdTryRateForDate($rateDate);
+            $expectedTotalTry = round($quantity * $unitCost * $rate, 2);
+        }
 
         $projection = SubscriptionMonthlyProjection::firstOrNew([
             'subscription_id' => $subscription->id,
@@ -55,7 +60,7 @@ class SubscriptionProjectionService
         ]);
 
         $projection->expected_quantity = $quantity;
-        $projection->expected_unit_cost_usd = $unitCostUsd;
+        $projection->expected_unit_cost_usd = $unitCost;
         $projection->expected_total_usd = 0;
         $projection->estimated_exchange_rate = $rate;
         $projection->expected_total_try = $expectedTotalTry;
