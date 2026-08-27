@@ -84,12 +84,25 @@ class ExpenseSettlementController extends Controller
             'customer_cari_id' => ['required', 'exists:caris,id'],
             'pending_billing_ids' => ['required', 'array', 'min:1'],
             'pending_billing_ids.*' => ['required', 'integer', 'exists:pending_billings,id'],
+            'line_amounts' => ['required', 'array'],
+            'line_amounts.*' => ['required', 'numeric', 'min:0'],
             'settlement_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $customerCariId = (int) $validated['customer_cari_id'];
         $ids = array_values(array_unique(array_map('intval', $validated['pending_billing_ids'])));
+        $rawLineAmounts = $validated['line_amounts'] ?? [];
+        $lineAmountsById = [];
+        foreach ($ids as $id) {
+            if (! array_key_exists((string) $id, $rawLineAmounts) && ! array_key_exists($id, $rawLineAmounts)) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['line_amounts' => 'Seçilen her sipariş için tutar girilmelidir.']);
+            }
+            $lineAmountsById[$id] = (float) ($rawLineAmounts[$id] ?? $rawLineAmounts[(string) $id]);
+        }
 
         $pendingBillings = PendingBilling::query()
             ->with('subscription')
@@ -135,12 +148,15 @@ class ExpenseSettlementController extends Controller
             $notes = null;
         }
 
-        $expenseSettlement = DB::transaction(function () use ($pendingBillings, $customerCariId, $usdRate, $settlementDate, $notes) {
+        $expenseSettlement = DB::transaction(function () use ($pendingBillings, $customerCariId, $lineAmountsById, $settlementDate, $notes) {
             $total = 0.0;
-            $lineAmounts = [];
+            $resolved = [];
             foreach ($pendingBillings as $pb) {
-                $lineAmount = $this->baseSatisTlForPendingBilling($pb, $usdRate);
-                $lineAmounts[$pb->id] = $lineAmount;
+                if (! array_key_exists((int) $pb->id, $lineAmountsById)) {
+                    throw new \InvalidArgumentException('Missing line amount for pending billing '.$pb->id);
+                }
+                $lineAmount = $lineAmountsById[(int) $pb->id];
+                $resolved[$pb->id] = $lineAmount;
                 $total += $lineAmount;
             }
 
@@ -153,7 +169,7 @@ class ExpenseSettlementController extends Controller
             ]);
 
             foreach ($pendingBillings as $pb) {
-                $lineAmount = $lineAmounts[$pb->id];
+                $lineAmount = $resolved[$pb->id];
                 ExpenseSettlementLine::create([
                     'expense_settlement_id' => $settlement->id,
                     'pending_billing_id' => $pb->id,

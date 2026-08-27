@@ -110,18 +110,38 @@
                                 <td class="px-4 py-2 text-sm text-gray-600">
                                     {{ $pb->period_start?->locale('tr')->translatedFormat('F Y') }}
                                 </td>
-                                <td class="px-4 py-2 text-sm text-right font-medium text-gray-900">
-                                    @if ($amount !== null)
-                                        {{ number_format((float) $amount, 2, ',', '.') }} ₺
-                                    @else
-                                        —
-                                    @endif
+                                <td class="px-4 py-2 text-sm text-right">
+                                    @php
+                                        $defaultAmount = old('line_amounts.'.$pb->id, $amount !== null ? number_format($amount, 2, '.', '') : '');
+                                    @endphp
+                                    <input
+                                        type="number"
+                                        name="line_amounts[{{ $pb->id }}]"
+                                        value="{{ $defaultAmount }}"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                        class="w-32 ml-auto block rounded-md border-gray-300 text-right text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                                    >
+                                    <p class="mt-1 text-[11px] text-gray-500 text-right leading-tight">
+                                        Gerekirse düzenleyin; kesinleşen satış olur.
+                                    </p>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
+
+            @error('line_amounts')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+            @error('line_amounts.*')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+            <p class="mt-2 text-xs text-gray-500">
+                Tutar alanını gerekirse elle düzenleyebilirsiniz; kaydedilen tutar kesinleşen satış olur.
+            </p>
 
             <div class="mt-4 flex gap-3">
                 <x-primary-button type="submit">Seçilenleri giderleştir</x-primary-button>

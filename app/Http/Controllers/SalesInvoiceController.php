@@ -340,12 +340,25 @@ class SalesInvoiceController extends Controller
             'customer_cari_id' => ['required', 'exists:caris,id'],
             'pending_billing_ids' => ['required', 'array', 'min:1'],
             'pending_billing_ids.*' => ['required', 'integer', 'exists:pending_billings,id'],
+            'line_amounts' => ['required', 'array'],
+            'line_amounts.*' => ['required', 'numeric', 'min:0'],
             'add_fark' => ['nullable', 'array'],
             'add_fark.*' => ['integer', 'exists:pending_billings,id'],
         ]);
 
         $customerCariId = (int) $validated['customer_cari_id'];
         $ids = array_values(array_unique(array_map('intval', $validated['pending_billing_ids'])));
+        $rawLineAmounts = $validated['line_amounts'] ?? [];
+        $lineAmountsById = [];
+        foreach ($ids as $id) {
+            if (! array_key_exists((string) $id, $rawLineAmounts) && ! array_key_exists($id, $rawLineAmounts)) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['line_amounts' => 'Seçilen her sipariş için tutar girilmelidir.']);
+            }
+            $lineAmountsById[$id] = (float) ($rawLineAmounts[$id] ?? $rawLineAmounts[(string) $id]);
+        }
         $rawAddFark = $validated['add_fark'] ?? [];
         if (! is_array($rawAddFark)) {
             $rawAddFark = $rawAddFark !== null && $rawAddFark !== '' ? [$rawAddFark] : [];
@@ -412,15 +425,23 @@ class SalesInvoiceController extends Controller
         }
 
         $farkAddedForSubscription = [];
+        $resolvedLineAmounts = [];
         $total = 0;
         foreach ($pendingBillings as $pb) {
-            $base = $this->baseSatisTlForPendingBilling($pb, $usdRate);
+            $base = $lineAmountsById[(int) $pb->id] ?? null;
+            if ($base === null) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['line_amounts' => 'Seçilen her sipariş için tutar girilmelidir.']);
+            }
             $farkToAdd = 0;
             if (in_array((int) $pb->id, $addFarkIds, true) && ! isset($farkAddedForSubscription[$pb->subscription_id])) {
                 $farkToAdd = $accumulatedFarkBySubscription[$pb->subscription_id] ?? 0;
                 $farkAddedForSubscription[$pb->subscription_id] = true;
             }
             $lineAmount = $base + $farkToAdd;
+            $resolvedLineAmounts[$pb->id] = $lineAmount;
             $total += $lineAmount;
         }
 
@@ -430,21 +451,14 @@ class SalesInvoiceController extends Controller
             'order_number' => SalesInvoice::getNextFaturaTakipNo(),
         ]);
 
-        $farkAddedForSubscription = [];
         foreach ($pendingBillings as $pb) {
-            $base = $this->baseSatisTlForPendingBilling($pb, $usdRate);
-            $farkToAdd = 0;
-            if (in_array((int) $pb->id, $addFarkIds, true) && ! isset($farkAddedForSubscription[$pb->subscription_id])) {
-                $farkToAdd = $accumulatedFarkBySubscription[$pb->subscription_id] ?? 0;
-                $farkAddedForSubscription[$pb->subscription_id] = true;
-            }
-            $lineAmount = $base + $farkToAdd;
+            $lineAmount = $resolvedLineAmounts[$pb->id];
             SalesInvoiceLine::create([
                 'sales_invoice_id' => $salesInvoice->id,
                 'pending_billing_id' => $pb->id,
                 'line_amount_tl' => $lineAmount,
             ]);
-            // Faturalandığında fatura tutarı kesinleşen satış olarak kayda yazılır (beklenen satış → kesinleşen satış)
+            // Faturalandığında fatura tutarı kesinleşen satış olarak kayda yazılır
             $pb->update([
                 'status' => PendingBilling::STATUS_INVOICED,
                 'actual_satis_tl' => $lineAmount,

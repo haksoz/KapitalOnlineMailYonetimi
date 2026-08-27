@@ -140,12 +140,25 @@
                                     <td class="px-4 py-2 text-sm text-gray-600">
                                         {{ $pb->period_start?->locale('tr')->translatedFormat('F Y') }}
                                     </td>
-                                    <td class="px-4 py-2 text-sm text-right font-medium text-gray-900">
-                                        @if ($amount !== null)
-                                            {{ number_format((float) $amount, 2, ',', '.') }} ₺
-                                        @else
-                                            —
-                                        @endif
+                                    <td class="px-4 py-2 text-sm text-right">
+                                        @php
+                                            $defaultAmount = old('line_amounts.'.$pb->id, $amount !== null ? number_format($amount, 2, '.', '') : '');
+                                        @endphp
+                                        <input
+                                            type="number"
+                                            name="line_amounts[{{ $pb->id }}]"
+                                            value="{{ $defaultAmount }}"
+                                            step="0.01"
+                                            min="0"
+                                            required
+                                            class="line-amount-input w-32 ml-auto block rounded-md border-gray-300 text-right text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                                            data-pb-id="{{ $pb->id }}"
+                                            data-fark-amount="{{ $showFarkCheckbox ? $accFark : 0 }}"
+                                        >
+                                        <p class="mt-1 text-[11px] text-gray-500 text-right leading-tight">
+                                            Gerekirse düzenleyin; kesinleşen satış olur.
+                                        </p>
+                                        <p class="mt-0.5 text-[11px] text-amber-700 text-right leading-tight hidden" data-fark-total-preview></p>
                                     </td>
                                     <td class="px-4 py-2 text-sm text-right" data-fark-amount-cell>
                                         @if ($accFark != 0)
@@ -164,6 +177,7 @@
                                                     value="{{ $pb->id }}"
                                                     class="add-fark-checkbox rounded border-gray-300 text-slate-600 focus:ring-slate-500"
                                                     data-subscription-id="{{ $pb->subscription_id }}"
+                                                    @checked(collect(old('add_fark', []))->contains($pb->id))
                                                 >
                                                 <span class="text-xs text-gray-600">Bu satıra ekle</span>
                                             </label>
@@ -180,8 +194,16 @@
                 @error('pending_billing_ids')
                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                 @enderror
+                @error('line_amounts')
+                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+                @error('line_amounts.*')
+                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                @enderror
                 <p class="mt-2 text-xs text-gray-500">
-                    Önceki dönemlerden kalan fark varsa, &quot;Farkı ekle&quot; ile bu satırın fatura tutarına eklenir (abonelik başına yalnızca bir satırda). Bir satırda işaretlediğinizde aynı aboneliğin diğer satırlarında fark seçeneği kapanır. Sonraki alış faturası girildiğinde fark negatif düşer ve toplam sıfırlanır.
+                    Tutar alanını gerekirse elle düzenleyebilirsiniz; kaydedilen tutar kesinleşen satış olur.
+                    Önceki dönemlerden kalan fark varsa, &quot;Farkı ekle&quot; ile bu satırın baz tutarının <span class="font-medium">üzerine</span> eklenir (abonelik başına yalnızca bir satırda; farkı tutara elle yazmayın).
+                    Bir satırda işaretlediğinizde aynı aboneliğin diğer satırlarında fark seçeneği kapanır.
                 </p>
                 <div class="mt-4 flex gap-3">
                     <x-primary-button type="submit">Seçilenleri faturalandır</x-primary-button>
@@ -192,6 +214,28 @@
                 (function () {
                     const form = document.getElementById('sales-invoice-create-form');
                     if (!form) return;
+
+                    function formatTl(n) {
+                        return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+                    }
+
+                    function updateFarkPreview(row) {
+                        if (!row) return;
+                        const input = row.querySelector('.line-amount-input');
+                        const preview = row.querySelector('[data-fark-total-preview]');
+                        const cb = row.querySelector('.add-fark-checkbox');
+                        if (!input || !preview) return;
+
+                        const fark = parseFloat(input.dataset.farkAmount || '0') || 0;
+                        const base = parseFloat(input.value);
+                        if (cb && cb.checked && !cb.disabled && fark !== 0 && !isNaN(base)) {
+                            preview.textContent = 'Fatura satırı: ' + formatTl(base + fark) + ' (baz + fark)';
+                            preview.classList.remove('hidden');
+                        } else {
+                            preview.textContent = '';
+                            preview.classList.add('hidden');
+                        }
+                    }
 
                     function syncFarkForSubscription(subscriptionId) {
                         const checkboxes = Array.from(
@@ -227,6 +271,8 @@
                             } else {
                                 cb.disabled = false;
                             }
+
+                            updateFarkPreview(row);
                         });
                     }
 
@@ -247,6 +293,12 @@
                         });
                     });
 
+                    form.querySelectorAll('.line-amount-input').forEach(function (input) {
+                        input.addEventListener('input', function () {
+                            updateFarkPreview(this.closest('tr'));
+                        });
+                    });
+
                     // Sayfa yükünde (geri gelme vb.) mevcut işaretlere göre senkronize et
                     const seen = {};
                     form.querySelectorAll('.add-fark-checkbox').forEach(function (cb) {
@@ -255,6 +307,7 @@
                         seen[id] = true;
                         syncFarkForSubscription(id);
                     });
+                    form.querySelectorAll('tr[data-subscription-id]').forEach(updateFarkPreview);
 
                     form.addEventListener('submit', function (e) {
                         const mixed = form.getAttribute('data-mixed-periods');

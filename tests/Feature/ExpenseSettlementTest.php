@@ -74,6 +74,7 @@ class ExpenseSettlementTest extends TestCase
         $response = $this->actingAs($user)->post(route('expense-settlements.store'), [
             'customer_cari_id' => $customerCari->id,
             'pending_billing_ids' => [$pendingBilling->id],
+            'line_amounts' => [$pendingBilling->id => 200],
             'settlement_date' => '2026-08-15',
         ]);
 
@@ -95,6 +96,50 @@ class ExpenseSettlementTest extends TestCase
         ]);
     }
 
+    public function test_store_uses_overridden_line_amount_as_actual_satis(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari, , $pendingBilling] = $this->makePendingOrder();
+
+        $response = $this->actingAs($user)->post(route('expense-settlements.store'), [
+            'customer_cari_id' => $customerCari->id,
+            'pending_billing_ids' => [$pendingBilling->id],
+            'line_amounts' => [$pendingBilling->id => 275.50],
+            'settlement_date' => '2026-08-15',
+        ]);
+
+        $settlement = ExpenseSettlement::query()->firstOrFail();
+        $response->assertRedirect(route('expense-settlements.show', $settlement));
+        $this->assertEquals(275.50, (float) $settlement->total_amount_tl);
+
+        $pendingBilling->refresh();
+        $this->assertEquals(275.50, (float) $pendingBilling->actual_satis_tl);
+        $this->assertDatabaseHas('expense_settlement_lines', [
+            'pending_billing_id' => $pendingBilling->id,
+            'line_amount_tl' => 275.50,
+        ]);
+    }
+
+    public function test_store_rejects_missing_line_amounts(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari, , $pendingBilling] = $this->makePendingOrder();
+
+        $response = $this->actingAs($user)->from(route('expense-settlements.create', [
+            'pending_billing_ids' => [$pendingBilling->id],
+        ]))->post(route('expense-settlements.store'), [
+            'customer_cari_id' => $customerCari->id,
+            'pending_billing_ids' => [$pendingBilling->id],
+            'settlement_date' => '2026-08-15',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('line_amounts');
+        $this->assertDatabaseCount('expense_settlements', 0);
+        $pendingBilling->refresh();
+        $this->assertSame(PendingBilling::STATUS_PENDING, $pendingBilling->status);
+    }
+
     public function test_revert_returns_orders_to_pending(): void
     {
         $user = $this->makeUser();
@@ -103,6 +148,7 @@ class ExpenseSettlementTest extends TestCase
         $this->actingAs($user)->post(route('expense-settlements.store'), [
             'customer_cari_id' => $customerCari->id,
             'pending_billing_ids' => [$pendingBilling->id],
+            'line_amounts' => [$pendingBilling->id => 200],
             'settlement_date' => '2026-08-15',
         ]);
 
