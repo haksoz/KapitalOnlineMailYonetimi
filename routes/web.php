@@ -9,6 +9,7 @@ use App\Http\Controllers\ServiceProviderController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\PendingBillingController;
 use App\Http\Controllers\SalesInvoiceController;
+use App\Http\Controllers\ExpenseSettlementController;
 use App\Http\Controllers\SubscriptionMonitorController;
 use App\Http\Controllers\Admin\MailSettingController as AdminMailSettingController;
 use App\Http\Controllers\Admin\CariLedgerReportController as AdminCariLedgerReportController;
@@ -75,6 +76,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('sales-invoices/{sales_invoice}/invoice-details', [SalesInvoiceController::class, 'editInvoiceDetails'])->name('sales-invoices.invoice-details');
     Route::patch('sales-invoices/{sales_invoice}/invoice-details', [SalesInvoiceController::class, 'updateInvoiceDetails'])->name('sales-invoices.update-invoice-details');
     Route::post('sales-invoices/{sales_invoice}/revert', [SalesInvoiceController::class, 'revert'])->name('sales-invoices.revert');
+
+    Route::get('expense-settlements', [ExpenseSettlementController::class, 'index'])->name('expense-settlements.index');
+    Route::get('expense-settlements/create', [ExpenseSettlementController::class, 'create'])->name('expense-settlements.create');
+    Route::post('expense-settlements', [ExpenseSettlementController::class, 'store'])->name('expense-settlements.store');
+    Route::get('expense-settlements/{expense_settlement}', [ExpenseSettlementController::class, 'show'])->name('expense-settlements.show');
+    Route::post('expense-settlements/{expense_settlement}/revert', [ExpenseSettlementController::class, 'revert'])->name('expense-settlements.revert');
 
     Route::get('exchange-rates', [ExchangeRateController::class, 'index'])->name('exchange-rates.index');
     Route::post('exchange-rates/fetch-latest', [ExchangeRateController::class, 'fetchLatest'])->name('exchange-rates.fetch-latest');

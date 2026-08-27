@@ -96,12 +96,14 @@ class AdminCariLedgerReportService
                 'subscription.customerCari',
                 'subscription.product',
                 'salesInvoiceLine.salesInvoice',
+                'expenseSettlementLine.expenseSettlement',
             ]);
 
         $statuses = $filters['statuses'] ?? [
             PendingBilling::STATUS_PENDING,
             PendingBilling::STATUS_POSTPONED,
             PendingBilling::STATUS_INVOICED,
+            PendingBilling::STATUS_EXPENSED,
         ];
         if (is_array($statuses) && $statuses !== []) {
             $query->whereIn('status', $statuses);
@@ -223,6 +225,9 @@ class AdminCariLedgerReportService
         $actual = $this->toFloatOrZero($pendingBilling->actual_satis_tl);
         $salesInvoice = $pendingBilling->salesInvoiceLine?->salesInvoice;
         $salesInvoiceDate = $salesInvoice?->our_invoice_date?->format('Y-m-d');
+        $expenseSettlement = $pendingBilling->expenseSettlementLine?->expenseSettlement;
+        $settlementDate = $expenseSettlement?->settlement_date?->format('Y-m-d');
+        $islemTarihi = $salesInvoiceDate ?: ($settlementDate ?: $pendingBilling->period_start?->format('Y-m-d'));
 
         return [
             'cari_id' => $pendingBilling->subscription->customerCari?->id,
@@ -238,8 +243,8 @@ class AdminCariLedgerReportService
             'hareket_tipi' => 'satis',
             'hareket_tipi_label' => 'Satış',
             'hareket_tipi_order' => 2,
-            'islem_tarihi' => $salesInvoiceDate ?: $pendingBilling->period_start?->format('Y-m-d'),
-            'islem_tarihi_sort' => $salesInvoiceDate ?: $pendingBilling->period_start?->format('Y-m-d'),
+            'islem_tarihi' => $islemTarihi,
+            'islem_tarihi_sort' => $islemTarihi,
             'beklenen_alis_tl' => 0.0,
             'gerceklesen_alis_tl' => 0.0,
             'fark_alis_tl' => 0.0,
@@ -249,8 +254,8 @@ class AdminCariLedgerReportService
             'fark_satis_tl' => $expected - $actual,
             'alis_fatura_no' => null,
             'alis_fatura_tarihi' => null,
-            'satis_fatura_no' => $salesInvoice?->our_invoice_number,
-            'satis_fatura_tarihi' => $salesInvoiceDate,
+            'satis_fatura_no' => $salesInvoice?->our_invoice_number ?: $expenseSettlement?->gider_number,
+            'satis_fatura_tarihi' => $salesInvoiceDate ?: $settlementDate,
         ];
     }
 

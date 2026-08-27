@@ -72,7 +72,7 @@ class AdminCariLedgerReportTest extends TestCase
             'line_amount_tl' => 180,
         ]);
 
-        $response = $this->actingAs($admin)->get(route('admin.reports.cari-ledger'));
+        $response = $this->actingAs($admin)->get(route('admin.reports.cari-ledger', ['get_data' => 1]));
 
         $response->assertOk();
         $response->assertSee('Cari Hesap Dökümü');
@@ -81,7 +81,8 @@ class AdminCariLedgerReportTest extends TestCase
         $response->assertSee('ALS-001');
         $response->assertSee('SAT-001');
         $response->assertSee('10,00');
-        $response->assertSee('-20,00');
+        $response->assertSee('20,00');
+        $response->assertSee('Giderleştirildi');
     }
 
     public function test_admin_can_export_cari_ledger_report_as_excel(): void

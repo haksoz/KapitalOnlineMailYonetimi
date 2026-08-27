@@ -53,7 +53,7 @@ class SubscriptionMonitorController extends Controller
                 ->whereHas('subscription', function ($q) use ($customerIds) {
                     $q->whereIn('customer_cari_id', $customerIds);
                 })
-                ->with(['subscription.customerCari', 'salesInvoiceLine.salesInvoice'])
+                ->with(['subscription.customerCari', 'salesInvoiceLine.salesInvoice', 'expenseSettlementLine.expenseSettlement'])
                 ->get();
 
             $pendingBySubscription = $pendingForMonth->groupBy('subscription_id');
@@ -61,7 +61,7 @@ class SubscriptionMonitorController extends Controller
             /** @var \Illuminate\Support\Collection<int, SalesInvoiceLine> $invoiceLinesForMonth */
             $invoiceLinesForMonth = SalesInvoiceLine::query()
                 ->whereIn('pending_billing_id', $pendingForMonth->pluck('id')->all())
-                ->whereHas('salesInvoice', function ($q) use ($monthStart, $monthEnd) {
+                ->whereHas('salesInvoice', function ($q) use ($monthStart, $monthEnd): void {
                     $q->whereBetween('our_invoice_date', [$monthStart->toDateString(), $monthEnd->toDateString()]);
                 })
                 ->with('salesInvoice')
@@ -72,6 +72,13 @@ class SubscriptionMonitorController extends Controller
                 ->filter()
                 ->unique()
                 ->values();
+
+            $expensedPendingIds = $pendingForMonth
+                ->where('status', PendingBilling::STATUS_EXPENSED)
+                ->pluck('id')
+                ->values();
+
+            $completedPendingIds = $invoicedPendingIds->merge($expensedPendingIds)->unique()->values();
 
             foreach ($byCustomer as $customerId => $subs) {
                 /** @var \Illuminate\Support\Collection<int, Subscription> $subs */
@@ -101,9 +108,9 @@ class SubscriptionMonitorController extends Controller
                 $pendingForCustomer = $pendingForMonth->whereIn('subscription_id', $customerSubscriptionIds);
                 $pendingCount = $pendingForCustomer->count();
 
-                // Statüsü Faturalandı olan sipariş sayısı
+                // Statüsü Faturalandı veya Giderleştirildi olan sipariş sayısı
                 $billedCount = $pendingForCustomer
-                    ->where('status', PendingBilling::STATUS_INVOICED)
+                    ->whereIn('status', [PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_EXPENSED])
                     ->count();
 
                 // Alış faturası atanmış sipariş sayısı (supplier_invoice_number veya supplier_invoice_date dolu)
@@ -117,7 +124,7 @@ class SubscriptionMonitorController extends Controller
                 $purchaseMissing = $supplierInvoicedCount < $pendingCount;
 
                 $invoicedCount = $pendingForCustomer
-                    ->whereIn('id', $invoicedPendingIds)
+                    ->whereIn('id', $completedPendingIds)
                     ->count();
 
                 $status = self::STATUS_TAMAMLANDI;
@@ -137,6 +144,8 @@ class SubscriptionMonitorController extends Controller
                     );
                     $salesInvoiced = $pb && $invoicedPendingIds->contains($pb->id);
                     $salesFatInvoiced = $pb && $pb->status === PendingBilling::STATUS_INVOICED;
+                    $expensed = $pb && $pb->status === PendingBilling::STATUS_EXPENSED;
+                    $giderNumber = $pb?->expenseSettlementLine?->expenseSettlement?->gider_number;
 
                     $details[] = [
                         'subscription' => $sub,
@@ -144,6 +153,8 @@ class SubscriptionMonitorController extends Controller
                         'supplier_invoiced' => $supplierInvoiced,
                         'sales_fat_invoiced' => $salesFatInvoiced,
                         'sales_invoiced' => $salesInvoiced,
+                        'expensed' => $expensed,
+                        'gider_number' => $giderNumber,
                     ];
                 }
 

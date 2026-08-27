@@ -24,12 +24,12 @@
     @php
         $currentStatus = $currentStatus ?? 'pending';
         $isSelectableStatus = in_array($currentStatus, ['pending', 'postponed'], true);
-        $showSupplierInvoiceColumn = $isSelectableStatus || $currentStatus === 'invoiced';
+        $showSupplierInvoiceColumn = $isSelectableStatus || in_array($currentStatus, ['invoiced', 'expensed'], true);
 
-        // Faturalandı sekmesinde filtre alanında bu yıl/bu ay varsayılan seçili görünsün
+        // Faturalandı / Giderleştirildi sekmesinde filtre alanında bu yıl/bu ay varsayılan seçili görünsün
         $defaultPeriodYear = request('period_year');
         $defaultPeriodMonth = request('period_month');
-        if ($currentStatus === 'invoiced') {
+        if (in_array($currentStatus, ['invoiced', 'expensed'], true)) {
             $defaultPeriodYear = $defaultPeriodYear ?? now()->year;
             $defaultPeriodMonth = $defaultPeriodMonth ?? now()->month;
         }
@@ -48,6 +48,7 @@
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'pending'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'pending' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Beklemede</a>
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'postponed'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'postponed' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Ertelendi</a>
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'invoiced'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'invoiced' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Faturalandı</a>
+            <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'expensed'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'expensed' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Giderleştirildi</a>
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'cancelled'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'cancelled' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">İptal</a>
             <a href="{{ route('pending-billings.index', array_merge($queryParams, ['status' => 'deleted'])) }}" class="px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 transition-colors {{ $currentStatus === 'deleted' ? 'border-slate-600 text-slate-800 bg-white -mb-px' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Silinenler</a>
         </nav>
@@ -372,6 +373,16 @@
                     <button
                         type="submit"
                         form="faturalandir-form"
+                        formaction="{{ route('expense-settlements.create') }}"
+                        formmethod="GET"
+                        class="inline-flex items-center px-4 py-2 bg-amber-700 text-white rounded-lg font-semibold text-sm hover:bg-amber-800"
+                    >
+                        Seçilenleri giderleştir
+                    </button>
+
+                    <button
+                        type="submit"
+                        form="faturalandir-form"
                         formaction="{{ route('pending-billings.bulk-postpone') }}"
                         formmethod="POST"
                         class="inline-flex items-center px-4 py-2 bg-slate-500 text-white rounded-lg font-semibold text-sm hover:bg-slate-600"
@@ -381,7 +392,7 @@
                     </button>
 
                     <span class="text-sm text-gray-500">
-                        Faturalandırmak veya ertelemek istediğiniz siparişleri işaretleyip ilgili butona tıklayın.
+                        Faturalandırmak, giderleştirmek veya ertelemek istediğiniz siparişleri işaretleyip ilgili butona tıklayın.
                     </span>
                 @else
                     <button
@@ -437,13 +448,13 @@
             <div id="pending-lock-banner" class="hidden px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700">
                 Seçim kilitlendi:
                 <span data-lock-text class="font-medium"></span>.
-                Farklı müşteri veya döneme ait siparişleri seçemezsiniz.
+                Farklı müşteriye ait siparişleri seçemezsiniz. Farklı dönemler seçilebilir; faturaya geçirirken uyarılır.
             </div>
             <label class="inline-flex items-center gap-2 text-xs text-slate-700">
                 <input type="checkbox" id="selection-rules-enabled" class="rounded border-gray-300 text-slate-600 focus:ring-slate-500" checked>
                 <span>
                     Faturalama seçim kuralı:
-                    <span class="font-medium" data-rules-label>Aktif (aynı müşteri + aynı dönem)</span>
+                    <span class="font-medium" data-rules-label>Aktif (aynı müşteri)</span>
                 </span>
             </label>
         </div>
@@ -458,17 +469,22 @@
 
                 let rulesEnabled = true;
                 let lockedCustomerId = null;
-                let lockedYear = null;
-                let lockedMonth = null;
 
                 const form = document.getElementById('faturalandir-form');
+
+                function periodKey(cb) {
+                    const y = cb.dataset.periodYear || null;
+                    const m = cb.dataset.periodMonth || null;
+                    if (!y || !m) return null;
+                    return y + '-' + String(m).padStart(2, '0');
+                }
 
                 function updateRulesLabel() {
                     if (!rulesLabel) return;
                     if (rulesEnabled) {
-                        rulesLabel.textContent = 'Aktif (aynı müşteri + aynı dönem)';
+                        rulesLabel.textContent = 'Aktif (aynı müşteri)';
                     } else {
-                        rulesLabel.textContent = 'Pasif (farklı müşteri/dönem seçilebilir)';
+                        rulesLabel.textContent = 'Pasif (farklı müşteri seçilebilir)';
                     }
                 }
 
@@ -479,9 +495,7 @@
                         row.classList.remove('pb-eligible-row');
                         if (!lockedCustomerId) return;
                         const cId = cb.dataset.customerId || null;
-                        const y = cb.dataset.periodYear || null;
-                        const m = cb.dataset.periodMonth || null;
-                        if (cId === lockedCustomerId && y === lockedYear && m === lockedMonth) {
+                        if (cId === lockedCustomerId) {
                             row.classList.add('pb-eligible-row');
                         }
                     });
@@ -490,7 +504,7 @@
                 function resetLockIfNoSelection() {
                     const anyChecked = checkboxes.some(cb => cb.checked);
                     if (!anyChecked) {
-                        lockedCustomerId = lockedYear = lockedMonth = null;
+                        lockedCustomerId = null;
                         if (banner) {
                             banner.classList.add('hidden');
                             if (lockTextEl) lockTextEl.textContent = '';
@@ -501,23 +515,18 @@
 
                 function applyLockFromCheckbox(cb) {
                     const cId = cb.dataset.customerId || null;
-                    const y = cb.dataset.periodYear || null;
-                    const m = cb.dataset.periodMonth || null;
 
                     if (!lockedCustomerId) {
                         lockedCustomerId = cId;
-                        lockedYear = y;
-                        lockedMonth = m;
                         if (banner && lockTextEl && rulesEnabled) {
-                            const periodLabel = (y && m) ? (y + '-' + String(m).padStart(2, '0')) : 'dönem bilgisi yok';
-                            lockTextEl.textContent = 'Müşteri ID ' + (cId || '—') + ' — Dönem ' + periodLabel;
+                            lockTextEl.textContent = 'Müşteri ID ' + (cId || '—');
                             banner.classList.remove('hidden');
                         }
                         updateRowHighlight();
                         return true;
                     }
 
-                    if (cId !== lockedCustomerId || y !== lockedYear || m !== lockedMonth) {
+                    if (cId !== lockedCustomerId) {
                         return false;
                     }
 
@@ -531,6 +540,9 @@
                         if (!rulesEnabled && banner) {
                             banner.classList.add('hidden');
                             if (lockTextEl) lockTextEl.textContent = '';
+                        } else if (rulesEnabled && lockedCustomerId && banner && lockTextEl) {
+                            lockTextEl.textContent = 'Müşteri ID ' + lockedCustomerId;
+                            banner.classList.remove('hidden');
                         }
                     });
                 }
@@ -539,7 +551,7 @@
                     cb.addEventListener('change', function () {
                         if (this.checked && rulesEnabled) {
                             if (!applyLockFromCheckbox(this)) {
-                                alert('Sadece aynı müşteri ve aynı döneme ait siparişleri seçebilirsiniz.');
+                                alert('Sadece aynı müşteriye ait siparişleri seçebilirsiniz.');
                                 this.checked = false;
                             }
                         } else if (!this.checked) {
@@ -553,7 +565,7 @@
                     selectAll.addEventListener('change', function () {
                         if (this.checked) {
                             if (rulesEnabled) {
-                                lockedCustomerId = lockedYear = lockedMonth = null;
+                                lockedCustomerId = null;
                                 if (banner) {
                                     banner.classList.add('hidden');
                                     if (lockTextEl) lockTextEl.textContent = '';
@@ -592,9 +604,38 @@
                             return;
                         }
                         if (rulesEnabled && !lockedCustomerId) {
-                            alert('Müşteri ve dönem seçimi geçersiz. Lütfen seçimleri tekrar yapın.');
+                            alert('Müşteri seçimi geçersiz. Lütfen seçimleri tekrar yapın.');
                             e.preventDefault();
                             return;
+                        }
+
+                        // Toplu erteleme (POST formaction) için dönem uyarısı gösterme; giderleştir GET ile gider
+                        const submitter = e.submitter;
+                        if (submitter) {
+                            const method = (submitter.getAttribute('formmethod') || form.getAttribute('method') || 'get').toLowerCase();
+                            if (method === 'post') {
+                                return;
+                            }
+                        }
+
+                        const selectedPeriods = new Set();
+                        checkboxes.forEach(function (cb) {
+                            if (!cb.checked) return;
+                            const key = periodKey(cb);
+                            if (key) selectedPeriods.add(key);
+                        });
+                        if (selectedPeriods.size > 1) {
+                            const periodsLabel = Array.from(selectedPeriods).sort().join(', ');
+                            const isExpense = submitter && (submitter.getAttribute('formaction') || '').indexOf('expense-settlements') !== -1;
+                            const ok = confirm(
+                                'Seçilen siparişler farklı aylara ait (' + periodsLabel + ').\n\n' +
+                                (isExpense
+                                    ? 'Aynı giderleştirmede birleştirmek istediğinize emin misiniz?'
+                                    : 'Aynı faturada birleştirmek istediğinize emin misiniz?')
+                            );
+                            if (!ok) {
+                                e.preventDefault();
+                            }
                         }
                     });
                 }

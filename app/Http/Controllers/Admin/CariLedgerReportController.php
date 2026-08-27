@@ -123,7 +123,7 @@ class CariLedgerReportController extends Controller
             'movement_type' => ['nullable', 'string', 'in:alis,satis'],
             'contract_no' => ['nullable', 'string', 'max:100'],
             'statuses' => ['nullable', 'array'],
-            'statuses.*' => ['string', 'in:pending,postponed,invoiced,cancelled'],
+            'statuses.*' => ['string', 'in:pending,postponed,invoiced,expensed,cancelled'],
         ]);
 
         $periodYear = $validated['period_year'] ?? null;
@@ -141,6 +141,7 @@ class CariLedgerReportController extends Controller
             PendingBilling::STATUS_PENDING,
             PendingBilling::STATUS_POSTPONED,
             PendingBilling::STATUS_INVOICED,
+            PendingBilling::STATUS_EXPENSED,
         ];
 
         return [
@@ -165,6 +166,7 @@ class CariLedgerReportController extends Controller
             PendingBilling::STATUS_PENDING => 'Beklemede',
             PendingBilling::STATUS_POSTPONED => 'Ertelendi',
             PendingBilling::STATUS_INVOICED => 'Faturalandı',
+            PendingBilling::STATUS_EXPENSED => 'Giderleştirildi',
             PendingBilling::STATUS_CANCELLED => 'İptal',
         ];
     }

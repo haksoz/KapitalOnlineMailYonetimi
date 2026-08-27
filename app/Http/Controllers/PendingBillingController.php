@@ -19,14 +19,15 @@ class PendingBillingController extends Controller
     public function index(Request $request): View
     {
         $status = $request->get('status', PendingBilling::STATUS_PENDING);
-        if (in_array($status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED, PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_CANCELLED, 'deleted'], true)) {
+        if (in_array($status, [PendingBilling::STATUS_PENDING, PendingBilling::STATUS_POSTPONED, PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_EXPENSED, PendingBilling::STATUS_CANCELLED, 'deleted'], true)) {
             // ok
         } else {
             $status = PendingBilling::STATUS_PENDING;
         }
 
-        // Faturalandı sekmesinde varsayılan olarak bu yıl/bu ay filtresi uygula
-        if ($status === PendingBilling::STATUS_INVOICED && ! $request->filled('period_year') && ! $request->filled('period_month')) {
+        // Faturalandı / Giderleştirildi sekmesinde varsayılan olarak bu yıl/bu ay filtresi uygula
+        if (in_array($status, [PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_EXPENSED], true)
+            && ! $request->filled('period_year') && ! $request->filled('period_month')) {
             $now = now();
             $request->merge([
                 'period_year' => $now->year,
@@ -40,7 +41,7 @@ class PendingBillingController extends Controller
         }
 
         $query = PendingBilling::query()
-            ->with(['subscription.customerCari', 'subscription.product', 'salesInvoiceLine']);
+            ->with(['subscription.customerCari', 'subscription.product', 'salesInvoiceLine', 'expenseSettlementLine.expenseSettlement']);
 
         if ($status === 'deleted') {
             $query->onlyDeleted();
@@ -302,11 +303,16 @@ class PendingBillingController extends Controller
                 ->with('error', 'Alış faturası gelen sipariş silinemez. Önce alış faturası bilgilerini geri alın.');
         }
 
-        $pending_billing->loadMissing('salesInvoiceLine');
+        $pending_billing->loadMissing(['salesInvoiceLine', 'expenseSettlementLine']);
         if ($pending_billing->salesInvoiceLine !== null) {
             return redirect()
                 ->route('pending-billings.index', ['status' => $backStatus])
                 ->with('error', 'Faturalandırılmış sipariş silinemez.');
+        }
+        if ($pending_billing->expenseSettlementLine !== null) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $backStatus])
+                ->with('error', 'Giderleştirilmiş sipariş silinemez.');
         }
 
         $pending_billing->update(['is_deleted' => true]);
@@ -514,6 +520,7 @@ class PendingBillingController extends Controller
                                 PendingBilling::STATUS_PENDING => 'Beklemede',
                                 PendingBilling::STATUS_POSTPONED => 'Ertelendi',
                                 PendingBilling::STATUS_INVOICED => 'Faturalandı',
+                                PendingBilling::STATUS_EXPENSED => 'Giderleştirildi',
                                 PendingBilling::STATUS_CANCELLED => 'İptal',
                                 default => $pb->status,
                             },

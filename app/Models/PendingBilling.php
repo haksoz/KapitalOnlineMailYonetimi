@@ -11,6 +11,7 @@ class PendingBilling extends Model
 {
     public const STATUS_PENDING = 'pending';
     public const STATUS_INVOICED = 'invoiced';
+    public const STATUS_EXPENSED = 'expensed';
     public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_POSTPONED = 'postponed';
 
@@ -79,5 +80,10 @@ class PendingBilling extends Model
     public function salesInvoiceLine(): HasOne
     {
         return $this->hasOne(SalesInvoiceLine::class, 'pending_billing_id');
+    }
+
+    public function expenseSettlementLine(): HasOne
+    {
+        return $this->hasOne(ExpenseSettlementLine::class, 'pending_billing_id');
     }
 }

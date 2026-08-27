@@ -71,7 +71,7 @@
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sipariş</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider" title="Alış faturası atanmış sipariş sayısı">Alış fat.</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Satış Fat.</th>
-                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">E-Fatura</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">E-Fatura / Gider</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Durum</th>
                             <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">İşlem</th>
                         </tr>
@@ -160,7 +160,7 @@
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Bitiş tarihi</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Alış fat.</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Satış fat.</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">E-Fatura</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">E-Fatura / Gider</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -204,6 +204,8 @@
                                                     <td class="px-3 py-2">
                                                         @if ($d['sales_fat_invoiced'] ?? false)
                                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Evet</span>
+                                                        @elseif ($d['expensed'] ?? false)
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Gider</span>
                                                         @else
                                                             <span class="text-gray-500">—</span>
                                                         @endif
@@ -211,6 +213,10 @@
                                                     <td class="px-3 py-2">
                                                         @if ($d['sales_invoiced'])
                                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Evet</span>
+                                                        @elseif ($d['expensed'] ?? false)
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800" title="{{ $d['gider_number'] ?? '' }}">
+                                                                {{ $d['gider_number'] ?? 'Giderleştirildi' }}
+                                                            </span>
                                                         @else
                                                             <span class="text-gray-500">—</span>
                                                         @endif

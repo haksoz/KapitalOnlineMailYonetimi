@@ -49,7 +49,33 @@
         @endif
 
         @if ($pendingBillings->isNotEmpty())
-            <form action="{{ route('sales-invoices.store') }}" method="POST">
+            @php
+                $selectedPeriods = $pendingBillings
+                    ->pluck('period_start')
+                    ->filter()
+                    ->map(fn ($d) => $d->format('Y-m'))
+                    ->unique()
+                    ->sort()
+                    ->values();
+                $hasMixedPeriods = $selectedPeriods->count() > 1;
+                $selectedPeriodsLabel = $selectedPeriods
+                    ->map(function ($ym) {
+                        try {
+                            return \Carbon\Carbon::createFromFormat('Y-m', $ym)->locale('tr')->translatedFormat('F Y');
+                        } catch (\Throwable) {
+                            return $ym;
+                        }
+                    })
+                    ->implode(', ');
+            @endphp
+            @if ($hasMixedPeriods)
+                <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+                    Seçilen siparişler farklı aylara ait:
+                    <span class="font-medium">{{ $selectedPeriodsLabel }}</span>.
+                    Aynı faturada birleştirmeden önce dönemleri kontrol edin.
+                </div>
+            @endif
+            <form action="{{ route('sales-invoices.store') }}" method="POST" id="sales-invoice-create-form" @if ($hasMixedPeriods) data-mixed-periods="{{ $selectedPeriodsLabel }}" @endif>
                 @csrf
                 <input type="hidden" name="customer_cari_id" value="{{ $customerCariId }}">
                 @if ($fromSelection ?? false)
@@ -99,7 +125,7 @@
                                     $accFark = $accumulatedFarkBySubscription[$pb->subscription_id ?? 0] ?? 0;
                                     $showFarkCheckbox = $accFark != 0;
                                 @endphp
-                                <tr class="hover:bg-gray-50">
+                                <tr class="hover:bg-gray-50" data-subscription-id="{{ $pb->subscription_id }}">
                                     @if (!($fromSelection ?? false))
                                     <td class="px-4 py-2">
                                         <input type="checkbox" name="pending_billing_ids[]" value="{{ $pb->id }}" class="rounded border-gray-300 text-slate-600 focus:ring-slate-500">
@@ -121,19 +147,27 @@
                                             —
                                         @endif
                                     </td>
-                                    <td class="px-4 py-2 text-sm text-right">
+                                    <td class="px-4 py-2 text-sm text-right" data-fark-amount-cell>
                                         @if ($accFark != 0)
-                                            <span class="{{ $accFark > 0 ? 'text-amber-700' : 'text-slate-600' }} font-medium">{{ number_format($accFark, 2, ',', '.') }} ₺</span>
+                                            <span class="{{ $accFark > 0 ? 'text-amber-700' : 'text-slate-600' }} font-medium" data-fark-amount-value>{{ number_format($accFark, 2, ',', '.') }} ₺</span>
+                                            <span class="text-gray-400 hidden" data-fark-amount-placeholder>—</span>
                                         @else
                                             <span class="text-gray-400">—</span>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-2 text-center">
+                                    <td class="px-4 py-2 text-center" data-fark-action-cell>
                                         @if ($showFarkCheckbox)
-                                            <label class="inline-flex items-center gap-1">
-                                                <input type="checkbox" name="add_fark[]" value="{{ $pb->id }}" class="rounded border-gray-300 text-slate-600 focus:ring-slate-500">
+                                            <label class="inline-flex items-center gap-1" data-fark-checkbox-wrap>
+                                                <input
+                                                    type="checkbox"
+                                                    name="add_fark[]"
+                                                    value="{{ $pb->id }}"
+                                                    class="add-fark-checkbox rounded border-gray-300 text-slate-600 focus:ring-slate-500"
+                                                    data-subscription-id="{{ $pb->subscription_id }}"
+                                                >
                                                 <span class="text-xs text-gray-600">Bu satıra ekle</span>
                                             </label>
+                                            <span class="text-gray-400 text-xs hidden" data-fark-taken-note>Başka satıra eklendi</span>
                                         @else
                                             <span class="text-gray-400 text-xs">—</span>
                                         @endif
@@ -147,13 +181,115 @@
                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                 @enderror
                 <p class="mt-2 text-xs text-gray-500">
-                    Önceki dönemlerden kalan fark varsa, &quot;Farkı ekle&quot; ile bu satırın fatura tutarına eklenir (abonelik başına yalnızca bir satırda işaretleyin). Sonraki alış faturası girildiğinde fark negatif düşer ve toplam sıfırlanır.
+                    Önceki dönemlerden kalan fark varsa, &quot;Farkı ekle&quot; ile bu satırın fatura tutarına eklenir (abonelik başına yalnızca bir satırda). Bir satırda işaretlediğinizde aynı aboneliğin diğer satırlarında fark seçeneği kapanır. Sonraki alış faturası girildiğinde fark negatif düşer ve toplam sıfırlanır.
                 </p>
                 <div class="mt-4 flex gap-3">
                     <x-primary-button type="submit">Seçilenleri faturalandır</x-primary-button>
                     <a href="{{ route('sales-invoices.index') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50">İptal</a>
                 </div>
             </form>
+            <script>
+                (function () {
+                    const form = document.getElementById('sales-invoice-create-form');
+                    if (!form) return;
+
+                    function syncFarkForSubscription(subscriptionId) {
+                        const checkboxes = Array.from(
+                            form.querySelectorAll('.add-fark-checkbox[data-subscription-id="' + subscriptionId + '"]')
+                        );
+                        const selected = checkboxes.find(function (cb) { return cb.checked; }) || null;
+
+                        checkboxes.forEach(function (cb) {
+                            const row = cb.closest('tr');
+                            if (!row) return;
+
+                            const amountValue = row.querySelector('[data-fark-amount-value]');
+                            const amountPlaceholder = row.querySelector('[data-fark-amount-placeholder]');
+                            const checkboxWrap = row.querySelector('[data-fark-checkbox-wrap]');
+                            const takenNote = row.querySelector('[data-fark-taken-note]');
+                            const isSelectedRow = selected !== null && cb === selected;
+                            const isTakenElsewhere = selected !== null && !isSelectedRow;
+
+                            if (amountValue && amountPlaceholder) {
+                                amountValue.classList.toggle('hidden', isTakenElsewhere);
+                                amountPlaceholder.classList.toggle('hidden', !isTakenElsewhere);
+                            }
+                            if (checkboxWrap) {
+                                checkboxWrap.classList.toggle('hidden', isTakenElsewhere);
+                            }
+                            if (takenNote) {
+                                takenNote.classList.toggle('hidden', !isTakenElsewhere);
+                            }
+
+                            if (isTakenElsewhere) {
+                                cb.checked = false;
+                                cb.disabled = true;
+                            } else {
+                                cb.disabled = false;
+                            }
+                        });
+                    }
+
+                    form.querySelectorAll('.add-fark-checkbox').forEach(function (cb) {
+                        cb.addEventListener('change', function () {
+                            const subscriptionId = this.dataset.subscriptionId;
+                            if (!subscriptionId) return;
+
+                            if (this.checked) {
+                                form.querySelectorAll(
+                                    '.add-fark-checkbox[data-subscription-id="' + subscriptionId + '"]'
+                                ).forEach(function (other) {
+                                    if (other !== cb) other.checked = false;
+                                });
+                            }
+
+                            syncFarkForSubscription(subscriptionId);
+                        });
+                    });
+
+                    // Sayfa yükünde (geri gelme vb.) mevcut işaretlere göre senkronize et
+                    const seen = {};
+                    form.querySelectorAll('.add-fark-checkbox').forEach(function (cb) {
+                        const id = cb.dataset.subscriptionId;
+                        if (!id || seen[id]) return;
+                        seen[id] = true;
+                        syncFarkForSubscription(id);
+                    });
+
+                    form.addEventListener('submit', function (e) {
+                        const mixed = form.getAttribute('data-mixed-periods');
+                        if (mixed) {
+                            const ok = confirm(
+                                'Seçilen siparişler farklı aylara ait (' + mixed + ').\n\n' +
+                                'Ayrı ayları aynı faturada birleştirmek istediğinize emin misiniz?'
+                            );
+                            if (!ok) {
+                                e.preventDefault();
+                                return;
+                            }
+                        }
+
+                        // Müşteri seçip listeden işaretleme yolu: seçili satırlarda da dönem karışık olabilir
+                        if (!mixed) {
+                            const checked = Array.from(form.querySelectorAll('input[name="pending_billing_ids[]"]:checked'));
+                            if (checked.length === 0) return;
+                            const periodCells = checked.map(function (cb) {
+                                const row = cb.closest('tr');
+                                const cell = row ? row.querySelector('td:nth-child(3)') : null;
+                                return cell ? cell.textContent.trim() : '';
+                            }).filter(Boolean);
+                            const unique = Array.from(new Set(periodCells));
+                            if (unique.length > 1) {
+                                const ok = confirm(
+                                    'Seçilen siparişler farklı aylara ait (' + unique.join(', ') + ').\n\n' +
+                                    'Ayrı ayları aynı faturada birleştirmek istediğinize emin misiniz?'
+                                );
+                                if (!ok) e.preventDefault();
+                            }
+                        }
+                    });
+                })();
+            </script>
         @endif
     </div>
 </x-app-layout>

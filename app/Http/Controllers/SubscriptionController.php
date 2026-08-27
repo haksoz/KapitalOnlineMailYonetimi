@@ -343,19 +343,20 @@ class SubscriptionController extends Controller
                 ->with('error', 'Yalnızca iptal edilmiş veya iptali planlanmış abonelikler tamamen silinebilir.');
         }
 
-        $hasInvoiced = PendingBilling::query()
+        $hasSettled = PendingBilling::query()
             ->withDeleted()
             ->where('subscription_id', $subscription->id)
             ->where(function ($q) {
-                $q->where('status', PendingBilling::STATUS_INVOICED)
-                    ->orWhereHas('salesInvoiceLine');
+                $q->whereIn('status', [PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_EXPENSED])
+                    ->orWhereHas('salesInvoiceLine')
+                    ->orWhereHas('expenseSettlementLine');
             })
             ->exists();
 
-        if ($hasInvoiced) {
+        if ($hasSettled) {
             return redirect()
                 ->route('subscriptions.show', $subscription)
-                ->with('error', 'Bu aboneliğe bağlı faturalanmış sipariş/satış faturası satırı var. Muhasebe kayıtlarını korumak için silinemez.');
+                ->with('error', 'Bu aboneliğe bağlı faturalanmış veya giderleştirilmiş sipariş var. Muhasebe kayıtlarını korumak için silinemez.');
         }
 
         $sozlesmeNo = $subscription->sozlesme_no;
