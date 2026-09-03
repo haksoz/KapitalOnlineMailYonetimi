@@ -30,9 +30,16 @@ class SubscriptionMonitorController extends Controller
         $monthStart = Carbon::create($year, $month, 1)->startOfDay();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        // Bu ay ile kesişen aktif abonelikler
+        // Bu ay ile kesişen abonelikler
+        // Geçmiş aylar için iptal edilmiş abonelikleri de dahil et (o dönemde aktiflerdi)
+        $isCurrentOrFutureMonth = $monthEnd->gte(Carbon::today()->startOfMonth());
+
         $subscriptions = Subscription::query()
-            ->where('durum', Subscription::DURUM_ACTIVE)
+            ->when($isCurrentOrFutureMonth, function ($q) {
+                $q->where('durum', Subscription::DURUM_ACTIVE);
+            }, function ($q) {
+                $q->whereIn('durum', [Subscription::DURUM_ACTIVE, Subscription::DURUM_CANCELLED]);
+            })
             ->whereNotNull('baslangic_tarihi')
             ->whereNotNull('bitis_tarihi')
             ->where('baslangic_tarihi', '<=', $monthEnd)
