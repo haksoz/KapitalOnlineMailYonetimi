@@ -24,12 +24,7 @@
                     <p class="mt-1 text-xs text-gray-500">Tablolarda kullanılacak kısa ad. Boş bırakılırsa tam ad gösterilir.</p>
                 </div>
 
-                <div>
-                    <x-input-label for="email" value="E-posta" />
-                    <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email')" />
-                    <p class="mt-1 text-xs text-gray-500">Müşteri bildirimleri bu adrese gönderilebilir. İsteğe bağlı.</p>
-                    <x-input-error :messages="$errors->get('email')" class="mt-1" />
-                </div>
+                <x-cari-email-notification-fields :email="old('email')" />
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>

@@ -12,6 +12,7 @@
     <div class="mb-4 max-w-3xl space-y-2">
         <p class="text-sm text-gray-600">
             Satış faturası numarası atanmış, vadesi dolmuş veya yaklaşan, henüz ödenmemiş faturalar için müşteri e-postasına bildirim gider.
+            Mail yalnızca e-posta adresi dolu ve bildirimleri aktif carilere gider.
             SMTP ayarı <a href="{{ route('admin.mail-settings.edit') }}" class="text-slate-700 font-medium underline">Mail Yönetimi</a> sayfasındadır.
         </p>
         <p class="text-xs text-gray-500">

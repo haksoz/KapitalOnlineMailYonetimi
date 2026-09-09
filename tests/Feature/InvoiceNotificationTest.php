@@ -42,6 +42,7 @@ class InvoiceNotificationTest extends TestCase
             'cari_type' => 'customer',
             'tax_number' => (string) (5500000000 + $this->taxSeq++),
             'email' => $email,
+            'notifications_enabled' => $email !== null && $email !== '',
         ]);
 
         $subscription = Subscription::create([
@@ -296,6 +297,10 @@ class InvoiceNotificationTest extends TestCase
         $noMail = $this->makeNumberedInvoice(7, null);
         $this->assertFalse($dispatcher->isEligible($reminder, $noMail, Carbon::parse('2026-09-02')));
 
+        $disabled = $this->makeNumberedInvoice(7, 'kapali@example.com');
+        $disabled->customerCari->update(['notifications_enabled' => false]);
+        $this->assertFalse($dispatcher->isEligible($reminder, $disabled->fresh(['customerCari']), Carbon::parse('2026-09-02')));
+
         $noNumber = $this->makeNumberedInvoice(7);
         $noNumber->update(['our_invoice_number' => null]);
         $this->assertFalse($dispatcher->isEligible($reminder, $noNumber->fresh(['customerCari']), Carbon::parse('2026-09-02')));
@@ -322,6 +327,23 @@ class InvoiceNotificationTest extends TestCase
         $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-08')));
         $this->assertDatabaseCount('notification_sends', 2);
         $this->assertTrue($invoice->exists);
+    }
+
+    public function test_dispatch_skips_cari_with_email_when_notifications_disabled(): void
+    {
+        Mail::fake();
+        $invoice = $this->makeNumberedInvoice(7);
+        $invoice->customerCari->update(['notifications_enabled' => false]);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)
+            ->update(['is_enabled' => true, 'start_after_days' => 0, 'interval_days' => 7]);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)
+            ->update(['is_enabled' => false]);
+
+        $this->assertSame(0, app(InvoiceNotificationDispatcher::class)->dispatch(Carbon::parse('2026-09-01')));
+        $this->assertDatabaseCount('notification_sends', 0);
+        Mail::assertNothingSent();
     }
 
     public function test_non_admin_cannot_view_notification_settings(): void

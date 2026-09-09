@@ -38,19 +38,7 @@ class CariController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:255'],
-            'short_name'   => ['nullable', 'string', 'max:100'],
-            'email'        => ['nullable', 'email', 'max:255'],
-            'country_code' => ['nullable', 'string', 'size:2'],
-            'tax_number'   => ['nullable', 'string', 'max:50'],
-            'cari_type'    => ['nullable', 'string', 'max:32'],
-        ]);
-
-        // Varsayılan ülke kodu uygulama tarafında da korunsun
-        if (empty($validated['country_code'])) {
-            $validated['country_code'] = 'TR';
-        }
+        $validated = $this->validatedCariPayload($request);
 
         Cari::create($validated);
 
@@ -66,18 +54,7 @@ class CariController extends Controller
 
     public function update(Request $request, Cari $cari): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:255'],
-            'short_name'   => ['nullable', 'string', 'max:100'],
-            'email'        => ['nullable', 'email', 'max:255'],
-            'country_code' => ['nullable', 'string', 'size:2'],
-            'tax_number'   => ['nullable', 'string', 'max:50'],
-            'cari_type'    => ['nullable', 'string', 'max:32'],
-        ]);
-
-        if (empty($validated['country_code'])) {
-            $validated['country_code'] = 'TR';
-        }
+        $validated = $this->validatedCariPayload($request);
 
         $cari->update($validated);
 
@@ -93,5 +70,31 @@ class CariController extends Controller
         return redirect()
             ->route('caris.index')
             ->with('success', 'Cari silindi.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedCariPayload(Request $request): array
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'short_name' => ['nullable', 'string', 'max:100'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'notifications_enabled' => ['required', 'boolean'],
+            'country_code' => ['nullable', 'string', 'size:2'],
+            'tax_number' => ['nullable', 'string', 'max:50'],
+            'cari_type' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        if (empty($validated['country_code'])) {
+            $validated['country_code'] = 'TR';
+        }
+
+        $validated['email'] = filled($validated['email'] ?? null) ? $validated['email'] : null;
+        $validated['notifications_enabled'] = $request->boolean('notifications_enabled')
+            && filled($validated['email']);
+
+        return $validated;
     }
 }

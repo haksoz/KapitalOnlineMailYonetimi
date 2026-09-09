@@ -36,7 +36,7 @@ class InvoiceNotificationDispatcher
             ->whereNotNull('our_invoice_number')
             ->where('our_invoice_number', '!=', '')
             ->whereHas('customerCari', function ($q): void {
-                $q->whereNotNull('email')->where('email', '!=', '');
+                $q->receivesNotifications();
             })
             ->get();
 
@@ -62,8 +62,7 @@ class InvoiceNotificationDispatcher
             return false;
         }
 
-        $email = $invoice->customerCari?->email;
-        if ($email === null || $email === '') {
+        if (! $invoice->customerCari?->canReceiveNotifications()) {
             return false;
         }
 
@@ -112,6 +111,9 @@ class InvoiceNotificationDispatcher
     private function send(NotificationDefinition $definition, SalesInvoice $invoice, Carbon $today): bool
     {
         $to = (string) $invoice->customerCari?->email;
+        if ($to === '' || ! $invoice->customerCari?->canReceiveNotifications()) {
+            return false;
+        }
         $replacements = $this->replacements($invoice);
         $subject = $definition->renderSubject($replacements);
         $body = $definition->renderBody($replacements);

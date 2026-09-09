@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -14,10 +15,30 @@ class Cari extends Model
         'name',
         'short_name',
         'email',
+        'notifications_enabled',
         'country_code',
         'tax_number',
         'cari_type',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'notifications_enabled' => 'boolean',
+        ];
+    }
+
+    public function canReceiveNotifications(): bool
+    {
+        return $this->notifications_enabled && filled($this->email);
+    }
+
+    public function scopeReceivesNotifications(Builder $query): void
+    {
+        $query->where('notifications_enabled', true)
+            ->whereNotNull('email')
+            ->where('email', '!=', '');
+    }
 
     protected static function booted(): void
     {
@@ -28,6 +49,12 @@ class Cari extends Model
 
             if (empty($cari->country_code)) {
                 $cari->country_code = 'TR';
+            }
+        });
+
+        static::saving(function (Cari $cari): void {
+            if (blank($cari->email)) {
+                $cari->notifications_enabled = false;
             }
         });
     }
