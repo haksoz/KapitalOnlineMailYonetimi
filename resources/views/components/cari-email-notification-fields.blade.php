@@ -33,10 +33,10 @@
                 x-effect="if (!hasEmail) { $refs.notify.checked = false }"
                 @checked($isChecked)
             >
-            <x-input-label for="notifications_enabled" value="Bildirimler aktif" class="!mb-0" />
+            <x-input-label for="notifications_enabled" value="Bildirim açık" class="!mb-0" />
         </div>
         <p class="mt-1 text-xs text-gray-500" x-show="!hasEmail">E-posta girilmeden bildirim açılamaz; gönderilecek adres yok.</p>
-        <p class="mt-1 text-xs text-gray-500" x-show="hasEmail" x-cloak>Bildirimler bu e-posta adresine gider. İstemiyorsanız kutuyu boş bırakın.</p>
+        <p class="mt-1 text-xs text-gray-500" x-show="hasEmail" x-cloak>Bildirimler bu e-posta adresine gider. İstemiyorsanız bildirimi kapalı bırakın.</p>
         <x-input-error :messages="$errors->get('notifications_enabled')" class="mt-1" />
     </div>
 </div>

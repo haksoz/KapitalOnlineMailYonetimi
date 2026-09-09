@@ -35,7 +35,7 @@ class CariNotificationSettingTest extends TestCase
         $this->actingAs($user)
             ->get(route('caris.edit', $cari))
             ->assertOk()
-            ->assertSee('Bildirimler aktif', false);
+            ->assertSee('Bildirim açık', false);
     }
 
     public function test_can_enable_notifications_on_update(): void
