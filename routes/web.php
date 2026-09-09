@@ -76,6 +76,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('sales-invoices/{sales_invoice}/invoice-details', [SalesInvoiceController::class, 'editInvoiceDetails'])->name('sales-invoices.invoice-details');
     Route::patch('sales-invoices/{sales_invoice}/invoice-details', [SalesInvoiceController::class, 'updateInvoiceDetails'])->name('sales-invoices.update-invoice-details');
     Route::post('sales-invoices/{sales_invoice}/revert', [SalesInvoiceController::class, 'revert'])->name('sales-invoices.revert');
+    Route::post('sales-invoices/{sales_invoice}/mark-paid', [SalesInvoiceController::class, 'markPaid'])->name('sales-invoices.mark-paid');
+    Route::post('sales-invoices/{sales_invoice}/mark-unpaid', [SalesInvoiceController::class, 'markUnpaid'])->name('sales-invoices.mark-unpaid');
 
     Route::get('expense-settlements', [ExpenseSettlementController::class, 'index'])->name('expense-settlements.index');
     Route::get('expense-settlements/create', [ExpenseSettlementController::class, 'create'])->name('expense-settlements.create');

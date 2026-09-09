@@ -22,6 +22,8 @@ class SalesInvoice extends Model
         'invoice_total_diff_tl',
         'invoice_total_diff_reason',
         'notes',
+        'is_paid',
+        'paid_at',
     ];
 
     protected function casts(): array
@@ -33,7 +35,25 @@ class SalesInvoice extends Model
             'invoice_total_vat_tl' => 'decimal:2',
             'invoice_total_gross_tl' => 'decimal:2',
             'invoice_total_diff_tl' => 'decimal:2',
+            'is_paid' => 'boolean',
+            'paid_at' => 'datetime',
         ];
+    }
+
+    public function markAsPaid(): void
+    {
+        $this->update([
+            'is_paid' => true,
+            'paid_at' => now(),
+        ]);
+    }
+
+    public function markAsUnpaid(): void
+    {
+        $this->update([
+            'is_paid' => false,
+            'paid_at' => null,
+        ]);
     }
 
     public function customerCari(): BelongsTo

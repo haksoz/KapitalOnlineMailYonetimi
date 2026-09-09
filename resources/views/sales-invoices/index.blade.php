@@ -44,6 +44,9 @@
     </div>
 
     <div x-data="{ atmacayaKopyalaOpen: false, atmacaText: '' }" class="bg-white rounded-xl shadow-sm overflow-hidden">
+        @php
+            $iconBtnClass = 'inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 touch-manipulation';
+        @endphp
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -53,6 +56,7 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fatura no</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fatura Takip No</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Toplam (TL)</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ödeme</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Satır sayısı</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
                     </tr>
@@ -94,30 +98,60 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                                 {{ $inv->total_amount_tl !== null ? number_format((float) $inv->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}
                             </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                <x-sales-invoice-payment-badge :invoice="$inv" />
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
                                 {{ $inv->lines->count() }}
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-right text-sm space-x-2">
-                                <a href="{{ route('sales-invoices.invoice-details', $inv) }}" class="text-slate-600 hover:text-slate-900 font-medium">{{ $inv->our_invoice_number ? 'Fatura bilgisi düzenle' : 'Fatura bilgisi gir' }}</a>
-                                <span class="text-gray-300">|</span>
-                                <a href="{{ route('sales-invoices.show', $inv) }}" class="text-slate-600 hover:text-slate-900 font-medium">Detay</a>
-                                <span class="text-gray-300">|</span>
-                                <button
-                                    type="button"
-                                    class="text-slate-600 hover:text-slate-900 font-medium"
-                                    @click="
-                                        atmacaText = @js($atmacaTextRow);
-                                        atmacayaKopyalaOpen = true;
-                                        $nextTick(() => { if ($refs.globalAtmacaText) { $refs.globalAtmacaText.select(); document.execCommand('copy'); } });
-                                    "
-                                >
-                                    Atmaca’ya kopyala
-                                </button>
+                            <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
+                                @php
+                                    $invoiceDetailsLabel = $inv->our_invoice_number ? 'Fatura bilgisi düzenle' : 'Fatura bilgisi gir';
+                                @endphp
+                                <div class="inline-flex items-center justify-end gap-0.5">
+                                    <x-sales-invoice-payment-action :invoice="$inv" variant="icon" />
+                                    <a
+                                        href="{{ route('sales-invoices.invoice-details', $inv) }}"
+                                        class="{{ $iconBtnClass }}"
+                                        title="{{ $invoiceDetailsLabel }}"
+                                        aria-label="{{ $invoiceDetailsLabel }}"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </a>
+                                    <a
+                                        href="{{ route('sales-invoices.show', $inv) }}"
+                                        class="{{ $iconBtnClass }}"
+                                        title="Detay"
+                                        aria-label="Detay"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </a>
+                                    <button
+                                        type="button"
+                                        class="{{ $iconBtnClass }}"
+                                        title="Atmaca’ya kopyala"
+                                        aria-label="Atmaca’ya kopyala"
+                                        @click="
+                                            atmacaText = @js($atmacaTextRow);
+                                            atmacayaKopyalaOpen = true;
+                                            $nextTick(() => { if ($refs.globalAtmacaText) { $refs.globalAtmacaText.select(); document.execCommand('copy'); } });
+                                        "
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">
+                            <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
                                 Henüz faturalandırma kaydı yok. Siparişler sayfasından seçim yapıp &quot;Seçilenleri faturaya geçir&quot; ile oluşturabilirsiniz.
                             </td>
                         </tr>

@@ -47,6 +47,15 @@
                 </div>
                 @endif
                 <div>
+                    <dt class="text-gray-500">Ödeme durumu</dt>
+                    <dd class="mt-1">
+                        <x-sales-invoice-payment-badge :invoice="$salesInvoice" />
+                        @if ($salesInvoice->is_paid && $salesInvoice->paid_at)
+                            <span class="ml-2 text-xs text-gray-500">{{ $salesInvoice->paid_at->format('d.m.Y H:i') }}</span>
+                        @endif
+                    </dd>
+                </div>
+                <div>
                     <dt class="text-gray-500">Sistem toplamı (KDV hariç)</dt>
                     <dd class="font-medium text-gray-900">{{ number_format($systemNetTotal, 2, ',', '.') }} ₺</dd>
                 </div>
@@ -105,6 +114,7 @@
             @endif
 
             <div class="mt-4 flex flex-wrap gap-2">
+                <x-sales-invoice-payment-action :invoice="$salesInvoice" variant="button" />
                 <button
                     type="button"
                     @click="atmacayaKopyalaOpen = true"

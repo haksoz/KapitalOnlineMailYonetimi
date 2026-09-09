@@ -585,4 +585,26 @@ class SalesInvoiceController extends Controller
             ->route('sales-invoices.index')
             ->with('success', 'Fatura numarası ve tarihi kaydedildi.');
     }
+
+    public function markPaid(SalesInvoice $sales_invoice): RedirectResponse
+    {
+        if ($sales_invoice->is_paid) {
+            return back()->with('info', 'Fatura zaten ödendi olarak işaretli.');
+        }
+
+        $sales_invoice->markAsPaid();
+
+        return back()->with('success', 'Fatura ödendi olarak işaretlendi.');
+    }
+
+    public function markUnpaid(SalesInvoice $sales_invoice): RedirectResponse
+    {
+        if (! $sales_invoice->is_paid) {
+            return back()->with('info', 'Fatura zaten ödenmedi olarak işaretli.');
+        }
+
+        $sales_invoice->markAsUnpaid();
+
+        return back()->with('success', 'Fatura ödenmedi olarak işaretlendi.');
+    }
 }
