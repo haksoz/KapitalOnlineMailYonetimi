@@ -39,6 +39,20 @@
                     <x-input-error :messages="$errors->get('our_invoice_date')" class="mt-1" />
                 </div>
                 <div>
+                    <x-input-label for="due_date" value="Vade tarihi" />
+                    <x-text-input id="due_date" name="due_date" type="date"
+                        class="mt-1 block w-full" :value="old('due_date', $salesInvoice->due_date?->format('Y-m-d'))" />
+                    <p class="mt-1 text-xs text-gray-500">
+                        @if ($suggestedDueDate)
+                            Abonelik ödeme vadesinden hesaplanan tarih: <strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>.
+                            Boş bırakırsanız bu değer yazılır; farklı bir tarih girebilirsiniz.
+                        @else
+                            Abonelik faturaya dönüşünce vade otomatik gelir. Şimdilik yoksa buraya elle girebilirsiniz.
+                        @endif
+                    </p>
+                    <x-input-error :messages="$errors->get('due_date')" class="mt-1" />
+                </div>
+                <div>
                     <x-input-label for="order_number" value="Satış faturalarımı takip ettim (FTN)" />
                     <x-text-input id="order_number" name="order_number" type="text"
                         class="mt-1 block w-full" :value="old('order_number', $salesInvoice->order_number)"

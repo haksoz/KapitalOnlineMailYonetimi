@@ -55,6 +55,7 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fatura no</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fatura Takip No</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vade</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Toplam (TL)</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ödeme</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Satır sayısı</th>
@@ -94,6 +95,11 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                 {{ $inv->order_number ?? '—' }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                <a href="{{ route('sales-invoices.invoice-details', $inv) }}" class="text-slate-700 hover:text-slate-900 hover:underline" title="Vade tarihini düzenle">
+                                    {{ $inv->due_date?->format('d.m.Y') ?? 'Vade gir' }}
+                                </a>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                                 {{ $inv->total_amount_tl !== null ? number_format((float) $inv->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}
@@ -151,7 +157,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
+                            <td colspan="9" class="px-4 py-8 text-center text-sm text-gray-500">
                                 Henüz faturalandırma kaydı yok. Siparişler sayfasından seçim yapıp &quot;Seçilenleri faturaya geçir&quot; ile oluşturabilirsiniz.
                             </td>
                         </tr>

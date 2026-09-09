@@ -88,6 +88,7 @@ class SubscriptionController extends Controller
             'usd_birim_satis' => ['nullable', 'numeric', 'min:0'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'currency' => ['nullable', 'string', 'in:USD,TRY'],
+            'odeme_vadesi_gun' => ['required', 'integer', 'min:0', 'max:3650'],
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
         if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
@@ -259,11 +260,15 @@ class SubscriptionController extends Controller
             'usd_birim_alis' => ['nullable', 'numeric', 'min:0'],
             'usd_birim_satis' => ['nullable', 'numeric', 'min:0'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'odeme_vadesi_gun' => ['nullable', 'integer', 'min:0', 'max:3650'],
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
         if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
             $validated['vat_rate'] = 20;
         }
+        $validated['odeme_vadesi_gun'] = $request->filled('odeme_vadesi_gun')
+            ? (int) $validated['odeme_vadesi_gun']
+            : null;
 
         // Para birimi abonelikte kilitli kalır; ürün değişirse yeni ürünün currency'sini al
         if (! empty($validated['product_id'])) {

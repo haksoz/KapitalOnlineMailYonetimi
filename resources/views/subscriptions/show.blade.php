@@ -126,6 +126,10 @@
                     <dt class="text-gray-500">KDV (%)</dt>
                     <dd class="font-medium text-gray-900">{{ $subscription->vat_rate !== null ? number_format((float) $subscription->vat_rate, 2, ',', '.') : '20' }}%</dd>
                 </div>
+                <div>
+                    <dt class="text-gray-500">Ödeme vadesi</dt>
+                    <dd class="font-medium text-gray-900">{{ $subscription->odeme_vadesi_gun !== null ? $subscription->odeme_vadesi_gun . ' gün' : '—' }}</dd>
+                </div>
             </dl>
         </div>
 

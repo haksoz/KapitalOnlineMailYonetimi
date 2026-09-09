@@ -213,6 +213,7 @@ class SalesInvoiceController extends Controller
             $update['order_number'] = SalesInvoice::getNextFaturaTakipNo();
         }
         $salesInvoice->update($update);
+        $salesInvoice->refreshDueDate();
 
         $request->session()->forget('sales_invoice_xml_parsed');
 
@@ -533,9 +534,12 @@ class SalesInvoiceController extends Controller
 
     public function editInvoiceDetails(SalesInvoice $sales_invoice): View
     {
-        $sales_invoice->load('customerCari');
+        $sales_invoice->load(['customerCari', 'lines.pendingBilling.subscription']);
 
-        return view('sales-invoices.invoice-details', ['salesInvoice' => $sales_invoice]);
+        return view('sales-invoices.invoice-details', [
+            'salesInvoice' => $sales_invoice,
+            'suggestedDueDate' => $sales_invoice->computeDueDate(),
+        ]);
     }
 
     public function updateInvoiceDetails(Request $request, SalesInvoice $sales_invoice): RedirectResponse
@@ -543,6 +547,7 @@ class SalesInvoiceController extends Controller
         $validated = $request->validate([
             'our_invoice_number' => ['required', 'string', 'max:64'],
             'our_invoice_date' => ['required', 'date'],
+            'due_date' => ['nullable', 'date'],
             'order_number' => ['nullable', 'string', 'max:64'],
             'invoice_total_net_tl' => ['nullable', 'numeric', 'min:0'],
             'invoice_total_diff_reason' => ['nullable', 'string', 'max:255'],
@@ -581,9 +586,15 @@ class SalesInvoiceController extends Controller
             'invoice_total_diff_reason' => $diffReason,
         ]);
 
+        if (! empty($validated['due_date'] ?? null)) {
+            $sales_invoice->update(['due_date' => $validated['due_date']]);
+        } else {
+            $sales_invoice->refreshDueDate();
+        }
+
         return redirect()
             ->route('sales-invoices.index')
-            ->with('success', 'Fatura numarası ve tarihi kaydedildi.');
+            ->with('success', 'Fatura bilgisi kaydedildi.');
     }
 
     public function markPaid(SalesInvoice $sales_invoice): RedirectResponse

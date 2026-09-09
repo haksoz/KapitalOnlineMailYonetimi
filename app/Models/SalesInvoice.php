@@ -14,6 +14,7 @@ class SalesInvoice extends Model
         'customer_cari_id',
         'our_invoice_number',
         'our_invoice_date',
+        'due_date',
         'order_number',
         'total_amount_tl',
         'invoice_total_net_tl',
@@ -30,6 +31,7 @@ class SalesInvoice extends Model
     {
         return [
             'our_invoice_date' => 'date',
+            'due_date' => 'date',
             'total_amount_tl' => 'decimal:2',
             'invoice_total_net_tl' => 'decimal:2',
             'invoice_total_vat_tl' => 'decimal:2',
@@ -64,6 +66,36 @@ class SalesInvoice extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(SalesInvoiceLine::class, 'sales_invoice_id');
+    }
+
+    /**
+     * Fatura tarihi + satır aboneliklerindeki en kısa ödeme vadesi.
+     * Numara veya tarih yoksa, ya da hiç vade tanımlı değilse null.
+     */
+    public function computeDueDate(): ?\Carbon\CarbonInterface
+    {
+        if ($this->our_invoice_date === null || blank($this->our_invoice_number)) {
+            return null;
+        }
+
+        $this->loadMissing('lines.pendingBilling.subscription');
+
+        $days = $this->lines
+            ->map(fn (SalesInvoiceLine $line) => $line->pendingBilling?->subscription?->odeme_vadesi_gun)
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->min();
+
+        if ($days === null) {
+            return null;
+        }
+
+        return $this->our_invoice_date->copy()->addDays((int) $days);
+    }
+
+    public function refreshDueDate(): void
+    {
+        $this->due_date = $this->computeDueDate();
+        $this->save();
     }
 
     /**

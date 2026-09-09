@@ -58,6 +58,7 @@ class SalesInvoicePaymentTest extends TestCase
         $response->assertSee('Ödenmedi', false);
         $response->assertSee('Ödendi işaretle', false);
         $response->assertDontSee('Ödenmedi işaretle', false);
+        $response->assertSee('Vade gir', false);
     }
 
     public function test_show_displays_payment_status_and_action(): void
@@ -71,6 +72,7 @@ class SalesInvoicePaymentTest extends TestCase
         $response->assertSee('Ödeme durumu', false);
         $response->assertSee('Ödenmedi', false);
         $response->assertSee('Ödendi işaretle', false);
+        $response->assertSee('Fatura bilgisi düzenle', false);
     }
 
     public function test_mark_paid_from_index_sets_paid_status(): void

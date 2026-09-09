@@ -44,6 +44,7 @@ class Subscription extends Model
         'usd_birim_satis',
         'vat_rate',
         'currency',
+        'odeme_vadesi_gun',
     ];
 
     protected function casts(): array
@@ -54,6 +55,7 @@ class Subscription extends Model
             'planned_cancel_date' => 'date',
             'auto_renew' => 'boolean',
             'vat_rate' => 'decimal:2',
+            'odeme_vadesi_gun' => 'integer',
         ];
     }
 

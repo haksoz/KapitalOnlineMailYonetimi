@@ -40,6 +40,13 @@
                     <dt class="text-gray-500">Fatura tarihi</dt>
                     <dd class="font-medium text-gray-900">{{ $salesInvoice->our_invoice_date?->format('d.m.Y') ?? '—' }}</dd>
                 </div>
+                <div>
+                    <dt class="text-gray-500">Vade tarihi</dt>
+                    <dd class="font-medium text-gray-900">
+                        {{ $salesInvoice->due_date?->format('d.m.Y') ?? '—' }}
+                        <a href="{{ route('sales-invoices.invoice-details', $salesInvoice) }}" class="ml-2 text-xs font-semibold text-slate-600 hover:text-slate-900 underline">Düzenle</a>
+                    </dd>
+                </div>
                 @if ($salesInvoice->order_number)
                 <div>
                     <dt class="text-gray-500">Fatura Takip No (FTN)</dt>
@@ -114,6 +121,12 @@
             @endif
 
             <div class="mt-4 flex flex-wrap gap-2">
+                <a
+                    href="{{ route('sales-invoices.invoice-details', $salesInvoice) }}"
+                    class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                >
+                    Fatura bilgisi düzenle
+                </a>
                 <x-sales-invoice-payment-action :invoice="$salesInvoice" variant="button" />
                 <button
                     type="button"

@@ -12,6 +12,7 @@ use App\Http\Controllers\SalesInvoiceController;
 use App\Http\Controllers\ExpenseSettlementController;
 use App\Http\Controllers\SubscriptionMonitorController;
 use App\Http\Controllers\Admin\MailSettingController as AdminMailSettingController;
+use App\Http\Controllers\Admin\NotificationDefinitionController as AdminNotificationDefinitionController;
 use App\Http\Controllers\Admin\CariLedgerReportController as AdminCariLedgerReportController;
 use App\Http\Controllers\Admin\PendingBillingAdminController as AdminPendingBillingController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
@@ -111,6 +112,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('mail-settings', [AdminMailSettingController::class, 'edit'])->name('mail-settings.edit');
         Route::patch('mail-settings', [AdminMailSettingController::class, 'update'])->name('mail-settings.update');
         Route::post('mail-settings/test', [AdminMailSettingController::class, 'sendTest'])->name('mail-settings.test');
+        Route::get('notifications', [AdminNotificationDefinitionController::class, 'edit'])->name('notifications.edit');
+        Route::patch('notifications', [AdminNotificationDefinitionController::class, 'update'])->name('notifications.update');
+        Route::post('notifications/{notification_definition}/test', [AdminNotificationDefinitionController::class, 'sendTest'])->name('notifications.test');
         Route::get('reports/cari-ledger', [AdminCariLedgerReportController::class, 'index'])->name('reports.cari-ledger');
         Route::get('reports/cari-ledger/export', [AdminCariLedgerReportController::class, 'export'])->name('reports.cari-ledger.export');
         Route::get('reports/cari-ledger/totals', [AdminCariLedgerReportController::class, 'totals'])->name('reports.cari-ledger.totals');

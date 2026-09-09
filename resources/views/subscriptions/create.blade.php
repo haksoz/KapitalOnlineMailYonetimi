@@ -104,6 +104,12 @@
                     <x-text-input id="vat_rate" name="vat_rate" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full" :value="old('vat_rate', 20)" required />
                     <p class="mt-1 text-xs text-gray-500">Ön tanımlı %20; değiştirilebilir. Siparişlerde kullanılır.</p>
                 </div>
+                <div class="max-w-xs">
+                    <x-input-label for="odeme_vadesi_gun" value="Ödeme vadesi (gün) *" />
+                    <x-text-input id="odeme_vadesi_gun" name="odeme_vadesi_gun" type="number" min="0" max="3650" class="mt-1 block w-full" :value="old('odeme_vadesi_gun')" required />
+                    <p class="mt-1 text-xs text-gray-500">Fatura tarihinden kaç gün sonra vade. 0 = fatura günü. Satış faturasına otomatik yazılır.</p>
+                    <x-input-error :messages="$errors->get('odeme_vadesi_gun')" class="mt-1" />
+                </div>
                 <div>
                     <x-input-label for="durum" value="Durum *" />
                     <select id="durum" name="durum" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" required>
