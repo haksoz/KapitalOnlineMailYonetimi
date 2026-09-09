@@ -12,5 +12,5 @@ Schedule::command('subscriptions:process-renewals')->daily()->withoutOverlapping
 Schedule::command('pending-billings:enqueue')->daily()->withoutOverlapping()->sendOutputTo(storage_path('logs/pending-billings-enqueue.log'))->emailOutputOnFailure('haksoz@kapital-online.net');
 Schedule::command('exchange-rates:fetch')->daily()->withoutOverlapping()->sendOutputTo(storage_path('logs/exchange-rates-fetch.log'))->emailOutputOnFailure('haksoz@kapital-online.net');
 Schedule::command('pending-billings:refresh-amounts')->daily()->withoutOverlapping()->sendOutputTo(storage_path('logs/pending-billings-refresh-amounts.log'))->emailOutputOnFailure('haksoz@kapital-online.net');
-Schedule::command('notifications:dispatch')->daily()->withoutOverlapping()->sendOutputTo(storage_path('logs/notifications-dispatch.log'))->emailOutputOnFailure('haksoz@kapital-online.net');
+Schedule::command('notifications:dispatch')->everyFiveMinutes()->weekdays()->timezone('Europe/Istanbul')->withoutOverlapping()->sendOutputTo(storage_path('logs/notifications-dispatch.log'))->emailOutputOnFailure('haksoz@kapital-online.net');
 

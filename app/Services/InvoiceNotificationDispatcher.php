@@ -13,21 +13,26 @@ use Illuminate\Support\Facades\Mail;
 
 class InvoiceNotificationDispatcher
 {
-    public function dispatch(?CarbonInterface $today = null): int
+    public function dispatch(?CarbonInterface $now = null, bool $respectSendAt = true): int
     {
         MailSetting::applyToRuntime();
-        $today = Carbon::parse($today ?? now())->startOfDay();
+        $now = Carbon::parse($now ?? now());
+        $businessDate = $now->copy()->timezone(NotificationDefinition::TIMEZONE)->toDateString();
+        $today = Carbon::parse($businessDate)->startOfDay();
 
         $sent = 0;
         $definitions = NotificationDefinition::query()->where('is_enabled', true)->get();
         foreach ($definitions as $definition) {
-            $sent += $this->dispatchDefinition($definition, $today);
+            if ($respectSendAt && ! $definition->isSendTimeReached($now)) {
+                continue;
+            }
+            $sent += $this->dispatchDefinition($definition, $today, $now);
         }
 
         return $sent;
     }
 
-    private function dispatchDefinition(NotificationDefinition $definition, Carbon $today): int
+    private function dispatchDefinition(NotificationDefinition $definition, Carbon $today, Carbon $now): int
     {
         $invoices = SalesInvoice::query()
             ->with(['customerCari'])
@@ -48,7 +53,7 @@ class InvoiceNotificationDispatcher
             if (! $this->intervalElapsed($definition, $invoice, $today)) {
                 continue;
             }
-            if ($this->send($definition, $invoice, $today)) {
+            if ($this->send($definition, $invoice, $now)) {
                 $count++;
             }
         }
@@ -108,7 +113,7 @@ class InvoiceNotificationDispatcher
         return $nextAllowed->lte($today->copy()->startOfDay());
     }
 
-    private function send(NotificationDefinition $definition, SalesInvoice $invoice, Carbon $today): bool
+    private function send(NotificationDefinition $definition, SalesInvoice $invoice, Carbon $now): bool
     {
         $to = (string) $invoice->customerCari?->email;
         if ($to === '' || ! $invoice->customerCari?->canReceiveNotifications()) {
@@ -117,7 +122,7 @@ class InvoiceNotificationDispatcher
         $replacements = $this->replacements($invoice);
         $subject = $definition->renderSubject($replacements);
         $body = $definition->renderBody($replacements);
-        $sentAt = $today->copy()->startOfDay()->setTime((int) now()->hour, (int) now()->minute);
+        $sentAt = $now->copy()->timezone(NotificationDefinition::TIMEZONE);
 
         try {
             Mail::raw($body, function ($message) use ($to, $subject): void {

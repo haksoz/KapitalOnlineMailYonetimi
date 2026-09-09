@@ -318,15 +318,34 @@ class InvoiceNotificationTest extends TestCase
             ->update(['is_enabled' => false]);
 
         $dispatcher = app(InvoiceNotificationDispatcher::class);
-        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-01')));
+        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-01 10:00:00', 'Europe/Istanbul')));
         $this->assertDatabaseCount('notification_sends', 1);
 
-        $this->assertSame(0, $dispatcher->dispatch(Carbon::parse('2026-09-02')));
+        $this->assertSame(0, $dispatcher->dispatch(Carbon::parse('2026-09-02 10:00:00', 'Europe/Istanbul')));
         $this->assertDatabaseCount('notification_sends', 1);
 
-        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-08')));
+        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-08 10:00:00', 'Europe/Istanbul')));
         $this->assertDatabaseCount('notification_sends', 2);
         $this->assertTrue($invoice->exists);
+    }
+
+    public function test_dispatch_waits_until_configured_send_at(): void
+    {
+        Mail::fake();
+        $this->makeNumberedInvoice(7);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)
+            ->update(['is_enabled' => true, 'start_after_days' => 0, 'interval_days' => 7, 'send_at' => '10:00:00']);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)
+            ->update(['is_enabled' => false]);
+
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+        $this->assertSame(0, $dispatcher->dispatch(Carbon::parse('2026-09-01 09:59:00', 'Europe/Istanbul')));
+        $this->assertDatabaseCount('notification_sends', 0);
+
+        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-01 10:00:00', 'Europe/Istanbul')));
+        $this->assertDatabaseCount('notification_sends', 1);
     }
 
     public function test_dispatch_skips_cari_with_email_when_notifications_disabled(): void
@@ -341,7 +360,7 @@ class InvoiceNotificationTest extends TestCase
             ->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)
             ->update(['is_enabled' => false]);
 
-        $this->assertSame(0, app(InvoiceNotificationDispatcher::class)->dispatch(Carbon::parse('2026-09-01')));
+        $this->assertSame(0, app(InvoiceNotificationDispatcher::class)->dispatch(Carbon::parse('2026-09-01 10:00:00', 'Europe/Istanbul')));
         $this->assertDatabaseCount('notification_sends', 0);
         Mail::assertNothingSent();
     }
@@ -366,6 +385,7 @@ class InvoiceNotificationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.notifications.edit'));
         $response->assertOk();
         $response->assertSee('Bildiri Yönetimi', false);
+        $response->assertSee('Gönderim saati', false);
 
         $this->actingAs($admin)->patch(route('admin.notifications.update'), [
             'definitions' => [
@@ -374,6 +394,7 @@ class InvoiceNotificationTest extends TestCase
                     'is_enabled' => '1',
                     'start_after_days' => 2,
                     'interval_days' => 5,
+                    'send_at' => '10:00',
                     'subject' => 'Hatirlatma {fatura_no}',
                     'body' => 'Merhaba {musteri}',
                 ],
@@ -382,6 +403,7 @@ class InvoiceNotificationTest extends TestCase
                     'is_enabled' => '0',
                     'start_after_days' => 1,
                     'interval_days' => 3,
+                    'send_at' => '14:30',
                     'subject' => 'Gecikti {fatura_no}',
                     'body' => 'Vade gecti',
                 ],
@@ -392,10 +414,12 @@ class InvoiceNotificationTest extends TestCase
         $this->assertTrue($reminder->is_enabled);
         $this->assertSame(2, $reminder->start_after_days);
         $this->assertSame(5, $reminder->interval_days);
+        $this->assertSame('10:00', $reminder->sendAtForInput());
         $this->assertSame('Hatirlatma {fatura_no}', $reminder->subject);
 
         $overdue->refresh();
         $this->assertFalse($overdue->is_enabled);
+        $this->assertSame('14:30', $overdue->sendAtForInput());
     }
 
     public function test_admin_sees_due_dated_invoice_in_test_mail_form(): void

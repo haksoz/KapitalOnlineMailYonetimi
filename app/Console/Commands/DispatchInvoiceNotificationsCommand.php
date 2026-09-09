@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\InvoiceNotificationDispatcher;
+use App\Models\NotificationDefinition;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
@@ -16,9 +17,12 @@ class DispatchInvoiceNotificationsCommand extends Command
     public function handle(InvoiceNotificationDispatcher $dispatcher): int
     {
         $dateStr = $this->option('date');
-        $onDate = $dateStr ? Carbon::parse($dateStr) : Carbon::today();
-
-        $sent = $dispatcher->dispatch($onDate);
+        if ($dateStr) {
+            $now = Carbon::parse($dateStr, NotificationDefinition::TIMEZONE)->endOfDay();
+            $sent = $dispatcher->dispatch($now, respectSendAt: false);
+        } else {
+            $sent = $dispatcher->dispatch(now());
+        }
 
         $this->info("{$sent} bildiri e-postası gönderildi.");
 

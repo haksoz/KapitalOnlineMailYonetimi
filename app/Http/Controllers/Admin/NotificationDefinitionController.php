@@ -36,6 +36,7 @@ class NotificationDefinitionController extends Controller
             'definitions.*.is_enabled' => ['nullable', 'boolean'],
             'definitions.*.start_after_days' => ['required', 'integer', 'min:0', 'max:3650'],
             'definitions.*.interval_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'definitions.*.send_at' => ['required', 'date_format:H:i'],
             'definitions.*.subject' => ['required', 'string', 'max:255'],
             'definitions.*.body' => ['required', 'string', 'max:20000'],
         ]);
@@ -50,6 +51,7 @@ class NotificationDefinitionController extends Controller
                 'is_enabled' => (int) ($row['is_enabled'] ?? 0) === 1,
                 'start_after_days' => (int) $row['start_after_days'],
                 'interval_days' => (int) $row['interval_days'],
+                'send_at' => $row['send_at'].':00',
                 'subject' => $row['subject'],
                 'body' => $row['body'],
             ]);

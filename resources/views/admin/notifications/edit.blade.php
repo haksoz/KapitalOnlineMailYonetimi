@@ -13,6 +13,7 @@
         <p class="text-sm text-gray-600">
             Satış faturası numarası atanmış, vadesi dolmuş veya yaklaşan, henüz ödenmemiş faturalar için müşteri e-postasına bildirim gider.
             Mail yalnızca e-posta adresi dolu ve bildirimi açık carilere gider.
+            Her bildirinin kendi saati vardır (Türkiye saati); o saatten önce o gün mail gitmez.
             SMTP ayarı <a href="{{ route('admin.mail-settings.edit') }}" class="text-slate-700 font-medium underline">Mail Yönetimi</a> sayfasındadır.
         </p>
         <p class="text-xs text-gray-500">
@@ -61,7 +62,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <x-input-label for="start_{{ $definition->id }}" value="İlk gönderim (gün)" />
                         <x-text-input
@@ -92,6 +93,21 @@
                         />
                         <p class="mt-1 text-xs text-gray-500">Aynı faturaya bir sonraki mail bu kadar gün sonra gider.</p>
                         <x-input-error :messages="$errors->get('definitions.'.$index.'.interval_days')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="send_at_{{ $definition->id }}" value="Gönderim saati" />
+                        <input
+                            id="send_at_{{ $definition->id }}"
+                            form="notification-settings-form"
+                            name="definitions[{{ $index }}][send_at]"
+                            type="time"
+                            step="60"
+                            required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
+                            value="{{ old('definitions.'.$index.'.send_at', $definition->sendAtForInput()) }}"
+                        >
+                        <p class="mt-1 text-xs text-gray-500">Türkiye saati. Hatırlatma için 10:00, gecikme için 14:30 önerilir.</p>
+                        <x-input-error :messages="$errors->get('definitions.'.$index.'.send_at')" class="mt-1" />
                     </div>
                 </div>
 
