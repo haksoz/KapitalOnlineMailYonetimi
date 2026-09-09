@@ -9,7 +9,11 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="font-sans antialiased bg-gray-100 min-h-screen" x-data="{ sidebarOpen: false }" :class="{ 'overflow-hidden': sidebarOpen }">
+<body
+    class="font-sans antialiased bg-gray-100 min-h-screen"
+    x-data="appShell"
+    :class="{ 'overflow-hidden': sidebarOpen }"
+>
     <div class="min-h-screen flex flex-col lg:flex-row">
         <!-- Sidebar (desktop): sabit genişlik, opak arka plan, z-index ile üstte -->
         <aside class="layout-desktop-sidebar hidden lg:flex lg:flex-shrink-0 lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 bg-slate-800 text-white" aria-label="Ana menü">
@@ -20,45 +24,7 @@
                         <span class="font-semibold text-base lg:text-lg truncate">Mail Yönetimi</span>
                     </a>
                 </div>
-                <nav class="mt-6 flex-1 px-3 space-y-0.5" role="navigation">
-                    <a href="{{ route('dashboard') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">
-                        {{ __('Dashboard') }}
-                    </a>
-                    <div class="pt-4 pb-2">
-                        <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Master Veriler</p>
-                    </div>
-                    <a href="{{ route('caris.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('caris.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Cariler</a>
-                    <a href="{{ route('service-providers.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('service-providers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Servis Sağlayıcılar</a>
-                    <a href="{{ route('products.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('products.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Ürünler</a>
-                    <a href="{{ route('exchange-rates.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('exchange-rates.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Kurlar</a>
-                    <div class="pt-4 pb-2">
-                        <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Abonelikler</p>
-                    </div>
-                    <a href="{{ route('subscriptions.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('subscriptions.*') && !request()->routeIs('pending-billings.*') && !request()->routeIs('sales-invoices.*') && !request()->routeIs('expense-settlements.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Abonelikler</a>
-                    <a href="{{ route('pending-billings.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('pending-billings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Siparişler</a>
-                    <a href="{{ route('sales-invoices.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('sales-invoices.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Satış E-Fatura</a>
-                    <a href="{{ route('expense-settlements.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('expense-settlements.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Giderleştirmeler</a>
-                    <a href="{{ route('subscription-monitor.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('subscription-monitor.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Abone Takip</a>
-                    <div class="pt-4 pb-2">
-                        <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</p>
-                    </div>
-                    @if(Auth::user()?->isAdmin())
-                    <a href="{{ route('admin.users.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.users.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Kullanıcı Yönetimi</a>
-                    <a href="{{ route('admin.mail-settings.edit') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.mail-settings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Mail Yönetimi</a>
-                    <a href="{{ route('admin.notifications.edit') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.notifications.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Bildiri Yönetimi</a>
-                    <a href="{{ route('admin.reports.cari-ledger') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.reports.cari-ledger*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Hesap Dökümü Raporu</a>
-                    <div class="pt-4 pb-2">
-                        <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Entegrasyon</p>
-                    </div>
-                    <a href="{{ route('admin.api-settings.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.api-settings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">API Ayarları</a>
-                    <a href="{{ route('admin.integration.cari-preview') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.integration.cari-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Cari API Önizleme</a>
-                    <a href="{{ route('admin.integration.subscription-preview') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.integration.subscription-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Abonelik API Önizleme</a>
-                    <a href="{{ route('admin.integration.product-preview') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.integration.product-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Ürün API Önizleme</a>
-                    <a href="{{ route('admin.integration.open-order-preview') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.integration.open-order-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Açık Siparişler API</a>
-                    <a href="{{ route('admin.integration.invoiced-order-preview') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.integration.invoiced-order-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Faturalanmış Siparişler API</a>
-                    @endif
-                    <a href="{{ route('triggers.index') }}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('triggers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}">Tetikleyiciler</a>
-                </nav>
+                <x-sidebar-nav class="mt-6 flex-1 px-3 space-y-0.5" />
             </div>
         </aside>
 
@@ -76,35 +42,7 @@
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            <nav class="flex-1 overflow-y-auto overscroll-contain py-4 px-3 space-y-0.5" role="navigation">
-                <a href="{{ route('dashboard') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('dashboard') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Dashboard</a>
-                <div class="pt-4 pb-2"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Master Veriler</p></div>
-                <a href="{{ route('caris.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('caris.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Cariler</a>
-                <a href="{{ route('service-providers.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('service-providers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Servis Sağlayıcılar</a>
-                <a href="{{ route('products.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('products.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Ürünler</a>
-                <a href="{{ route('exchange-rates.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('exchange-rates.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Kurlar</a>
-                <div class="pt-4 pb-2"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Abonelikler</p></div>
-                <a href="{{ route('subscriptions.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('subscriptions.*') && !request()->routeIs('pending-billings.*') && !request()->routeIs('sales-invoices.*') && !request()->routeIs('expense-settlements.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Abonelikler</a>
-                <a href="{{ route('pending-billings.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('pending-billings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Siparişler</a>
-                <a href="{{ route('sales-invoices.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('sales-invoices.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Satış E-Fatura</a>
-                <a href="{{ route('expense-settlements.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('expense-settlements.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Giderleştirmeler</a>
-                <a href="{{ route('subscription-monitor.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('subscription-monitor.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Abone Takip</a>
-                <div class="pt-4 pb-2"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</p></div>
-                @if(Auth::user()?->isAdmin())
-                <a href="{{ route('admin.users.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.users.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Kullanıcı Yönetimi</a>
-                <a href="{{ route('admin.mail-settings.edit') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.mail-settings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Mail Yönetimi</a>
-                <a href="{{ route('admin.notifications.edit') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.notifications.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Bildiri Yönetimi</a>
-                <a href="{{ route('admin.reports.cari-ledger') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.reports.cari-ledger*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Hesap Dökümü Raporu</a>
-                <div class="pt-4 pb-2"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Entegrasyon</p></div>
-                <a href="{{ route('admin.api-settings.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.api-settings.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">API Ayarları</a>
-                <a href="{{ route('admin.integration.cari-preview') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.integration.cari-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Cari API Önizleme</a>
-                <a href="{{ route('admin.integration.subscription-preview') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.integration.subscription-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Abonelik API Önizleme</a>
-                <a href="{{ route('admin.integration.product-preview') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.integration.product-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Ürün API Önizleme</a>
-                <a href="{{ route('admin.integration.open-order-preview') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.integration.open-order-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Açık Siparişler API</a>
-                <a href="{{ route('admin.integration.invoiced-order-preview') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('admin.integration.invoiced-order-preview') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Faturalanmış Siparişler API</a>
-                @endif
-                <a href="{{ route('triggers.index') }}" class="flex items-center min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-lg {{ request()->routeIs('triggers.*') ? 'bg-slate-700 text-white' : 'text-gray-300 hover:bg-slate-700 hover:text-white' }}" @click="sidebarOpen = false">Tetikleyiciler</a>
-            </nav>
+            <x-sidebar-nav :mobile="true" class="flex-1 overflow-y-auto overscroll-contain py-4 px-3 space-y-0.5" />
         </aside>
 
         <div class="flex flex-col flex-1 w-full min-w-0 lg:ml-64">
@@ -135,7 +73,7 @@
                                 <x-dropdown-link :href="route('profile.edit')">{{ __('Profile') }}</x-dropdown-link>
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
-                                    <x-dropdown-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();">{{ __('Log Out') }}</x-dropdown-link>
+                                    <x-dropdown-link :href="route('logout')" onclick="sessionStorage.removeItem('navGroups'); event.preventDefault(); this.closest('form').submit();">{{ __('Log Out') }}</x-dropdown-link>
                                 </form>
                             </x-slot>
                         </x-dropdown>
