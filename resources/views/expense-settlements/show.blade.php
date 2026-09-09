@@ -31,6 +31,15 @@
                         {{ $expenseSettlement->total_amount_tl !== null ? number_format((float) $expenseSettlement->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}
                     </dd>
                 </div>
+                <div>
+                    <dt class="text-gray-500">Durum</dt>
+                    <dd class="mt-1">
+                        <x-expense-settlement-status-badge :settlement="$expenseSettlement" />
+                        @if ($expenseSettlement->is_closed && $expenseSettlement->closed_at)
+                            <span class="ml-2 text-xs text-gray-500">{{ $expenseSettlement->closed_at->format('d.m.Y H:i') }}</span>
+                        @endif
+                    </dd>
+                </div>
             </dl>
             @if ($expenseSettlement->notes)
                 <div class="mt-3 pt-3 border-t border-gray-100">
@@ -39,7 +48,8 @@
                 </div>
             @endif
 
-            <div class="mt-4">
+            <div class="mt-4 flex flex-wrap gap-2">
+                <x-expense-settlement-status-action :settlement="$expenseSettlement" variant="button" />
                 <form method="POST" action="{{ route('expense-settlements.revert', $expenseSettlement) }}" onsubmit="return confirm('Bu giderleştirme silinecek; bağlı siparişler tekrar bekleyen siparişlere dönecek. Devam etmek istiyor musunuz?');">
                     @csrf
                     <button type="submit" class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-lg border border-red-300 text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">

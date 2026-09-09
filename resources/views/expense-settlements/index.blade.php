@@ -47,6 +47,7 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gider No</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Toplam (TL)</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Satır sayısı</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
                     </tr>
@@ -66,16 +67,32 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                                 {{ $settlement->total_amount_tl !== null ? number_format((float) $settlement->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}
                             </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                <x-expense-settlement-status-badge :settlement="$settlement" />
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600">
                                 {{ $settlement->lines->count() }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
-                                <a href="{{ route('expense-settlements.show', $settlement) }}" class="text-slate-600 hover:text-slate-900 font-medium">Detay</a>
+                                <div class="inline-flex items-center justify-end gap-0.5">
+                                    <x-expense-settlement-status-action :settlement="$settlement" variant="icon" />
+                                    <a
+                                        href="{{ route('expense-settlements.show', $settlement) }}"
+                                        class="inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 touch-manipulation"
+                                        title="Detay"
+                                        aria-label="Detay"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">
+                            <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">
                                 Henüz giderleştirme kaydı yok.
                             </td>
                         </tr>

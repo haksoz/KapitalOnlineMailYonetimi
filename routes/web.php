@@ -84,6 +84,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('expense-settlements', [ExpenseSettlementController::class, 'store'])->name('expense-settlements.store');
     Route::get('expense-settlements/{expense_settlement}', [ExpenseSettlementController::class, 'show'])->name('expense-settlements.show');
     Route::post('expense-settlements/{expense_settlement}/revert', [ExpenseSettlementController::class, 'revert'])->name('expense-settlements.revert');
+    Route::post('expense-settlements/{expense_settlement}/mark-closed', [ExpenseSettlementController::class, 'markClosed'])->name('expense-settlements.mark-closed');
+    Route::post('expense-settlements/{expense_settlement}/mark-open', [ExpenseSettlementController::class, 'markOpen'])->name('expense-settlements.mark-open');
 
     Route::get('exchange-rates', [ExchangeRateController::class, 'index'])->name('exchange-rates.index');
     Route::post('exchange-rates/fetch-latest', [ExchangeRateController::class, 'fetchLatest'])->name('exchange-rates.fetch-latest');

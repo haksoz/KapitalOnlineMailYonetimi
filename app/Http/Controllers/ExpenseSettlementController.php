@@ -250,6 +250,28 @@ class ExpenseSettlementController extends Controller
             ->with('success', $revertedCount . ' sipariş tekrar bekleyen siparişlere alındı.');
     }
 
+    public function markClosed(ExpenseSettlement $expense_settlement): RedirectResponse
+    {
+        if ($expense_settlement->is_closed) {
+            return back()->with('info', 'Gider zaten kapalı olarak işaretli.');
+        }
+
+        $expense_settlement->markAsClosed();
+
+        return back()->with('success', 'Gider kapalı olarak işaretlendi.');
+    }
+
+    public function markOpen(ExpenseSettlement $expense_settlement): RedirectResponse
+    {
+        if (! $expense_settlement->is_closed) {
+            return back()->with('info', 'Gider zaten açık olarak işaretli.');
+        }
+
+        $expense_settlement->markAsOpen();
+
+        return back()->with('success', 'Gider açık olarak işaretlendi.');
+    }
+
     private function getUsdEfektifSelling(): ?float
     {
         $usdToday = ExchangeRate::where('currency_code', 'USD')

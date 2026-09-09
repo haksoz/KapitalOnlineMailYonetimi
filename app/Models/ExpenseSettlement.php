@@ -16,6 +16,8 @@ class ExpenseSettlement extends Model
         'settlement_date',
         'total_amount_tl',
         'notes',
+        'is_closed',
+        'closed_at',
     ];
 
     protected function casts(): array
@@ -23,7 +25,25 @@ class ExpenseSettlement extends Model
         return [
             'settlement_date' => 'date',
             'total_amount_tl' => 'decimal:2',
+            'is_closed' => 'boolean',
+            'closed_at' => 'datetime',
         ];
+    }
+
+    public function markAsClosed(): void
+    {
+        $this->update([
+            'is_closed' => true,
+            'closed_at' => now(),
+        ]);
+    }
+
+    public function markAsOpen(): void
+    {
+        $this->update([
+            'is_closed' => false,
+            'closed_at' => null,
+        ]);
     }
 
     public function customerCari(): BelongsTo

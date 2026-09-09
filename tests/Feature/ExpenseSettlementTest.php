@@ -85,6 +85,8 @@ class ExpenseSettlementTest extends TestCase
         $this->assertSame('GDN000001', $settlement->gider_number);
         $this->assertSame('2026-08-15', $settlement->settlement_date->format('Y-m-d'));
         $this->assertEquals(200.0, (float) $settlement->total_amount_tl);
+        $this->assertFalse($settlement->is_closed);
+        $this->assertNull($settlement->closed_at);
 
         $pendingBilling->refresh();
         $this->assertSame(PendingBilling::STATUS_EXPENSED, $pendingBilling->status);
@@ -230,5 +232,114 @@ class ExpenseSettlementTest extends TestCase
         $this->assertSame('GDN000050', $row['satis_fatura_no']);
         $this->assertSame('2026-08-18', $row['islem_tarihi']);
         $this->assertSame(200.0, (float) ($report['grandTotals']['gerceklesen_satis_tl'] ?? 0));
+    }
+
+    public function test_index_shows_open_badge_and_close_action(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari] = $this->makePendingOrder();
+
+        ExpenseSettlement::create([
+            'customer_cari_id' => $customerCari->id,
+            'gider_number' => 'GDN000080',
+            'settlement_date' => '2026-08-20',
+            'total_amount_tl' => 200,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('expense-settlements.index'));
+
+        $response->assertOk();
+        $response->assertSee('Gider açık', false);
+        $response->assertSee('Gideri kapat', false);
+        $response->assertDontSee('Gideri aç', false);
+    }
+
+    public function test_show_displays_open_status_and_action(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari] = $this->makePendingOrder();
+
+        $settlement = ExpenseSettlement::create([
+            'customer_cari_id' => $customerCari->id,
+            'gider_number' => 'GDN000081',
+            'settlement_date' => '2026-08-20',
+            'total_amount_tl' => 200,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('expense-settlements.show', $settlement));
+
+        $response->assertOk();
+        $response->assertSee('Gider açık', false);
+        $response->assertSee('Gideri kapat', false);
+    }
+
+    public function test_mark_closed_from_index_sets_closed_status(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari] = $this->makePendingOrder();
+
+        $settlement = ExpenseSettlement::create([
+            'customer_cari_id' => $customerCari->id,
+            'gider_number' => 'GDN000082',
+            'settlement_date' => '2026-08-20',
+            'total_amount_tl' => 200,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->from(route('expense-settlements.index'))
+            ->post(route('expense-settlements.mark-closed', $settlement));
+
+        $response->assertRedirect(route('expense-settlements.index'));
+        $response->assertSessionHas('success');
+
+        $settlement->refresh();
+        $this->assertTrue($settlement->is_closed);
+        $this->assertNotNull($settlement->closed_at);
+    }
+
+    public function test_mark_closed_from_show_returns_to_details(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari] = $this->makePendingOrder();
+
+        $settlement = ExpenseSettlement::create([
+            'customer_cari_id' => $customerCari->id,
+            'gider_number' => 'GDN000083',
+            'settlement_date' => '2026-08-20',
+            'total_amount_tl' => 200,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->from(route('expense-settlements.show', $settlement))
+            ->post(route('expense-settlements.mark-closed', $settlement));
+
+        $response->assertRedirect(route('expense-settlements.show', $settlement));
+        $this->assertTrue($settlement->fresh()->is_closed);
+    }
+
+    public function test_mark_open_clears_closed_status(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari] = $this->makePendingOrder();
+
+        $settlement = ExpenseSettlement::create([
+            'customer_cari_id' => $customerCari->id,
+            'gider_number' => 'GDN000084',
+            'settlement_date' => '2026-08-20',
+            'total_amount_tl' => 200,
+            'is_closed' => true,
+            'closed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->from(route('expense-settlements.show', $settlement))
+            ->post(route('expense-settlements.mark-open', $settlement));
+
+        $response->assertRedirect(route('expense-settlements.show', $settlement));
+        $response->assertSessionHas('success');
+
+        $settlement->refresh();
+        $this->assertFalse($settlement->is_closed);
+        $this->assertNull($settlement->closed_at);
     }
 }
