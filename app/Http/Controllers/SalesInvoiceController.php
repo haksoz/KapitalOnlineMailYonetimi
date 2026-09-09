@@ -549,8 +549,16 @@ class SalesInvoiceController extends Controller
             'our_invoice_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date'],
             'order_number' => ['nullable', 'string', 'max:64'],
-            'invoice_total_net_tl' => ['nullable', 'numeric', 'min:0'],
+            'invoice_total_net_tl' => ['nullable', 'required_with:invoice_total_gross_tl', 'numeric', 'min:0'],
+            'invoice_total_gross_tl' => ['nullable', 'required_with:invoice_total_net_tl', 'numeric', 'min:0', 'gte:invoice_total_net_tl'],
             'invoice_total_diff_reason' => ['nullable', 'string', 'max:255'],
+        ], [
+            'invoice_total_net_tl.required_with' => 'KDV hariç toplam da girilmelidir.',
+            'invoice_total_gross_tl.required_with' => 'KDV dahil toplam da girilmelidir.',
+            'invoice_total_gross_tl.gte' => 'KDV dahil toplam, KDV hariç toplamdan küçük olamaz.',
+        ], [
+            'invoice_total_net_tl' => 'KDV hariç toplam',
+            'invoice_total_gross_tl' => 'KDV dahil toplam',
         ]);
 
         $orderNumber = $sales_invoice->order_number;
@@ -565,10 +573,15 @@ class SalesInvoiceController extends Controller
         }
 
         $invoiceTotalNet = $validated['invoice_total_net_tl'] ?? null;
+        $invoiceTotalGross = $validated['invoice_total_gross_tl'] ?? null;
         $invoiceTotalDiff = null;
-        if ($invoiceTotalNet !== null) {
+        $invoiceTotalVat = null;
+        if ($invoiceTotalNet !== null && $invoiceTotalGross !== null) {
+            $invoiceTotalNet = round((float) $invoiceTotalNet, 2);
+            $invoiceTotalGross = round((float) $invoiceTotalGross, 2);
+            $invoiceTotalVat = round($invoiceTotalGross - $invoiceTotalNet, 2);
             $baseTotal = $sales_invoice->total_amount_tl !== null ? (float) $sales_invoice->total_amount_tl : 0.0;
-            $invoiceTotalDiff = (float) $invoiceTotalNet - $baseTotal;
+            $invoiceTotalDiff = $invoiceTotalNet - $baseTotal;
         }
 
         $diffReason = $validated['invoice_total_diff_reason'] ?? null;
@@ -582,6 +595,8 @@ class SalesInvoiceController extends Controller
             'our_invoice_date' => $validated['our_invoice_date'],
             'order_number' => $orderNumber,
             'invoice_total_net_tl' => $invoiceTotalNet,
+            'invoice_total_vat_tl' => $invoiceTotalVat,
+            'invoice_total_gross_tl' => $invoiceTotalGross,
             'invoice_total_diff_tl' => $invoiceTotalDiff,
             'invoice_total_diff_reason' => $diffReason,
         ]);

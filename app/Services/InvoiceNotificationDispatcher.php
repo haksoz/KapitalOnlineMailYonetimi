@@ -153,16 +153,19 @@ class InvoiceNotificationDispatcher
      */
     public function replacements(SalesInvoice $invoice): array
     {
+        $invoice->loadMissing(['customerCari', 'lines.pendingBilling.subscription']);
         $cari = $invoice->customerCari;
+        $amount = $invoice->payableAmountTl();
+        $formattedAmount = $amount !== null
+            ? number_format($amount, 2, ',', '.') . ' ₺'
+            : '';
 
         return [
             '{musteri}' => (string) ($cari?->short_name ?: $cari?->name ?: ''),
             '{fatura_no}' => (string) ($invoice->our_invoice_number ?? ''),
             '{fatura_tarihi}' => $invoice->our_invoice_date?->format('d.m.Y') ?? '',
             '{vade_tarihi}' => $invoice->due_date?->format('d.m.Y') ?? '',
-            '{tutar}' => $invoice->total_amount_tl !== null
-                ? number_format((float) $invoice->total_amount_tl, 2, ',', '.') . ' ₺'
-                : '',
+            '{tutar}' => $formattedAmount,
             '{ftn}' => (string) ($invoice->order_number ?? ''),
         ];
     }
@@ -170,7 +173,7 @@ class InvoiceNotificationDispatcher
     public function sendTest(NotificationDefinition $definition, SalesInvoice $invoice, string $to): void
     {
         MailSetting::applyToRuntime();
-        $invoice->loadMissing('customerCari');
+        $invoice->loadMissing(['customerCari', 'lines.pendingBilling.subscription']);
 
         $replacements = $this->replacements($invoice);
         $subject = '[TEST] ' . $definition->renderSubject($replacements);

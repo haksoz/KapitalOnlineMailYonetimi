@@ -60,18 +60,46 @@
                     <p class="mt-1 text-xs text-gray-500">Boş bırakırsanız sistem otomatik FTN üretir.</p>
                     <x-input-error :messages="$errors->get('order_number')" class="mt-1" />
                 </div>
-                <div>
-                    <x-input-label for="invoice_total_net_tl" value="Kestiğin faturanın KDV hariç toplamı (TL)" />
-                    <x-text-input id="invoice_total_net_tl" name="invoice_total_net_tl" type="number" step="0.01" min="0"
-                        class="mt-1 block w-full"
-                        :value="old('invoice_total_net_tl', $salesInvoice->invoice_total_net_tl)" />
-                    <p class="mt-1 text-xs text-gray-500">
-                        Bu alana gerçek faturadaki KDV hariç toplamı girersen, sistem kendi hesapladığı toplam ile farkı kaydeder.
+                <div class="space-y-4" x-data="{
+                    net: @js(old('invoice_total_net_tl', $salesInvoice->invoice_total_net_tl)),
+                    gross: @js(old('invoice_total_gross_tl', $salesInvoice->invoice_total_gross_tl)),
+                    vat() {
+                        const n = parseFloat(this.net);
+                        const g = parseFloat(this.gross);
+                        if (Number.isNaN(n) || Number.isNaN(g)) return null;
+                        return Math.round((g - n) * 100) / 100;
+                    },
+                    formatTl(value) {
+                        return value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                }">
+                    <p class="text-sm text-gray-700">Kesilen faturanın tutarları</p>
+                    <p class="text-xs text-gray-500">
+                        XML eşleştirmede olduğu gibi gerçek faturadaki tutarları girin. KDV, KDV dahil eksi KDV hariç olarak kaydedilir.
                     </p>
-                    <x-input-error :messages="$errors->get('invoice_total_net_tl')" class="mt-1" />
+                    <div>
+                        <x-input-label for="invoice_total_net_tl" value="KDV hariç toplam (TL)" />
+                        <x-text-input id="invoice_total_net_tl" name="invoice_total_net_tl" type="number" step="0.01" min="0"
+                            class="mt-1 block w-full"
+                            x-model="net"
+                            :value="old('invoice_total_net_tl', $salesInvoice->invoice_total_net_tl)" />
+                        <x-input-error :messages="$errors->get('invoice_total_net_tl')" class="mt-1" />
+                    </div>
+                    <div>
+                        <x-input-label for="invoice_total_gross_tl" value="KDV dahil toplam (TL)" />
+                        <x-text-input id="invoice_total_gross_tl" name="invoice_total_gross_tl" type="number" step="0.01" min="0"
+                            class="mt-1 block w-full"
+                            x-model="gross"
+                            :value="old('invoice_total_gross_tl', $salesInvoice->invoice_total_gross_tl)" />
+                        <x-input-error :messages="$errors->get('invoice_total_gross_tl')" class="mt-1" />
+                    </div>
+                    <p class="text-xs text-gray-600" x-show="vat() !== null" x-cloak>
+                        Fatura KDV:
+                        <strong x-text="vat() === null ? '' : (formatTl(vat()) + ' ₺')"></strong>
+                    </p>
                     @if ($salesInvoice->invoice_total_diff_tl !== null)
-                        <p class="mt-1 text-xs {{ (float) $salesInvoice->invoice_total_diff_tl === 0.0 ? 'text-emerald-700' : 'text-amber-700' }}">
-                            Sistem toplamı ile fatura toplamı farkı:
+                        <p class="text-xs {{ (float) $salesInvoice->invoice_total_diff_tl === 0.0 ? 'text-emerald-700' : 'text-amber-700' }}">
+                            Sistem toplamı ile fatura toplamı farkı (KDV hariç):
                             <strong>{{ number_format((float) $salesInvoice->invoice_total_diff_tl, 2, ',', '.') }} ₺</strong>
                         </p>
                     @endif

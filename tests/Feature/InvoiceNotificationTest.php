@@ -124,6 +124,76 @@ class InvoiceNotificationTest extends TestCase
         $this->assertSame('2026-09-11', $invoice->due_date?->format('Y-m-d'));
     }
 
+    public function test_entering_invoice_net_and_gross_persists_vat_from_invoice(): void
+    {
+        $admin = $this->makeAdmin();
+        [$customerCari, , $pendingBilling] = $this->makePendingOrder(10);
+
+        $invoice = SalesInvoice::create([
+            'customer_cari_id' => $customerCari->id,
+            'total_amount_tl' => 200,
+            'order_number' => 'FTN000198',
+        ]);
+        SalesInvoiceLine::create([
+            'sales_invoice_id' => $invoice->id,
+            'pending_billing_id' => $pendingBilling->id,
+            'line_amount_tl' => 200,
+        ]);
+
+        $this->actingAs($admin)->patch(route('sales-invoices.update-invoice-details', $invoice), [
+            'our_invoice_number' => 'XYZ-NET',
+            'our_invoice_date' => '2026-09-01',
+            'invoice_total_net_tl' => 200,
+            'invoice_total_gross_tl' => 236,
+        ])->assertRedirect(route('sales-invoices.index'));
+
+        $invoice->refresh();
+        $this->assertEquals(200.0, (float) $invoice->invoice_total_net_tl);
+        $this->assertEquals(36.0, (float) $invoice->invoice_total_vat_tl);
+        $this->assertEquals(236.0, (float) $invoice->invoice_total_gross_tl);
+
+        $replacements = app(InvoiceNotificationDispatcher::class)->replacements($invoice->fresh());
+        $this->assertSame('236,00 ₺', $replacements['{tutar}']);
+    }
+
+    public function test_invoice_details_require_both_net_and_gross_when_either_is_entered(): void
+    {
+        $admin = $this->makeAdmin();
+        [$customerCari, , $pendingBilling] = $this->makePendingOrder(10);
+
+        $invoice = SalesInvoice::create([
+            'customer_cari_id' => $customerCari->id,
+            'total_amount_tl' => 200,
+            'order_number' => 'FTN000199',
+        ]);
+        SalesInvoiceLine::create([
+            'sales_invoice_id' => $invoice->id,
+            'pending_billing_id' => $pendingBilling->id,
+            'line_amount_tl' => 200,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('sales-invoices.invoice-details', $invoice))
+            ->patch(route('sales-invoices.update-invoice-details', $invoice), [
+                'our_invoice_number' => 'XYZ-PARTIAL',
+                'our_invoice_date' => '2026-09-01',
+                'invoice_total_net_tl' => 200,
+            ])
+            ->assertRedirect(route('sales-invoices.invoice-details', $invoice))
+            ->assertSessionHasErrors('invoice_total_gross_tl');
+
+        $this->actingAs($admin)
+            ->from(route('sales-invoices.invoice-details', $invoice))
+            ->patch(route('sales-invoices.update-invoice-details', $invoice), [
+                'our_invoice_number' => 'XYZ-PARTIAL',
+                'our_invoice_date' => '2026-09-01',
+                'invoice_total_net_tl' => 200,
+                'invoice_total_gross_tl' => 180,
+            ])
+            ->assertRedirect(route('sales-invoices.invoice-details', $invoice))
+            ->assertSessionHasErrors('invoice_total_gross_tl');
+    }
+
     public function test_due_date_can_be_set_manually_and_overrides_subscription(): void
     {
         $admin = $this->makeAdmin();
@@ -143,7 +213,8 @@ class InvoiceNotificationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('sales-invoices.invoice-details', $invoice))
             ->assertOk()
-            ->assertSee('Vade tarihi', false);
+            ->assertSee('Vade tarihi', false)
+            ->assertSee('KDV dahil toplam (TL)', false);
 
         $this->actingAs($admin)->patch(route('sales-invoices.update-invoice-details', $invoice), [
             'our_invoice_number' => 'XYZ-2',
@@ -386,6 +457,8 @@ class InvoiceNotificationTest extends TestCase
         $response->assertOk();
         $response->assertSee('Bildiri Yönetimi', false);
         $response->assertSee('Gönderim saati', false);
+        $response->assertSee('{tutar}', false);
+        $response->assertSee('KDV dahil', false);
 
         $this->actingAs($admin)->patch(route('admin.notifications.update'), [
             'definitions' => [
@@ -432,7 +505,11 @@ class InvoiceNotificationTest extends TestCase
             ->assertOk()
             ->assertSee('Test maili gönder', false)
             ->assertSee($invoice->our_invoice_number, false)
-            ->assertSee('vade '.$invoice->due_date->format('d.m.Y'), false);
+            ->assertSee('vade '.$invoice->due_date->format('d.m.Y'), false)
+            ->assertSee('{tutar}', false)
+            ->assertSee('kesilen faturanın', false)
+            ->assertSee('KDV dahil', false)
+            ->assertSee('Tutar (KDV dahil): {tutar}', false);
     }
 
     public function test_admin_can_send_test_mail_with_invoice_placeholders(): void
@@ -461,16 +538,25 @@ class InvoiceNotificationTest extends TestCase
         $this->assertSame('ABC2026001', $replacements['{fatura_no}']);
         $this->assertSame('01.09.2026', $replacements['{fatura_tarihi}']);
         $this->assertSame($invoice->due_date->format('d.m.Y'), $replacements['{vade_tarihi}']);
-        $this->assertSame('200,00 ₺', $replacements['{tutar}']);
+        $this->assertSame('240,00 ₺', $replacements['{tutar}']);
         $this->assertSame('FTN000101', $replacements['{ftn}']);
         $this->assertSame(
             'Hatirlatma ABC2026001',
             $reminder->fresh()->renderSubject($replacements)
         );
         $this->assertSame(
-            'Sayin Musteri Bildiri vade '.$invoice->due_date->format('d.m.Y').' tutar 200,00 ₺ ftn FTN000101',
+            'Sayin Musteri Bildiri vade '.$invoice->due_date->format('d.m.Y').' tutar 240,00 ₺ ftn FTN000101',
             $reminder->fresh()->renderBody($replacements)
         );
+    }
+
+    public function test_tutar_uses_recorded_invoice_gross_when_present(): void
+    {
+        $invoice = $this->makeNumberedInvoice(7);
+        $invoice->update(['invoice_total_gross_tl' => 288.88]);
+
+        $replacements = app(InvoiceNotificationDispatcher::class)->replacements($invoice->fresh());
+        $this->assertSame('288,88 ₺', $replacements['{tutar}']);
     }
 
     public function test_non_admin_cannot_send_notification_test_mail(): void

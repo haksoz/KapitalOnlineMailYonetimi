@@ -119,4 +119,44 @@ class SalesInvoice extends Model
 
         return 'FTN' . str_pad((string) ($maxNum + 1), 6, '0', STR_PAD_LEFT);
     }
+
+    public function systemVatTotalTl(): float
+    {
+        $this->loadMissing('lines.pendingBilling.subscription');
+
+        $vat = 0.0;
+        foreach ($this->lines as $line) {
+            $vatRate = $line->pendingBilling?->subscription?->vat_rate !== null
+                ? (float) $line->pendingBilling->subscription->vat_rate
+                : 20.0;
+            $vat += round((float) $line->line_amount_tl * ($vatRate / 100), 2);
+        }
+
+        return round($vat, 2);
+    }
+
+    /**
+     * Mail ve bildirimlerde kullanılan tutar (her zaman KDV dahil).
+     * Kesilen faturanın kayıtlı brütü varsa o; yoksa kayıtlı net + KDV; o da yoksa sistem net + satır KDV.
+     */
+    public function payableAmountTl(): ?float
+    {
+        if ($this->invoice_total_gross_tl !== null) {
+            return round((float) $this->invoice_total_gross_tl, 2);
+        }
+
+        if ($this->invoice_total_net_tl !== null) {
+            $vat = $this->invoice_total_vat_tl !== null
+                ? (float) $this->invoice_total_vat_tl
+                : $this->systemVatTotalTl();
+
+            return round((float) $this->invoice_total_net_tl + $vat, 2);
+        }
+
+        if ($this->total_amount_tl === null) {
+            return null;
+        }
+
+        return round((float) $this->total_amount_tl + $this->systemVatTotalTl(), 2);
+    }
 }

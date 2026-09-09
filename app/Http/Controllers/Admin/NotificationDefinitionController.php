@@ -16,7 +16,10 @@ class NotificationDefinitionController extends Controller
     {
         $definitions = NotificationDefinition::query()->orderBy('id')->get();
         $sampleInvoices = SalesInvoice::query()
-            ->with('customerCari:id,name,short_name')
+            ->with([
+                'customerCari:id,name,short_name',
+                'lines.pendingBilling.subscription:id,vat_rate',
+            ])
             ->whereNotNull('due_date')
             ->whereNotNull('our_invoice_number')
             ->where('our_invoice_number', '!=', '')
