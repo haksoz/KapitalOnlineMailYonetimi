@@ -12,7 +12,7 @@ class DispatchInvoiceNotificationsCommand extends Command
     protected $signature = 'notifications:dispatch
                             {--date= : İşlemin baz alınacağı tarih (Y-m-d). Varsayılan: bugün}';
 
-    protected $description = 'Vade öncesi hatırlatma ve vade sonrası gecikme bildirimlerini gönderir.';
+    protected $description = 'Vade öncesi hatırlatma, vade sonrası gecikme ve faiz/kapatma bildirimlerini gönderir.';
 
     public function handle(InvoiceNotificationDispatcher $dispatcher): int
     {

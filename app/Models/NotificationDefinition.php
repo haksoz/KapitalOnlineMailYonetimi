@@ -11,6 +11,7 @@ class NotificationDefinition extends Model
 {
     public const KEY_INVOICE_DUE_REMINDER = 'invoice_due_reminder';
     public const KEY_INVOICE_OVERDUE = 'invoice_overdue';
+    public const KEY_INVOICE_INTEREST_CLOSURE = 'invoice_interest_closure';
 
     public const TIMEZONE = 'Europe/Istanbul';
 

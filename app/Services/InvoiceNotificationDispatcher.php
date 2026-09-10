@@ -13,6 +13,12 @@ use Illuminate\Support\Facades\Mail;
 
 class InvoiceNotificationDispatcher
 {
+    /** @var \Illuminate\Support\Collection<string, NotificationDefinition>|null */
+    private $definitionsByKey = null;
+
+    /** @var array<int, true>|null */
+    private $interestSentInvoiceIds = null;
+
     public function dispatch(?CarbonInterface $now = null, bool $respectSendAt = true): int
     {
         MailSetting::applyToRuntime();
@@ -20,16 +26,33 @@ class InvoiceNotificationDispatcher
         $businessDate = $now->copy()->timezone(NotificationDefinition::TIMEZONE)->toDateString();
         $today = Carbon::parse($businessDate)->startOfDay();
 
-        $sent = 0;
-        $definitions = NotificationDefinition::query()->where('is_enabled', true)->get();
-        foreach ($definitions as $definition) {
-            if ($respectSendAt && ! $definition->isSendTimeReached($now)) {
-                continue;
-            }
-            $sent += $this->dispatchDefinition($definition, $today, $now);
-        }
+        $this->definitionsByKey = NotificationDefinition::query()->get()->keyBy('key');
+        $legal = $this->definitionsByKey->get(NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE);
+        $this->interestSentInvoiceIds = $legal
+            ? array_fill_keys(
+                NotificationSend::query()
+                    ->where('notification_definition_id', $legal->id)
+                    ->pluck('sales_invoice_id')
+                    ->all(),
+                true
+            )
+            : [];
 
-        return $sent;
+        try {
+            $sent = 0;
+            $definitions = $this->definitionsByKey->where('is_enabled', true);
+            foreach ($definitions as $definition) {
+                if ($respectSendAt && ! $definition->isSendTimeReached($now)) {
+                    continue;
+                }
+                $sent += $this->dispatchDefinition($definition, $today, $now);
+            }
+
+            return $sent;
+        } finally {
+            $this->definitionsByKey = null;
+            $this->interestSentInvoiceIds = null;
+        }
     }
 
     private function dispatchDefinition(NotificationDefinition $definition, Carbon $today, Carbon $now): int
@@ -89,11 +112,66 @@ class InvoiceNotificationDispatcher
                 return false;
             }
             $startOn = $due->copy()->addDay()->addDays((int) $definition->start_after_days);
+            if ($today->lt($startOn)) {
+                return false;
+            }
+            if ($this->invoiceHasInterestClosureSend($invoice)) {
+                return false;
+            }
+            $legalStart = $this->interestClosureStartDate($due);
+            if ($legalStart !== null && $today->gte($legalStart)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        if ($definition->key === NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE) {
+            if ($today->lte($due)) {
+                return false;
+            }
+            $startOn = $due->copy()->addDays((int) $definition->start_after_days);
 
             return $today->gte($startOn);
         }
 
         return false;
+    }
+
+    private function definitionByKey(string $key): ?NotificationDefinition
+    {
+        if ($this->definitionsByKey !== null) {
+            return $this->definitionsByKey->get($key);
+        }
+
+        return NotificationDefinition::query()->where('key', $key)->first();
+    }
+
+    private function interestClosureStartDate(Carbon $due): ?Carbon
+    {
+        $legal = $this->definitionByKey(NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE);
+        if ($legal === null || ! $legal->is_enabled) {
+            return null;
+        }
+
+        return $due->copy()->startOfDay()->addDays((int) $legal->start_after_days);
+    }
+
+    private function invoiceHasInterestClosureSend(SalesInvoice $invoice): bool
+    {
+        if ($this->interestSentInvoiceIds !== null) {
+            return isset($this->interestSentInvoiceIds[$invoice->id]);
+        }
+
+        $legal = $this->definitionByKey(NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE);
+        if ($legal === null) {
+            return false;
+        }
+
+        return NotificationSend::query()
+            ->where('notification_definition_id', $legal->id)
+            ->where('sales_invoice_id', $invoice->id)
+            ->exists();
     }
 
     public function intervalElapsed(NotificationDefinition $definition, SalesInvoice $invoice, Carbon $today): bool

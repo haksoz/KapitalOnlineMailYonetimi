@@ -356,6 +356,62 @@ class InvoiceNotificationTest extends TestCase
         $this->assertTrue($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-09-09')));
     }
 
+    public function test_interest_closure_is_eligible_from_one_month_after_due_date(): void
+    {
+        $invoice = $this->makeNumberedInvoice(7);
+        $legal = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)->firstOrFail();
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+
+        $this->assertFalse($dispatcher->isEligible($legal, $invoice, Carbon::parse('2026-09-08')));
+        $this->assertFalse($dispatcher->isEligible($legal, $invoice, Carbon::parse('2026-10-07')));
+        $this->assertTrue($dispatcher->isEligible($legal, $invoice, Carbon::parse('2026-10-08')));
+        $this->assertTrue($dispatcher->isEligible($legal, $invoice, Carbon::parse('2026-11-01')));
+    }
+
+    public function test_overdue_stops_when_interest_closure_window_starts(): void
+    {
+        $invoice = $this->makeNumberedInvoice(7);
+        $overdue = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)->firstOrFail();
+        $legal = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)->firstOrFail();
+        $legal->update(['is_enabled' => true, 'start_after_days' => 30]);
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+
+        $this->assertTrue($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-09-09')));
+        $this->assertTrue($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-10-07')));
+        $this->assertFalse($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-10-08')));
+        $this->assertFalse($dispatcher->isEligible($legal, $invoice, Carbon::parse('2026-10-07')));
+        $this->assertTrue($dispatcher->isEligible($legal, $invoice, Carbon::parse('2026-10-08')));
+    }
+
+    public function test_overdue_continues_after_one_month_when_interest_closure_is_disabled(): void
+    {
+        $invoice = $this->makeNumberedInvoice(7);
+        $overdue = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)->firstOrFail();
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)
+            ->update(['is_enabled' => false, 'start_after_days' => 30]);
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+
+        $this->assertTrue($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-10-08')));
+    }
+
+    public function test_overdue_stops_after_interest_closure_was_already_sent(): void
+    {
+        $invoice = $this->makeNumberedInvoice(7);
+        $overdue = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)->firstOrFail();
+        $legal = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)->firstOrFail();
+        $legal->update(['is_enabled' => false, 'start_after_days' => 30]);
+        NotificationSend::create([
+            'notification_definition_id' => $legal->id,
+            'sales_invoice_id' => $invoice->id,
+            'sent_at' => '2026-09-15 16:00:00',
+            'to_email' => 'musteri@example.com',
+        ]);
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+
+        $this->assertFalse($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-09-20')));
+    }
+
     public function test_paid_and_missing_email_and_missing_number_are_skipped(): void
     {
         $dispatcher = app(InvoiceNotificationDispatcher::class);
@@ -387,6 +443,9 @@ class InvoiceNotificationTest extends TestCase
         NotificationDefinition::query()
             ->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)
             ->update(['is_enabled' => false]);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)
+            ->update(['is_enabled' => false]);
 
         $dispatcher = app(InvoiceNotificationDispatcher::class);
         $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-01 10:00:00', 'Europe/Istanbul')));
@@ -400,6 +459,73 @@ class InvoiceNotificationTest extends TestCase
         $this->assertTrue($invoice->exists);
     }
 
+    public function test_dispatch_sends_interest_closure_after_one_month_and_respects_interval(): void
+    {
+        Mail::fake();
+        $invoice = $this->makeNumberedInvoice(7);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)
+            ->update(['is_enabled' => false]);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)
+            ->update(['is_enabled' => false]);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)
+            ->update(['is_enabled' => true, 'start_after_days' => 30, 'interval_days' => 30, 'send_at' => '16:00:00']);
+
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+        $this->assertSame(0, $dispatcher->dispatch(Carbon::parse('2026-10-07 16:00:00', 'Europe/Istanbul')));
+        $this->assertDatabaseCount('notification_sends', 0);
+
+        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-10-08 16:00:00', 'Europe/Istanbul')));
+        $this->assertDatabaseCount('notification_sends', 1);
+
+        $this->assertSame(0, $dispatcher->dispatch(Carbon::parse('2026-10-09 16:00:00', 'Europe/Istanbul')));
+        $this->assertDatabaseCount('notification_sends', 1);
+
+        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-11-07 16:00:00', 'Europe/Istanbul')));
+        $this->assertDatabaseCount('notification_sends', 2);
+        $this->assertTrue($invoice->exists);
+    }
+
+    public function test_dispatch_does_not_send_overdue_and_interest_closure_together(): void
+    {
+        Mail::fake();
+        $invoice = $this->makeNumberedInvoice(7);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)
+            ->update(['is_enabled' => false]);
+        $overdue = NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)
+            ->firstOrFail();
+        $overdue->update(['is_enabled' => true, 'start_after_days' => 0, 'interval_days' => 3, 'send_at' => '14:30:00']);
+        $legal = NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)
+            ->firstOrFail();
+        $legal->update(['is_enabled' => true, 'start_after_days' => 30, 'interval_days' => 30, 'send_at' => '16:00:00']);
+
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+
+        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-09 16:00:00', 'Europe/Istanbul')));
+        $this->assertDatabaseHas('notification_sends', [
+            'sales_invoice_id' => $invoice->id,
+            'notification_definition_id' => $overdue->id,
+        ]);
+        $this->assertDatabaseMissing('notification_sends', [
+            'sales_invoice_id' => $invoice->id,
+            'notification_definition_id' => $legal->id,
+        ]);
+
+        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-10-08 16:00:00', 'Europe/Istanbul')));
+        $this->assertDatabaseCount('notification_sends', 2);
+        $this->assertDatabaseHas('notification_sends', [
+            'sales_invoice_id' => $invoice->id,
+            'notification_definition_id' => $legal->id,
+        ]);
+        $this->assertSame(1, NotificationSend::query()->where('notification_definition_id', $legal->id)->count());
+        $this->assertSame(1, NotificationSend::query()->where('notification_definition_id', $overdue->id)->count());
+    }
+
     public function test_dispatch_waits_until_configured_send_at(): void
     {
         Mail::fake();
@@ -409,6 +535,9 @@ class InvoiceNotificationTest extends TestCase
             ->update(['is_enabled' => true, 'start_after_days' => 0, 'interval_days' => 7, 'send_at' => '10:00:00']);
         NotificationDefinition::query()
             ->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)
+            ->update(['is_enabled' => false]);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)
             ->update(['is_enabled' => false]);
 
         $dispatcher = app(InvoiceNotificationDispatcher::class);
@@ -429,6 +558,9 @@ class InvoiceNotificationTest extends TestCase
             ->update(['is_enabled' => true, 'start_after_days' => 0, 'interval_days' => 7]);
         NotificationDefinition::query()
             ->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)
+            ->update(['is_enabled' => false]);
+        NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)
             ->update(['is_enabled' => false]);
 
         $this->assertSame(0, app(InvoiceNotificationDispatcher::class)->dispatch(Carbon::parse('2026-09-01 10:00:00', 'Europe/Istanbul')));
@@ -452,6 +584,7 @@ class InvoiceNotificationTest extends TestCase
         $admin = $this->makeAdmin();
         $reminder = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)->firstOrFail();
         $overdue = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_OVERDUE)->firstOrFail();
+        $legal = NotificationDefinition::query()->where('key', NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE)->firstOrFail();
 
         $response = $this->actingAs($admin)->get(route('admin.notifications.edit'));
         $response->assertOk();
@@ -459,6 +592,9 @@ class InvoiceNotificationTest extends TestCase
         $response->assertSee('Gönderim saati', false);
         $response->assertSee('{tutar}', false);
         $response->assertSee('KDV dahil', false);
+        $response->assertSee('Faiz Uygulaması ve Kapatma', false);
+        $response->assertSee('Aşamalar', false);
+        $response->assertSee('aynı anda yalnızca biri gider', false);
 
         $this->actingAs($admin)->patch(route('admin.notifications.update'), [
             'definitions' => [
@@ -480,6 +616,15 @@ class InvoiceNotificationTest extends TestCase
                     'subject' => 'Gecikti {fatura_no}',
                     'body' => 'Vade gecti',
                 ],
+                [
+                    'id' => $legal->id,
+                    'is_enabled' => '1',
+                    'start_after_days' => 30,
+                    'interval_days' => 30,
+                    'send_at' => '16:00',
+                    'subject' => 'Yasal uyari {fatura_no}',
+                    'body' => 'Faiz ve kapatma',
+                ],
             ],
         ])->assertRedirect(route('admin.notifications.edit'));
 
@@ -493,6 +638,13 @@ class InvoiceNotificationTest extends TestCase
         $overdue->refresh();
         $this->assertFalse($overdue->is_enabled);
         $this->assertSame('14:30', $overdue->sendAtForInput());
+
+        $legal->refresh();
+        $this->assertTrue($legal->is_enabled);
+        $this->assertSame(30, $legal->start_after_days);
+        $this->assertSame(30, $legal->interval_days);
+        $this->assertSame('16:00', $legal->sendAtForInput());
+        $this->assertSame('Yasal uyari {fatura_no}', $legal->subject);
     }
 
     public function test_admin_sees_due_dated_invoice_in_test_mail_form(): void

@@ -16,6 +16,18 @@
             Her bildirinin kendi saati vardır (Türkiye saati); o saatten önce o gün mail gitmez.
             SMTP ayarı <a href="{{ route('admin.mail-settings.edit') }}" class="text-slate-700 font-medium underline">Mail Yönetimi</a> sayfasındadır.
         </p>
+        @php
+            $interestDefinition = $definitions->firstWhere('key', \App\Models\NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE);
+            $interestStartDays = (int) ($interestDefinition?->start_after_days ?? 30);
+        @endphp
+        <div class="text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg p-3">
+            <p class="font-medium text-gray-700 mb-2">Aşamalar — aynı faturaya aynı anda yalnızca biri gider</p>
+            <ol class="list-decimal list-inside space-y-1">
+                <li><strong>Vade öncesi hatırlatma</strong> — vade gününe kadar.</li>
+                <li><strong>Vade sonrası gecikme</strong> — vade ertesinden itibaren. Faiz uyarısı aktifse, vade + {{ $interestStartDays }} gün dolduğu gün durur.</li>
+                <li><strong>Faiz Uygulaması ve Kapatma</strong> — vade + {{ $interestStartDays }} günden sonra gecikmenin yerini alır. Bir kez gittiyse gecikme o faturaya bir daha gitmez.</li>
+            </ol>
+        </div>
         <div class="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg p-3">
             <p class="font-medium text-gray-700 mb-2">Mail içeriğinde kullanabileceğiniz yer tutucular</p>
             <ul class="space-y-1">
@@ -37,10 +49,18 @@
     <div class="max-w-3xl space-y-4">
         @foreach ($definitions as $index => $definition)
             @php
-                $isReminder = $definition->key === \App\Models\NotificationDefinition::KEY_INVOICE_DUE_REMINDER;
-                $startHint = $isReminder
-                    ? 'Fatura tarihinden kaç gün sonra ilk hatırlatma gitsin (0 = fatura günü). Vade dolunca bu bildiri durur.'
-                    : 'Vade tarihinin ertesi günden kaç gün sonra ilk gecikme maili gitsin (0 = vade ertesi).';
+                $startHint = match ($definition->key) {
+                    \App\Models\NotificationDefinition::KEY_INVOICE_DUE_REMINDER => 'Fatura tarihinden kaç gün sonra ilk hatırlatma gitsin (0 = fatura günü). Vade dolunca bu bildiri durur.',
+                    \App\Models\NotificationDefinition::KEY_INVOICE_OVERDUE => 'Vade tarihinin ertesi günden kaç gün sonra ilk gecikme maili gitsin (0 = vade ertesi). Faiz Uygulaması ve Kapatma aktifken, o bildiri başladığı gün gecikme otomatik durur.',
+                    \App\Models\NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE => 'Vade tarihinden kaç gün sonra ilk yasal uyarı gitsin (30 = 1 ay). Bu bildiri başlayınca vade sonrası gecikme o faturaya gitmez.',
+                    default => '',
+                };
+                $sendAtHint = match ($definition->key) {
+                    \App\Models\NotificationDefinition::KEY_INVOICE_DUE_REMINDER => 'Türkiye saati. Hatırlatma için 10:00 önerilir.',
+                    \App\Models\NotificationDefinition::KEY_INVOICE_OVERDUE => 'Türkiye saati. Gecikme için 14:30 önerilir.',
+                    \App\Models\NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE => 'Türkiye saati. Yasal uyarı için 16:00 önerilir.',
+                    default => 'Türkiye saati.',
+                };
             @endphp
             <div class="bg-white rounded-xl shadow-sm p-6">
                 <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
@@ -108,7 +128,7 @@
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500"
                             value="{{ old('definitions.'.$index.'.send_at', $definition->sendAtForInput()) }}"
                         >
-                        <p class="mt-1 text-xs text-gray-500">Türkiye saati. Hatırlatma için 10:00, gecikme için 14:30 önerilir.</p>
+                        <p class="mt-1 text-xs text-gray-500">{{ $sendAtHint }}</p>
                         <x-input-error :messages="$errors->get('definitions.'.$index.'.send_at')" class="mt-1" />
                     </div>
                 </div>
