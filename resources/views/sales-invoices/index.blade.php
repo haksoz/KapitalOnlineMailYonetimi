@@ -56,7 +56,7 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fatura no</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fatura Takip No</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vade</th>
-                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Toplam (TL)</th>
+                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">KDV dahil toplam (TL)</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ödeme</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Satır sayısı</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
@@ -102,7 +102,8 @@
                                 </a>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                                {{ $inv->total_amount_tl !== null ? number_format((float) $inv->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}
+                                @php $payable = $inv->payableAmountTl(); @endphp
+                                {{ $payable !== null ? number_format($payable, 2, ',', '.') . ' ₺' : '—' }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 <x-sales-invoice-payment-badge :invoice="$inv" />
