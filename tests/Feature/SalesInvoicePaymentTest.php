@@ -136,4 +136,51 @@ class SalesInvoicePaymentTest extends TestCase
         $response->assertSessionHas('info');
         $this->assertEquals($originalPaidAt?->timestamp, $invoice->fresh()->paid_at?->timestamp);
     }
+
+    public function test_index_pagination_preserves_search_query(): void
+    {
+        $user = $this->makeUser();
+
+        $matchingCari = Cari::create([
+            'name' => 'Aranan Musteri',
+            'short_name' => 'Aranan',
+            'cari_type' => 'customer',
+            'tax_number' => '1111111111',
+        ]);
+
+        $otherCari = Cari::create([
+            'name' => 'Diger Musteri',
+            'short_name' => 'Diger',
+            'cari_type' => 'customer',
+            'tax_number' => '2222222222',
+        ]);
+
+        for ($i = 1; $i <= 16; $i++) {
+            SalesInvoice::create([
+                'customer_cari_id' => $matchingCari->id,
+                'total_amount_tl' => 100,
+                'order_number' => 'FTN' . str_pad((string) $i, 6, '0', STR_PAD_LEFT),
+            ]);
+        }
+
+        SalesInvoice::create([
+            'customer_cari_id' => $otherCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTN999999',
+        ]);
+
+        $page1 = $this->actingAs($user)->get(route('sales-invoices.index', ['search' => 'Aranan']));
+        $page1->assertOk();
+        $page1->assertSee('search=Aranan', false);
+        $page1->assertDontSee('Diger Musteri', false);
+
+        $page2 = $this->actingAs($user)->get(route('sales-invoices.index', [
+            'search' => 'Aranan',
+            'page' => 2,
+        ]));
+        $page2->assertOk();
+        $page2->assertSee('Aranan', false);
+        $page2->assertDontSee('Diger Musteri', false);
+        $page2->assertSee('value="Aranan"', false);
+    }
 }

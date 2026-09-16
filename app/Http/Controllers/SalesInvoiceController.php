@@ -33,7 +33,7 @@ class SalesInvoiceController extends Controller
             });
         }
 
-        $salesInvoices = $query->latest()->paginate(15);
+        $salesInvoices = $query->latest()->paginate(15)->withQueryString();
 
         return view('sales-invoices.index', compact('salesInvoices'));
     }
