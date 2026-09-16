@@ -172,7 +172,7 @@ class SalesInvoicePaymentTest extends TestCase
         $page1 = $this->actingAs($user)->get(route('sales-invoices.index', ['search' => 'Aranan']));
         $page1->assertOk();
         $page1->assertSee('search=Aranan', false);
-        $page1->assertDontSee('Diger Musteri', false);
+        $page1->assertDontSee('FTN999999', false);
 
         $page2 = $this->actingAs($user)->get(route('sales-invoices.index', [
             'search' => 'Aranan',
@@ -180,7 +180,157 @@ class SalesInvoicePaymentTest extends TestCase
         ]));
         $page2->assertOk();
         $page2->assertSee('Aranan', false);
-        $page2->assertDontSee('Diger Musteri', false);
+        $page2->assertDontSee('FTN999999', false);
         $page2->assertSee('value="Aranan"', false);
+    }
+
+    public function test_index_filters_by_paid_status(): void
+    {
+        $user = $this->makeUser();
+
+        $paidCari = Cari::create([
+            'name' => 'Odendi Musteri',
+            'short_name' => 'Odendi Musteri',
+            'cari_type' => 'customer',
+            'tax_number' => '3333333333',
+        ]);
+        $unpaidCari = Cari::create([
+            'name' => 'Odenmedi Musteri',
+            'short_name' => 'Odenmedi Musteri',
+            'cari_type' => 'customer',
+            'tax_number' => '4444444444',
+        ]);
+
+        SalesInvoice::create([
+            'customer_cari_id' => $paidCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTNPAID01',
+            'is_paid' => true,
+            'paid_at' => now(),
+        ]);
+        SalesInvoice::create([
+            'customer_cari_id' => $unpaidCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTNUNPAID01',
+            'is_paid' => false,
+        ]);
+
+        $paid = $this->actingAs($user)->get(route('sales-invoices.index', ['payment_status' => 'paid']));
+        $paid->assertOk();
+        $paid->assertSee('FTNPAID01', false);
+        $paid->assertDontSee('FTNUNPAID01', false);
+        $paid->assertSee('value="paid" selected', false);
+
+        $unpaid = $this->actingAs($user)->get(route('sales-invoices.index', ['payment_status' => 'unpaid']));
+        $unpaid->assertOk();
+        $unpaid->assertSee('FTNUNPAID01', false);
+        $unpaid->assertDontSee('FTNPAID01', false);
+        $unpaid->assertSee('value="unpaid" selected', false);
+    }
+
+    public function test_index_combines_search_and_payment_status(): void
+    {
+        $user = $this->makeUser();
+
+        $matchingCari = Cari::create([
+            'name' => 'Ortak Musteri',
+            'short_name' => 'Ortak',
+            'cari_type' => 'customer',
+            'tax_number' => '5555555555',
+        ]);
+        $otherCari = Cari::create([
+            'name' => 'Baska Musteri',
+            'short_name' => 'Baska',
+            'cari_type' => 'customer',
+            'tax_number' => '6666666666',
+        ]);
+
+        SalesInvoice::create([
+            'customer_cari_id' => $matchingCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTNORTAK01',
+            'is_paid' => true,
+            'paid_at' => now(),
+        ]);
+        SalesInvoice::create([
+            'customer_cari_id' => $matchingCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTNORTAK02',
+            'is_paid' => false,
+        ]);
+        SalesInvoice::create([
+            'customer_cari_id' => $otherCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTNBASKA01',
+            'is_paid' => false,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('sales-invoices.index', [
+            'search' => 'Ortak',
+            'payment_status' => 'unpaid',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('FTNORTAK02', false);
+        $response->assertDontSee('FTNORTAK01', false);
+        $response->assertDontSee('FTNBASKA01', false);
+        $response->assertSee('value="Ortak"', false);
+        $response->assertSee('value="unpaid" selected', false);
+    }
+
+    public function test_index_filters_by_customer_and_invoice_period(): void
+    {
+        $user = $this->makeUser();
+
+        $matchingCari = Cari::create([
+            'name' => 'Donem Musteri',
+            'short_name' => 'Donem',
+            'cari_type' => 'customer',
+            'tax_number' => '7777777777',
+        ]);
+        $otherCari = Cari::create([
+            'name' => 'Harici Musteri',
+            'short_name' => 'Harici',
+            'cari_type' => 'customer',
+            'tax_number' => '8888888888',
+        ]);
+
+        SalesInvoice::create([
+            'customer_cari_id' => $matchingCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTNDONEM01',
+            'our_invoice_date' => '2026-03-15',
+        ]);
+        SalesInvoice::create([
+            'customer_cari_id' => $matchingCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTNDONEM02',
+            'our_invoice_date' => '2026-04-10',
+        ]);
+        SalesInvoice::create([
+            'customer_cari_id' => $otherCari->id,
+            'total_amount_tl' => 100,
+            'order_number' => 'FTNDONEM03',
+            'our_invoice_date' => '2026-03-20',
+        ]);
+
+        $byCustomer = $this->actingAs($user)->get(route('sales-invoices.index', [
+            'customer_cari_id' => $matchingCari->id,
+        ]));
+        $byCustomer->assertOk();
+        $byCustomer->assertSee('FTNDONEM01', false);
+        $byCustomer->assertSee('FTNDONEM02', false);
+        $byCustomer->assertDontSee('FTNDONEM03', false);
+
+        $byPeriod = $this->actingAs($user)->get(route('sales-invoices.index', [
+            'customer_cari_id' => $matchingCari->id,
+            'period_year' => 2026,
+            'period_month' => 3,
+        ]));
+        $byPeriod->assertOk();
+        $byPeriod->assertSee('FTNDONEM01', false);
+        $byPeriod->assertDontSee('FTNDONEM02', false);
+        $byPeriod->assertDontSee('FTNDONEM03', false);
+        $byPeriod->assertSee('Filtreyi temizle', false);
     }
 }

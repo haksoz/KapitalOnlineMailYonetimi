@@ -15,33 +15,58 @@
         </p>
     </div>
 
-    <div class="mb-4">
-        <form method="GET" action="{{ route('sales-invoices.index') }}">
-            <div class="flex gap-2">
-                <input
-                    type="text"
-                    name="search"
-                    value="{{ request('search') }}"
-                    placeholder="Müşteri adı veya fatura numarası ile ara..."
-                    class="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500"
-                >
-                <button
-                    type="submit"
-                    class="px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition"
-                >
-                    Ara
-                </button>
-                @if(request('search'))
-                    <a
-                        href="{{ route('sales-invoices.index') }}"
-                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition"
-                    >
-                        Temizle
-                    </a>
-                @endif
-            </div>
-        </form>
-    </div>
+    <form method="GET" action="{{ route('sales-invoices.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        <div class="min-w-[220px] flex-1">
+            <label for="search" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Ara</label>
+            <input
+                id="search"
+                type="text"
+                name="search"
+                value="{{ request('search') }}"
+                placeholder="Müşteri, fatura no veya takip no..."
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
+            >
+        </div>
+        <div class="min-w-[180px]">
+            <label for="customer_cari_id" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Müşteri</label>
+            <select id="customer_cari_id" name="customer_cari_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
+                <option value="">— Tümü —</option>
+                @foreach ($caris ?? [] as $c)
+                    <option value="{{ $c->id }}" @selected(request('customer_cari_id') == $c->id)>{{ $c->short_name ?: $c->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="min-w-[120px]">
+            <label for="period_year" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Dönem (yıl)</label>
+            <select id="period_year" name="period_year" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
+                <option value="">— Tümü —</option>
+                @for ($y = now()->year; $y >= now()->year - 3; $y--)
+                    <option value="{{ $y }}" @selected((string) request('period_year') === (string) $y)>{{ $y }}</option>
+                @endfor
+            </select>
+        </div>
+        <div class="min-w-[140px]">
+            <label for="period_month" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Dönem (ay)</label>
+            <select id="period_month" name="period_month" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
+                <option value="">— Tümü —</option>
+                @for ($m = 1; $m <= 12; $m++)
+                    <option value="{{ $m }}" @selected((string) request('period_month') === (string) $m)>{{ \Carbon\Carbon::createFromDate(2000, $m, 1)->locale('tr')->translatedFormat('F') }}</option>
+                @endfor
+            </select>
+        </div>
+        <div class="min-w-[140px]">
+            <label for="payment_status" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Ödeme</label>
+            <select id="payment_status" name="payment_status" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm">
+                <option value="">— Tümü —</option>
+                <option value="paid" @selected(request('payment_status') === 'paid')>Ödendi</option>
+                <option value="unpaid" @selected(request('payment_status') === 'unpaid')>Ödenmedi</option>
+            </select>
+        </div>
+        <button type="submit" class="inline-flex items-center justify-center min-h-[38px] px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-md hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">Filtrele</button>
+        @if (request()->filled('search') || request()->filled('customer_cari_id') || request()->filled('period_year') || request()->filled('period_month') || request()->filled('payment_status'))
+            <a href="{{ route('sales-invoices.index') }}" class="inline-flex items-center min-h-[38px] px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Filtreyi temizle</a>
+        @endif
+    </form>
 
     <div x-data="{ atmacayaKopyalaOpen: false, atmacaText: '' }" class="bg-white rounded-xl shadow-sm overflow-hidden">
         @php

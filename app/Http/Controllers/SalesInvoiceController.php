@@ -19,6 +19,7 @@ class SalesInvoiceController extends Controller
     public function index(Request $request): View
     {
         $search = $request->get('search');
+        $paymentStatus = $request->get('payment_status');
 
         $query = SalesInvoice::query()
             ->with(['customerCari', 'lines.pendingBilling.subscription.product']);
@@ -26,6 +27,7 @@ class SalesInvoiceController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('our_invoice_number', 'like', '%' . $search . '%')
+                  ->orWhere('order_number', 'like', '%' . $search . '%')
                   ->orWhereHas('customerCari', function ($q) use ($search) {
                       $q->where('name', 'like', '%' . $search . '%')
                         ->orWhere('short_name', 'like', '%' . $search . '%');
@@ -33,9 +35,31 @@ class SalesInvoiceController extends Controller
             });
         }
 
+        if ($request->filled('customer_cari_id')) {
+            $query->where('customer_cari_id', (int) $request->customer_cari_id);
+        }
+
+        if ($request->filled('period_year')) {
+            $query->whereYear('our_invoice_date', (int) $request->period_year);
+        }
+
+        if ($request->filled('period_month')) {
+            $query->whereMonth('our_invoice_date', (int) $request->period_month);
+        }
+
+        if ($paymentStatus === 'paid') {
+            $query->where('is_paid', true);
+        } elseif ($paymentStatus === 'unpaid') {
+            $query->where('is_paid', false);
+        }
+
         $salesInvoices = $query->latest()->paginate(15)->withQueryString();
 
-        return view('sales-invoices.index', compact('salesInvoices'));
+        $caris = Cari::whereIn('cari_type', ['customer', 'both'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'short_name']);
+
+        return view('sales-invoices.index', compact('salesInvoices', 'caris'));
     }
 
     public function showSalesInvoiceXml(): View
