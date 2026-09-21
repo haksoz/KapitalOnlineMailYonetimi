@@ -114,6 +114,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('mail-settings/test', [AdminMailSettingController::class, 'sendTest'])->name('mail-settings.test');
         Route::get('notifications', [AdminNotificationDefinitionController::class, 'edit'])->name('notifications.edit');
         Route::patch('notifications', [AdminNotificationDefinitionController::class, 'update'])->name('notifications.update');
+        Route::match(['get', 'post'], 'notifications/{notification_definition}/preview', [AdminNotificationDefinitionController::class, 'preview'])->name('notifications.preview');
         Route::post('notifications/{notification_definition}/test', [AdminNotificationDefinitionController::class, 'sendTest'])->name('notifications.test');
         Route::get('reports/cari-ledger', [AdminCariLedgerReportController::class, 'index'])->name('reports.cari-ledger');
         Route::get('reports/cari-ledger/export', [AdminCariLedgerReportController::class, 'export'])->name('reports.cari-ledger.export');

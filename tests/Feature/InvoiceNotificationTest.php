@@ -656,6 +656,8 @@ class InvoiceNotificationTest extends TestCase
             ->get(route('admin.notifications.edit'))
             ->assertOk()
             ->assertSee('Test maili gönder', false)
+            ->assertSee('Mail önizlemesi', false)
+            ->assertSee('Yeni sekmede aç', false)
             ->assertSee($invoice->our_invoice_number, false)
             ->assertSee('vade '.$invoice->due_date->format('d.m.Y'), false)
             ->assertSee('{tutar}', false)
@@ -727,5 +729,93 @@ class InvoiceNotificationTest extends TestCase
             'test_email' => 'gozlem@example.com',
             'sales_invoice_id' => $invoice->id,
         ])->assertForbidden();
+    }
+
+    public function test_admin_can_preview_saved_mail_template_with_invoice_placeholders(): void
+    {
+        $admin = $this->makeAdmin();
+        $invoice = $this->makeNumberedInvoice(7);
+        $reminder = NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)
+            ->firstOrFail();
+        $reminder->update([
+            'subject' => 'Hatirlatma {fatura_no}',
+            'body' => "Sayin {musteri}\nVade {vade_tarihi}\nTutar {tutar}\nFTN {ftn}",
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.notifications.preview', [
+            'notification_definition' => $reminder,
+            'sales_invoice_id' => $invoice->id,
+        ]));
+
+        $response->assertOk()
+            ->assertSee('Mail önizlemesi', false)
+            ->assertSee('Hatirlatma ABC2026001', false)
+            ->assertSee('Sayin Musteri Bildiri', false)
+            ->assertSee('Vade '.$invoice->due_date->format('d.m.Y'), false)
+            ->assertSee('Tutar 240,00 ₺', false)
+            ->assertSee('FTN FTN000101', false)
+            ->assertSee('musteri@example.com', false)
+            ->assertSee('ABC2026001', false);
+    }
+
+    public function test_admin_can_preview_unsaved_draft_template_via_post(): void
+    {
+        $admin = $this->makeAdmin();
+        $invoice = $this->makeNumberedInvoice(7);
+        $reminder = NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)
+            ->firstOrFail();
+
+        $this->actingAs($admin)->post(route('admin.notifications.preview', $reminder), [
+            'sales_invoice_id' => $invoice->id,
+            'subject' => 'Taslak {fatura_no}',
+            'body' => 'Merhaba {musteri}, tutar {tutar}',
+        ])->assertOk()
+            ->assertSee('Taslak ABC2026001', false)
+            ->assertSee('Merhaba Musteri Bildiri, tutar 240,00 ₺', false)
+            ->assertDontSee('Taslak {fatura_no}', false);
+
+        $this->assertSame('Fatura hatırlatması: {fatura_no}', $reminder->fresh()->subject);
+    }
+
+    public function test_admin_can_fetch_mail_preview_as_json(): void
+    {
+        $admin = $this->makeAdmin();
+        $invoice = $this->makeNumberedInvoice(7);
+        $reminder = NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)
+            ->firstOrFail();
+        $reminder->update([
+            'subject' => 'Hatirlatma {fatura_no}',
+            'body' => 'Sayin {musteri}',
+        ]);
+
+        $this->actingAs($admin)->getJson(route('admin.notifications.preview', [
+            'notification_definition' => $reminder,
+            'sales_invoice_id' => $invoice->id,
+        ]))->assertOk()
+            ->assertJsonPath('subject', 'Hatirlatma ABC2026001')
+            ->assertJsonPath('body', 'Sayin Musteri Bildiri')
+            ->assertJsonPath('to', 'musteri@example.com')
+            ->assertJsonPath('invoice_number', 'ABC2026001');
+    }
+
+    public function test_non_admin_cannot_preview_notification_mail(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_USER,
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+        $invoice = $this->makeNumberedInvoice(7);
+        $reminder = NotificationDefinition::query()
+            ->where('key', NotificationDefinition::KEY_INVOICE_DUE_REMINDER)
+            ->firstOrFail();
+
+        $this->actingAs($user)->get(route('admin.notifications.preview', [
+            'notification_definition' => $reminder,
+            'sales_invoice_id' => $invoice->id,
+        ]))->assertForbidden();
     }
 }
