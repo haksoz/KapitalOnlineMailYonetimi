@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cari;
+use App\Rules\CariEmailList;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,7 +86,7 @@ class CariController extends Controller
 
         $rules = [];
         if ($updatingEmail) {
-            $rules['email'] = ['nullable', 'email', 'max:255'];
+            $rules['email'] = ['nullable', 'string', 'max:'.CariEmailList::MAX_LENGTH, new CariEmailList];
         }
         if ($updatingNotify) {
             $rules['notifications_enabled'] = ['boolean'];
@@ -104,14 +105,14 @@ class CariController extends Controller
 
         $payload = [];
         if ($updatingEmail) {
-            $payload['email'] = filled($validated['email'] ?? null) ? $validated['email'] : null;
+            $payload['email'] = Cari::normalizeEmailList($validated['email'] ?? null);
         }
         if ($updatingNotify || $updatingEmail) {
             $email = array_key_exists('email', $payload) ? $payload['email'] : $cari->email;
             $wantNotify = $updatingNotify
                 ? $request->boolean('notifications_enabled')
                 : (bool) $cari->notifications_enabled;
-            $payload['notifications_enabled'] = $wantNotify && filled($email);
+            $payload['notifications_enabled'] = $wantNotify && Cari::normalizeEmailList(is_string($email) ? $email : null) !== null;
         }
         if ($updatingTerm) {
             $payload['odeme_vadesi_gun'] = $request->boolean('is_vadeli')
@@ -140,7 +141,7 @@ class CariController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'short_name' => ['nullable', 'string', 'max:100'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => ['nullable', 'string', 'max:'.CariEmailList::MAX_LENGTH, new CariEmailList],
             'notifications_enabled' => ['required', 'boolean'],
             'country_code' => ['nullable', 'string', 'size:2'],
             'tax_number' => ['nullable', 'string', 'max:50'],
@@ -153,9 +154,9 @@ class CariController extends Controller
             $validated['country_code'] = 'TR';
         }
 
-        $validated['email'] = filled($validated['email'] ?? null) ? $validated['email'] : null;
+        $validated['email'] = Cari::normalizeEmailList($validated['email'] ?? null);
         $validated['notifications_enabled'] = $request->boolean('notifications_enabled')
-            && filled($validated['email']);
+            && $validated['email'] !== null;
         $validated['odeme_vadesi_gun'] = $request->boolean('is_vadeli')
             ? (int) $validated['odeme_vadesi_gun']
             : null;

@@ -24,7 +24,7 @@ final class PlaceholderCatalog
                     ['token' => '{vade_tarihi}', 'hint' => 'Ödeme vadesi'],
                     ['token' => '{tutar}', 'hint' => 'KDV dahil ödenecek toplam'],
                     ['token' => '{ftn}', 'hint' => 'Fatura takip no'],
-                    ['token' => '{abonelikler}', 'hint' => 'Faturadaki abonelikler ve adetleri'],
+                    ['token' => '{abonelikler}', 'hint' => 'Faturadaki abonelikler; her satır ayrı (ürün — sözleşme — adet)'],
                     ['token' => '{abonelik_no}', 'hint' => 'Faturadaki sözleşme no (birden fazlaysa virgülle)'],
                     ['token' => '{adet}', 'hint' => 'Faturadaki adetler (birden fazlaysa virgülle)'],
                 ],

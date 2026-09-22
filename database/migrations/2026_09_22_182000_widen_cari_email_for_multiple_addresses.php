@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('caris', function (Blueprint $table) {
+            $table->string('email', 1000)->nullable()->change();
+        });
+
+        if (Schema::hasColumn('automation_jobs', 'to_email')) {
+            Schema::table('automation_jobs', function (Blueprint $table) {
+                $table->string('to_email', 1000)->nullable()->change();
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        Schema::table('caris', function (Blueprint $table) {
+            $table->string('email', 255)->nullable()->change();
+        });
+
+        if (Schema::hasColumn('automation_jobs', 'to_email')) {
+            Schema::table('automation_jobs', function (Blueprint $table) {
+                $table->string('to_email', 255)->nullable()->change();
+            });
+        }
+    }
+};

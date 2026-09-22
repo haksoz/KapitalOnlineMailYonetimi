@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cari;
+use App\Rules\CariEmailList;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -31,14 +32,14 @@ class NotificationCariController extends Controller
     public function update(Request $request, Cari $cari): RedirectResponse
     {
         $validated = $request->validate([
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => ['nullable', 'string', 'max:'.CariEmailList::MAX_LENGTH, new CariEmailList],
             'notifications_enabled' => ['nullable', 'boolean'],
         ]);
 
-        $email = filled($validated['email'] ?? null) ? $validated['email'] : null;
+        $email = Cari::normalizeEmailList($validated['email'] ?? null);
         $cari->update([
             'email' => $email,
-            'notifications_enabled' => $request->boolean('notifications_enabled') && filled($email),
+            'notifications_enabled' => $request->boolean('notifications_enabled') && $email !== null,
         ]);
 
         return redirect()

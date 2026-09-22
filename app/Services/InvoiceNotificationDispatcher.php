@@ -6,6 +6,7 @@ use App\Automation\InvoiceReminderEvaluator;
 use App\Automation\InvoiceTimeWindowDetector;
 use App\Automation\JobRunner;
 use App\Automation\SubscriptionTimeWindowDetector;
+use App\Automation\NotificationMail;
 use App\Models\AutomationRule;
 use App\Models\MailSetting;
 use App\Models\NotificationTemplate;
@@ -13,7 +14,6 @@ use App\Models\SalesInvoice;
 use App\Automation\InvoicePlaceholders;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Facades\Mail;
 
 class InvoiceNotificationDispatcher
 {
@@ -62,8 +62,6 @@ class InvoiceNotificationDispatcher
         $subject = '[TEST] '.$template->renderSubject($replacements);
         $body = $template->renderBody($replacements);
 
-        Mail::raw($body, function ($message) use ($to, $subject): void {
-            $message->to($to)->subject($subject);
-        });
+        NotificationMail::send($to, $subject, $body);
     }
 }

@@ -13,8 +13,8 @@
 }">
     <div>
         <x-input-label for="email" value="E-posta" />
-        <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" x-model="email" :value="$emailValue" />
-        <p class="mt-1 text-xs text-gray-500">Müşteri bildirimleri bu adrese gönderilir. Bildirim açmak için e-posta gerekir.</p>
+        <x-text-input id="email" name="email" type="text" class="mt-1 block w-full" x-model="email" :value="$emailValue" autocomplete="off" />
+        <p class="mt-1 text-xs text-gray-500">Bildirimler bu adreslere gider. Birden fazla için virgülle ayırın: <span class="font-medium">muhasebe@firma.com, yonetim@firma.com</span></p>
         <x-input-error :messages="$errors->get('email')" class="mt-1" />
     </div>
 
@@ -36,7 +36,7 @@
             <x-input-label for="notifications_enabled" value="Bildirim açık" class="!mb-0" />
         </div>
         <p class="mt-1 text-xs text-gray-500" x-show="!hasEmail">E-posta girilmeden bildirim açılamaz; gönderilecek adres yok.</p>
-        <p class="mt-1 text-xs text-gray-500" x-show="hasEmail" x-cloak>Bildirimler bu e-posta adresine gider. İstemiyorsanız bildirimi kapalı bırakın.</p>
+        <p class="mt-1 text-xs text-gray-500" x-show="hasEmail" x-cloak>Bildirimler listedeki tüm e-postalara gider. İstemiyorsanız bildirimi kapalı bırakın.</p>
         <x-input-error :messages="$errors->get('notifications_enabled')" class="mt-1" />
     </div>
 </div>

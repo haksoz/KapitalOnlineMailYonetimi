@@ -566,6 +566,24 @@ class InvoiceNotificationTest extends TestCase
         $this->assertTrue($invoice->exists);
     }
 
+    public function test_dispatch_sends_to_all_comma_separated_cari_emails(): void
+    {
+        Mail::fake();
+        $invoice = $this->makeNumberedInvoice(7, 'muhasebe@example.com,  yonetim@example.com,muhasebe@example.com');
+        $this->assertSame('muhasebe@example.com, yonetim@example.com', $invoice->customerCari->email);
+
+        $this->configureInvoiceRule(EventType::InvoiceDueApproaching, true, ['interval_days' => 7, 'send_at' => '10:00']);
+        $this->configureInvoiceRule(EventType::InvoiceOverdue, false);
+        $this->configureInvoiceRule(EventType::InvoiceInterestClosure, false);
+
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+        $this->assertSame(1, $dispatcher->dispatch(Carbon::parse('2026-09-01 10:00:00', 'Europe/Istanbul')));
+
+        $job = AutomationJob::query()->where('status', JobStatus::Succeeded)->first();
+        $this->assertNotNull($job);
+        $this->assertSame('muhasebe@example.com, yonetim@example.com', $job->to_email);
+    }
+
     public function test_dispatch_sends_interest_closure_once_automatically(): void
     {
         Mail::fake();
@@ -801,6 +819,61 @@ class InvoiceNotificationTest extends TestCase
         $this->assertStringContainsString('SOZ-NTF-001', $replacements['{abonelikler}']);
         $this->assertStringContainsString('1 adet', $replacements['{abonelikler}']);
         $this->assertStringNotContainsString('200,00 ₺', $replacements['{abonelikler}']);
+    }
+
+    public function test_abonelikler_placeholder_puts_each_subscription_on_its_own_line(): void
+    {
+        [$customerCari, $subscription, $pendingBilling] = $this->makePendingOrder(7);
+
+        $otherSub = Subscription::create([
+            'customer_cari_id' => $customerCari->id,
+            'provider_cari_id' => $customerCari->id,
+            'sozlesme_no' => 'SOZ-NTF-002',
+            'baslangic_tarihi' => '2026-01-01',
+            'bitis_tarihi' => '2027-01-01',
+            'taahhut_tipi' => Subscription::TAAHHUT_MONTHLY_COMMITMENT,
+            'faturalama_periyodu' => Subscription::FATURALAMA_MONTHLY,
+            'durum' => Subscription::DURUM_ACTIVE,
+            'auto_renew' => true,
+            'quantity' => 3,
+        ]);
+        $otherPending = PendingBilling::create([
+            'subscription_id' => $otherSub->id,
+            'period_start' => '2026-08-01',
+            'period_end' => '2026-08-31',
+            'status' => PendingBilling::STATUS_INVOICED,
+            'actual_satis_tl' => 50,
+        ]);
+
+        $invoice = SalesInvoice::create([
+            'customer_cari_id' => $customerCari->id,
+            'total_amount_tl' => 250,
+            'our_invoice_number' => 'LINE-1',
+            'our_invoice_date' => '2026-09-01',
+            'due_date' => '2026-09-08',
+        ]);
+        SalesInvoiceLine::create([
+            'sales_invoice_id' => $invoice->id,
+            'pending_billing_id' => $pendingBilling->id,
+            'line_amount_tl' => 200,
+        ]);
+        SalesInvoiceLine::create([
+            'sales_invoice_id' => $invoice->id,
+            'pending_billing_id' => $otherPending->id,
+            'line_amount_tl' => 50,
+        ]);
+        $this->assertTrue($subscription->exists);
+
+        $replacements = app(InvoiceNotificationDispatcher::class)->replacements($invoice->fresh());
+        $lines = explode("\n", $replacements['{abonelikler}']);
+        $this->assertCount(2, $lines);
+        $this->assertStringContainsString('SOZ-NTF-001', $replacements['{abonelikler}']);
+        $this->assertStringContainsString('SOZ-NTF-002', $replacements['{abonelikler}']);
+        $this->assertStringContainsString('3 adet', $replacements['{abonelikler}']);
+
+        $html = \App\Automation\NotificationMail::htmlFromPlain($replacements['{abonelikler}']);
+        $this->assertStringContainsString('<br>', $html);
+        $this->assertStringContainsString('SOZ-NTF-002', $html);
     }
 
     public function test_non_admin_cannot_send_notification_test_mail(): void

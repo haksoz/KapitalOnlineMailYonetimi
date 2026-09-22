@@ -5,6 +5,7 @@ namespace App\Automation\Actions;
 use App\Automation\DomainPlaceholders;
 use App\Automation\EventType;
 use App\Automation\InvoicePlaceholders;
+use App\Automation\NotificationMail;
 use App\Models\AutomationJob;
 use App\Models\Cari;
 use App\Models\MailSetting;
@@ -12,7 +13,6 @@ use App\Models\NotificationTemplate;
 use App\Models\PendingBilling;
 use App\Models\SalesInvoice;
 use App\Models\Subscription;
-use Illuminate\Support\Facades\Mail;
 
 final class EmailActionHandler implements ActionHandler
 {
@@ -47,20 +47,22 @@ final class EmailActionHandler implements ActionHandler
             return ActionResult::skipped('Fatura ödendi.');
         }
 
+        $recipients = $cari->notificationEmails();
+        if ($recipients === []) {
+            return ActionResult::skipped('Cari bildirimi kapalı veya e-posta yok.');
+        }
+
         $replacements = $this->replacements($job);
         $subject = $template->renderSubject($replacements);
         $body = $template->renderBody($replacements);
-        $to = (string) $cari->email;
 
         try {
-            Mail::raw($body, function ($message) use ($to, $subject): void {
-                $message->to($to)->subject($subject);
-            });
+            NotificationMail::send($recipients, $subject, $body);
         } catch (\Throwable $e) {
             return ActionResult::failed($e->getMessage());
         }
 
-        return ActionResult::success($to);
+        return ActionResult::success(implode(', ', $recipients));
     }
 
     /**

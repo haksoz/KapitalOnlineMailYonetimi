@@ -48,9 +48,52 @@ class Cari extends Model
         return Carbon::parse($documentDate->toDateString())->addDays((int) $days);
     }
 
+    /**
+     * @return list<string>
+     */
+    public function notificationEmails(): array
+    {
+        return self::parseEmails($this->email);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function parseEmails(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s*,\s*/', $value) ?: [];
+        $unique = [];
+        $seen = [];
+        foreach ($parts as $part) {
+            $email = trim($part);
+            if ($email === '') {
+                continue;
+            }
+            $key = strtolower($email);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $unique[] = $email;
+        }
+
+        return $unique;
+    }
+
+    public static function normalizeEmailList(?string $value): ?string
+    {
+        $emails = self::parseEmails($value);
+
+        return $emails === [] ? null : implode(', ', $emails);
+    }
+
     public function canReceiveNotifications(): bool
     {
-        return $this->notifications_enabled && filled($this->email);
+        return $this->notifications_enabled && $this->notificationEmails() !== [];
     }
 
     public function scopeReceivesNotifications(Builder $query): void
@@ -73,7 +116,8 @@ class Cari extends Model
         });
 
         static::saving(function (Cari $cari): void {
-            if (blank($cari->email)) {
+            $cari->email = self::normalizeEmailList($cari->email);
+            if ($cari->notificationEmails() === []) {
                 $cari->notifications_enabled = false;
             }
         });

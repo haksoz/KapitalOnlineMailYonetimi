@@ -36,7 +36,8 @@ class CariNotificationSettingTest extends TestCase
             ->get(route('caris.edit', $cari))
             ->assertOk()
             ->assertSee('Bildirim açık', false)
-            ->assertSee('Vadeli çalışılıyor', false);
+            ->assertSee('Vadeli çalışılıyor', false)
+            ->assertSee('virgülle', false);
     }
 
     public function test_can_enable_notifications_on_update(): void
@@ -237,7 +238,7 @@ class CariNotificationSettingTest extends TestCase
         $this->actingAs($user)
             ->get(route('caris.index'))
             ->assertOk()
-            ->assertSee('e-posta gir', false)
+            ->assertSee('e-posta, e-posta', false)
             ->assertSee('Vadeli', false)
             ->assertSee('Peşin', false)
             ->assertSee('acme@example.com', false);
@@ -361,5 +362,78 @@ class CariNotificationSettingTest extends TestCase
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('email');
+    }
+
+    public function test_can_save_multiple_emails_separated_by_comma(): void
+    {
+        $user = $this->makeUser();
+        $cari = Cari::create([
+            'name' => 'Acme',
+            'short_name' => 'Acme',
+            'cari_type' => 'customer',
+            'tax_number' => '9999999991',
+        ]);
+
+        $this->actingAs($user)->patch(route('caris.update', $cari), [
+            'name' => 'Acme',
+            'short_name' => 'Acme',
+            'email' => 'muhasebe@example.com,  yonetim@example.com,muhasebe@example.com',
+            'notifications_enabled' => '1',
+            'country_code' => 'TR',
+            'tax_number' => '9999999991',
+            'cari_type' => 'customer',
+        ])->assertRedirect(route('caris.index'));
+
+        $cari->refresh();
+        $this->assertSame('muhasebe@example.com, yonetim@example.com', $cari->email);
+        $this->assertSame(['muhasebe@example.com', 'yonetim@example.com'], $cari->notificationEmails());
+        $this->assertTrue($cari->canReceiveNotifications());
+    }
+
+    public function test_quick_update_saves_multiple_emails(): void
+    {
+        $user = $this->makeUser();
+        $cari = Cari::create([
+            'name' => 'Acme',
+            'short_name' => 'Acme',
+            'cari_type' => 'customer',
+            'tax_number' => '9999999992',
+        ]);
+
+        $this->actingAs($user)
+            ->patchJson(route('caris.quick-update', $cari), [
+                'email' => 'a@example.com, b@example.com',
+                'notifications_enabled' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('email', 'a@example.com, b@example.com')
+            ->assertJsonPath('notifications_enabled', true);
+
+        $this->assertSame(['a@example.com', 'b@example.com'], $cari->fresh()->notificationEmails());
+    }
+
+    public function test_rejects_invalid_address_inside_email_list(): void
+    {
+        $user = $this->makeUser();
+        $cari = Cari::create([
+            'name' => 'Acme',
+            'short_name' => 'Acme',
+            'cari_type' => 'customer',
+            'tax_number' => '9999999993',
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('caris.edit', $cari))
+            ->patch(route('caris.update', $cari), [
+                'name' => 'Acme',
+                'short_name' => 'Acme',
+                'email' => 'gecerli@example.com, degil',
+                'notifications_enabled' => '1',
+                'country_code' => 'TR',
+                'tax_number' => '9999999993',
+                'cari_type' => 'customer',
+            ])
+            ->assertRedirect(route('caris.edit', $cari))
+            ->assertSessionHasErrors('email');
     }
 }

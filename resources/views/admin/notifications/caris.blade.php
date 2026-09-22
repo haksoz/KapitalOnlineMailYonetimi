@@ -11,7 +11,7 @@
 
     @include('admin.notifications.partials.tabs')
 
-    <p class="text-sm text-gray-600 mb-4">Müşteri e-postası ve bildirim anahtarı. Kapalı cariye kuyruktaki e-posta aksiyonu atlanır.</p>
+    <p class="text-sm text-gray-600 mb-4">Müşteri e-postası ve bildirim anahtarı. Virgülle birden fazla adres yazabilirsiniz. Kapalı cariye kuyruktaki e-posta aksiyonu atlanır.</p>
 
     <form method="GET" class="mb-4 max-w-md">
         <x-input-label for="search" value="Ara" />
@@ -42,7 +42,7 @@
                                 @if (request()->filled('search'))
                                     <input type="hidden" name="search" value="{{ request('search') }}">
                                 @endif
-                                <x-text-input name="email" type="email" class="block w-56" :value="old('email', $cari->email)" />
+                                <x-text-input name="email" type="text" class="block w-80" :value="old('email', $cari->email)" autocomplete="off" placeholder="e-posta, e-posta" />
                                 <input type="hidden" name="notifications_enabled" value="0">
                                 <label class="inline-flex items-center gap-2 text-sm text-gray-700">
                                     <input type="checkbox" name="notifications_enabled" value="1" class="rounded border-gray-300 text-slate-600" @checked($cari->notifications_enabled)>

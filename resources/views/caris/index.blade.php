@@ -33,7 +33,7 @@
         </form>
     </div>
 
-    <p class="text-xs text-gray-500 mb-3">E-posta ve vade tabloda düzenlenir. Alandan çıkınca veya Enter ile kaydedilir.</p>
+    <p class="text-xs text-gray-500 mb-3">E-posta ve vade tabloda düzenlenir. Birden fazla e-posta için virgül kullanın. Alandan çıkınca veya Enter ile kaydedilir.</p>
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
@@ -66,14 +66,14 @@
                                 {{ $cari->short_name ?: $cari->name }}
                             </td>
                             <td class="px-4 py-3 text-sm">
-                                <div class="flex items-center gap-2 min-w-[14rem]">
+                                <div class="flex items-center gap-2 min-w-[18rem]">
                                     <input
-                                        type="email"
+                                        type="text"
                                         x-model="email"
                                         :disabled="emailBusy"
                                         autocomplete="off"
-                                        placeholder="e-posta gir"
-                                        class="block w-56 max-w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 disabled:bg-gray-50"
+                                        placeholder="e-posta, e-posta"
+                                        class="block w-72 max-w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-slate-500 focus:ring-slate-500 disabled:bg-gray-50"
                                         @blur="saveEmail()"
                                         @keydown.enter.prevent="saveEmail()"
                                     >
