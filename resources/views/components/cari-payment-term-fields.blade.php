@@ -25,7 +25,7 @@
         >
         <x-input-label for="is_vadeli" value="Vadeli çalışılıyor" class="!mb-0" />
     </div>
-    <p class="text-xs text-gray-500">İşaretlenirse fatura ve gider belgelerinde vade tarihi otomatik önerilir. Peşin çalışılıyorsa kapalı bırakın.</p>
+        <p class="text-xs text-gray-500">Kapalıysa peşin: vade belge günü olur, “vade yaklaşıyor” gitmez; ödenmezse ertesi gün “vadesi geçti” başlar. İşaretlenirse belge tarihine gün eklenir.</p>
 
     <div x-show="vadeli" x-cloak>
         <x-input-label for="odeme_vadesi_gun" value="Vade gün sayısı *" />

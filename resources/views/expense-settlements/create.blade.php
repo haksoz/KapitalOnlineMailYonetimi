@@ -69,11 +69,12 @@
                     dueDate: {{ \Illuminate\Support\Js::from(old('due_date', $suggestedDueDate?->format('Y-m-d'))) }},
                     lastSuggested: {{ \Illuminate\Support\Js::from($suggestedDueDate?->format('Y-m-d')) }},
                     suggested() {
-                        if (this.termDays === null || this.termDays === '' || ! this.settlementDate) return '';
+                        if (! this.settlementDate) return '';
                         const parts = String(this.settlementDate).split('-').map(Number);
                         if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return '';
+                        const days = this.termDays === null || this.termDays === '' ? 0 : Number(this.termDays);
                         const date = new Date(parts[0], parts[1] - 1, parts[2]);
-                        date.setDate(date.getDate() + Number(this.termDays));
+                        date.setDate(date.getDate() + days);
                         const month = String(date.getMonth() + 1).padStart(2, '0');
                         const day = String(date.getDate()).padStart(2, '0');
                         return date.getFullYear() + '-' + month + '-' + day;
@@ -95,10 +96,12 @@
                     <x-input-label for="due_date" value="Vade tarihi" />
                     <x-text-input id="due_date" name="due_date" type="date" class="mt-1 block w-full" x-model="dueDate" :value="old('due_date', $suggestedDueDate?->format('Y-m-d'))" />
                     <p class="mt-1 text-xs text-gray-500">
-                        @if ($suggestedDueDate)
+                        @if ($suggestedDueDate && $customerCari?->hasPaymentTerm())
                             Cari vadesinden önerilen tarih: <strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>. Boş bırakırsanız yeniden hesaplanır.
+                        @elseif ($suggestedDueDate)
+                            Peşin cari: vade giderleştirme tarihi (<strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>) olarak yazılır. Farklı bir tarih girebilirsiniz.
                         @else
-                            Bu cari vadeli değil. Ödeme istemek için tarihi elle girin veya cari kartına vade günü ekleyin.
+                            Belge tarihi girilince vade önerilir.
                         @endif
                     </p>
                     <x-input-error :messages="$errors->get('due_date')" class="mt-1" />

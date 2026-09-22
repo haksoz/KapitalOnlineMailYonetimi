@@ -281,7 +281,7 @@ class InvoiceNotificationTest extends TestCase
             'line_amount_tl' => 200,
         ]);
 
-        $this->assertNull($invoice->fresh()->computeDueDate());
+        $this->assertSame('2026-08-01', $invoice->fresh()->computeDueDate()?->format('Y-m-d'));
 
         $this->actingAs($admin)->patch(route('sales-invoices.update-invoice-details', $invoice), [
             'our_invoice_number' => 'ESKI-1',
@@ -290,6 +290,31 @@ class InvoiceNotificationTest extends TestCase
         ]);
 
         $this->assertSame('2026-08-20', $invoice->fresh()->due_date?->format('Y-m-d'));
+    }
+
+    public function test_entering_invoice_number_sets_due_date_to_invoice_date_when_cari_is_pesin(): void
+    {
+        $admin = $this->makeAdmin();
+        [$customerCari, , $pendingBilling] = $this->makePendingOrder(10);
+        $customerCari->update(['odeme_vadesi_gun' => null]);
+
+        $invoice = SalesInvoice::create([
+            'customer_cari_id' => $customerCari->id,
+            'total_amount_tl' => 200,
+            'order_number' => 'FTN000105',
+        ]);
+        SalesInvoiceLine::create([
+            'sales_invoice_id' => $invoice->id,
+            'pending_billing_id' => $pendingBilling->id,
+            'line_amount_tl' => 200,
+        ]);
+
+        $this->actingAs($admin)->patch(route('sales-invoices.update-invoice-details', $invoice), [
+            'our_invoice_number' => 'PESIN-1',
+            'our_invoice_date' => '2026-09-01',
+        ]);
+
+        $this->assertSame('2026-09-01', $invoice->fresh()->due_date?->format('Y-m-d'));
     }
 
     public function test_clearing_due_date_falls_back_to_cari_term(): void
@@ -394,6 +419,49 @@ class InvoiceNotificationTest extends TestCase
 
         $this->assertFalse($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-09-08')));
         $this->assertTrue($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-09-09')));
+    }
+
+    public function test_approaching_is_not_eligible_for_pesin_cari(): void
+    {
+        $invoice = $this->makeNumberedInvoice(7);
+        $invoice->customerCari->update(['odeme_vadesi_gun' => null]);
+        $invoice->refreshDueDate();
+        $invoice = $invoice->fresh(['customerCari']);
+
+        $this->assertFalse($invoice->customerCari->hasPaymentTerm());
+        $this->assertSame('2026-09-01', $invoice->due_date?->format('Y-m-d'));
+
+        $reminder = $this->invoiceRule(EventType::InvoiceDueApproaching);
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+
+        $this->assertFalse($dispatcher->isEligible($reminder, $invoice, Carbon::parse('2026-08-29')));
+        $this->assertFalse($dispatcher->isEligible($reminder, $invoice, Carbon::parse('2026-09-01')));
+    }
+
+    public function test_overdue_is_eligible_next_day_for_pesin_cari(): void
+    {
+        $invoice = $this->makeNumberedInvoice(7);
+        $invoice->customerCari->update(['odeme_vadesi_gun' => null]);
+        $invoice->refreshDueDate();
+        $invoice = $invoice->fresh(['customerCari']);
+
+        $overdue = $this->invoiceRule(EventType::InvoiceOverdue);
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+
+        $this->assertFalse($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-09-01')));
+        $this->assertTrue($dispatcher->isEligible($overdue, $invoice, Carbon::parse('2026-09-02')));
+    }
+
+    public function test_approaching_still_applies_when_cari_term_is_zero_days(): void
+    {
+        $invoice = $this->makeNumberedInvoice(0);
+        $this->assertTrue($invoice->customerCari->hasPaymentTerm());
+        $this->assertSame('2026-09-01', $invoice->due_date?->format('Y-m-d'));
+
+        $reminder = $this->invoiceRule(EventType::InvoiceDueApproaching);
+        $dispatcher = app(InvoiceNotificationDispatcher::class);
+
+        $this->assertTrue($dispatcher->isEligible($reminder, $invoice, Carbon::parse('2026-09-01')));
     }
 
     public function test_interest_closure_is_eligible_from_one_month_after_due_date(): void

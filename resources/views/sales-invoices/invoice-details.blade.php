@@ -44,10 +44,15 @@
                         class="mt-1 block w-full" :value="old('due_date', $salesInvoice->due_date?->format('Y-m-d'))" />
                     <p class="mt-1 text-xs text-gray-500">
                         @if ($suggestedDueDate)
-                            Cari ödeme vadesinden hesaplanan tarih: <strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>.
-                            Boş bırakırsanız bu değer yazılır; farklı bir tarih girebilirsiniz.
+                            @if ($salesInvoice->customerCari?->hasPaymentTerm())
+                                Cari ödeme vadesinden hesaplanan tarih: <strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>.
+                                Boş bırakırsanız bu değer yazılır; farklı bir tarih girebilirsiniz.
+                            @else
+                                Peşin cari: vade fatura tarihi (<strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>) olarak yazılır.
+                                “Vade yaklaşıyor” gitmez; ödenmezse ertesi gün “vadesi geçti” başlar.
+                            @endif
                         @else
-                            Bu cari vadeli değil. Vade istiyorsanız tarihi elle girin veya cari kartına vade günü ekleyin.
+                            Numara ve tarih kaydedilince vade önerilir. Peşin caride vade fatura günü olur.
                         @endif
                     </p>
                     <x-input-error :messages="$errors->get('due_date')" class="mt-1" />

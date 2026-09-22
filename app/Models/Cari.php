@@ -39,11 +39,13 @@ class Cari extends Model
 
     public function dueDateFrom(?CarbonInterface $documentDate): ?CarbonInterface
     {
-        if ($documentDate === null || $this->odeme_vadesi_gun === null) {
+        if ($documentDate === null) {
             return null;
         }
 
-        return Carbon::parse($documentDate->toDateString())->addDays((int) $this->odeme_vadesi_gun);
+        $days = $this->odeme_vadesi_gun ?? 0;
+
+        return Carbon::parse($documentDate->toDateString())->addDays((int) $days);
     }
 
     public function canReceiveNotifications(): bool

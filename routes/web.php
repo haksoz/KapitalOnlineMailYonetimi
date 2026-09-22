@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::resource('caris', CariController::class)->except(['show']);
+    Route::patch('caris/{cari}/quick', [CariController::class, 'quickUpdate'])->name('caris.quick-update');
     Route::resource('service-providers', ServiceProviderController::class)->except(['show']);
     Route::resource('products', ProductController::class);
     Route::get('products/api/data', [ProductController::class, 'api'])->name('products.api');

@@ -84,7 +84,7 @@ class ExpenseSettlementTest extends TestCase
 
         $this->assertSame('GDN000001', $settlement->gider_number);
         $this->assertSame('2026-08-15', $settlement->settlement_date->format('Y-m-d'));
-        $this->assertNull($settlement->due_date);
+        $this->assertSame('2026-08-15', $settlement->due_date?->format('Y-m-d'));
         $this->assertEquals(200.0, (float) $settlement->total_amount_tl);
         $this->assertFalse($settlement->is_closed);
         $this->assertNull($settlement->closed_at);

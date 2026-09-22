@@ -70,7 +70,8 @@ class SalesInvoice extends Model
 
     /**
      * Fatura tarihi + müşteri carisinin ödeme vadesi.
-     * Numara veya tarih yoksa, ya da cari vadeli değilse null.
+     * Peşin (vade günü yok) fatura gününü vade kabul eder.
+     * Numara veya tarih yoksa null.
      */
     public function computeDueDate(): ?\Carbon\CarbonInterface
     {

@@ -38,6 +38,9 @@ final class InvoiceReminderEvaluator
         $eventType = $rule->event_type;
 
         if ($eventType === EventType::InvoiceDueApproaching) {
+            if (! $invoice->customerCari?->hasPaymentTerm()) {
+                return false;
+            }
             if ($today->gt($due)) {
                 return false;
             }

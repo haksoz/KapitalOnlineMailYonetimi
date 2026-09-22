@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cari;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -70,6 +71,65 @@ class CariController extends Controller
         return redirect()
             ->route('caris.index')
             ->with('success', 'Cari silindi.');
+    }
+
+    public function quickUpdate(Request $request, Cari $cari): JsonResponse
+    {
+        $updatingEmail = $request->exists('email');
+        $updatingNotify = $request->exists('notifications_enabled');
+        $updatingTerm = $request->exists('is_vadeli');
+
+        if (! $updatingEmail && ! $updatingNotify && ! $updatingTerm) {
+            return response()->json(['message' => 'Güncellenecek alan yok.'], 422);
+        }
+
+        $rules = [];
+        if ($updatingEmail) {
+            $rules['email'] = ['nullable', 'email', 'max:255'];
+        }
+        if ($updatingNotify) {
+            $rules['notifications_enabled'] = ['boolean'];
+        }
+        if ($updatingTerm) {
+            $rules['is_vadeli'] = ['boolean'];
+            $rules['odeme_vadesi_gun'] = [
+                $request->boolean('is_vadeli') ? 'required' : 'nullable',
+                'integer',
+                'min:0',
+                'max:3650',
+            ];
+        }
+
+        $validated = $request->validate($rules);
+
+        $payload = [];
+        if ($updatingEmail) {
+            $payload['email'] = filled($validated['email'] ?? null) ? $validated['email'] : null;
+        }
+        if ($updatingNotify || $updatingEmail) {
+            $email = array_key_exists('email', $payload) ? $payload['email'] : $cari->email;
+            $wantNotify = $updatingNotify
+                ? $request->boolean('notifications_enabled')
+                : (bool) $cari->notifications_enabled;
+            $payload['notifications_enabled'] = $wantNotify && filled($email);
+        }
+        if ($updatingTerm) {
+            $payload['odeme_vadesi_gun'] = $request->boolean('is_vadeli')
+                ? (int) $validated['odeme_vadesi_gun']
+                : null;
+        }
+
+        $cari->update($payload);
+        $cari->refresh();
+
+        return response()->json([
+            'ok' => true,
+            'email' => $cari->email,
+            'notifications_enabled' => $cari->notifications_enabled,
+            'can_receive_notifications' => $cari->canReceiveNotifications(),
+            'odeme_vadesi_gun' => $cari->odeme_vadesi_gun,
+            'has_payment_term' => $cari->hasPaymentTerm(),
+        ]);
     }
 
     /**

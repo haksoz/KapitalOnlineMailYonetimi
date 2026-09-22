@@ -20,7 +20,7 @@
         <div class="text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg p-3">
             <p class="font-medium text-gray-700 mb-2">Aşamalar — aynı faturaya aynı anda yalnızca biri gider</p>
             <ol class="list-decimal list-inside space-y-1">
-                <li><strong>Fatura vadesi yaklaşıyor</strong> — vadeden kuraldaki gün kadar önce başlar, vade gününe kadar.</li>
+                <li><strong>Fatura vadesi yaklaşıyor</strong> — vadeden kuraldaki gün kadar önce başlar, vade gününe kadar. Peşin carilere gitmez.</li>
                 <li><strong>Fatura vadesi geçti</strong> — vade ertesinden itibaren. Faiz kuralı aktifse, vade + {{ $interestStartDays }} gün dolduğu gün durur.</li>
                 <li><strong>Faiz uygulaması ve kapatma</strong> — vade + {{ $interestStartDays }} günden sonra gecikmenin yerini alır. Bir kez gittiyse gecikme o faturaya bir daha gitmez.</li>
             </ol>
