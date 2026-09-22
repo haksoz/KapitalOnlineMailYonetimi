@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Automation\DomainEvents;
 use App\Models\Subscription;
 use Carbon\Carbon;
 
@@ -158,6 +159,7 @@ class SubscriptionRenewalService
             $subscription->update([
                 'durum' => Subscription::DURUM_CANCELLED,
             ]);
+            app(DomainEvents::class)->subscriptionExpired($subscription->fresh(['customerCari']) ?? $subscription);
         }
 
         // 2) Otomatik yenileme kapalı, bitiş tarihi geçmiş aktif abonelikler
@@ -172,6 +174,7 @@ class SubscriptionRenewalService
             $subscription->update([
                 'durum' => Subscription::DURUM_CANCELLED,
             ]);
+            app(DomainEvents::class)->subscriptionExpired($subscription->fresh(['customerCari']) ?? $subscription);
         }
     }
 

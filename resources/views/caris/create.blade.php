@@ -26,6 +26,8 @@
 
                 <x-cari-email-notification-fields :email="old('email')" />
 
+                <x-cari-payment-term-fields :days="old('odeme_vadesi_gun')" />
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <x-input-label for="country_code" value="Ülke Kodu" />

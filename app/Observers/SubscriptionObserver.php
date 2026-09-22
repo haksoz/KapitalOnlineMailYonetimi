@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Automation\DomainEvents;
 use App\Models\Subscription;
 use App\Models\SubscriptionPriceHistory;
 
@@ -29,7 +30,7 @@ class SubscriptionObserver
                 continue;
             }
 
-            SubscriptionPriceHistory::create([
+            $history = SubscriptionPriceHistory::create([
                 'subscription_id' => $subscription->id,
                 'field_name' => $field,
                 'old_value' => $oldValue,
@@ -38,6 +39,7 @@ class SubscriptionObserver
                 'reason' => null,
                 'created_at' => $now,
             ]);
+            app(DomainEvents::class)->subscriptionPriceChanged($subscription, $history);
         }
     }
 

@@ -22,7 +22,7 @@
         @if(Auth::user()?->isAdmin())
             <x-sidebar-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" :close-on-click="$mobile">Kullanıcı Yönetimi</x-sidebar-link>
             <x-sidebar-link :href="route('admin.mail-settings.edit')" :active="request()->routeIs('admin.mail-settings.*')" :close-on-click="$mobile">Mail Yönetimi</x-sidebar-link>
-            <x-sidebar-link :href="route('admin.notifications.edit')" :active="request()->routeIs('admin.notifications.*')" :close-on-click="$mobile">Bildiri Yönetimi</x-sidebar-link>
+            <x-sidebar-link :href="route('admin.notifications.edit')" :active="request()->routeIs('admin.notifications.*')" :close-on-click="$mobile">Bildirim Yönetimi</x-sidebar-link>
             <x-sidebar-link :href="route('admin.reports.cari-ledger')" :active="request()->routeIs('admin.reports.cari-ledger*')" :close-on-click="$mobile">Hesap Dökümü Raporu</x-sidebar-link>
         @endif
         <x-sidebar-link :href="route('triggers.index')" :active="request()->routeIs('triggers.*')" :close-on-click="$mobile">Tetikleyiciler</x-sidebar-link>

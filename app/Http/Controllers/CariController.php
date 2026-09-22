@@ -85,6 +85,8 @@ class CariController extends Controller
             'country_code' => ['nullable', 'string', 'size:2'],
             'tax_number' => ['nullable', 'string', 'max:50'],
             'cari_type' => ['nullable', 'string', 'max:32'],
+            'is_vadeli' => ['nullable', 'boolean'],
+            'odeme_vadesi_gun' => [$request->boolean('is_vadeli') ? 'required' : 'nullable', 'integer', 'min:0', 'max:3650'],
         ]);
 
         if (empty($validated['country_code'])) {
@@ -94,6 +96,10 @@ class CariController extends Controller
         $validated['email'] = filled($validated['email'] ?? null) ? $validated['email'] : null;
         $validated['notifications_enabled'] = $request->boolean('notifications_enabled')
             && filled($validated['email']);
+        $validated['odeme_vadesi_gun'] = $request->boolean('is_vadeli')
+            ? (int) $validated['odeme_vadesi_gun']
+            : null;
+        unset($validated['is_vadeli']);
 
         return $validated;
     }

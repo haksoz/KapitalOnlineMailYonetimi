@@ -61,12 +61,49 @@
                 <input type="hidden" name="pending_billing_ids[]" value="{{ $pb->id }}">
             @endforeach
 
-            <div class="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div
+                class="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4"
+                x-data="{
+                    settlementDate: {{ \Illuminate\Support\Js::from(old('settlement_date', now()->toDateString())) }},
+                    termDays: {{ \Illuminate\Support\Js::from($customerCari?->odeme_vadesi_gun) }},
+                    dueDate: {{ \Illuminate\Support\Js::from(old('due_date', $suggestedDueDate?->format('Y-m-d'))) }},
+                    lastSuggested: {{ \Illuminate\Support\Js::from($suggestedDueDate?->format('Y-m-d')) }},
+                    suggested() {
+                        if (this.termDays === null || this.termDays === '' || ! this.settlementDate) return '';
+                        const parts = String(this.settlementDate).split('-').map(Number);
+                        if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return '';
+                        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                        date.setDate(date.getDate() + Number(this.termDays));
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        return date.getFullYear() + '-' + month + '-' + day;
+                    }
+                }"
+                x-init="$watch('settlementDate', () => {
+                    const next = this.suggested();
+                    if (! this.dueDate || this.dueDate === this.lastSuggested) {
+                        this.dueDate = next;
+                    }
+                    this.lastSuggested = next;
+                })"
+            >
                 <div>
                     <x-input-label for="settlement_date" value="Giderleştirme tarihi" />
-                    <x-text-input id="settlement_date" name="settlement_date" type="date" class="mt-1 block w-full" :value="old('settlement_date', now()->toDateString())" />
+                    <x-text-input id="settlement_date" name="settlement_date" type="date" class="mt-1 block w-full" x-model="settlementDate" :value="old('settlement_date', now()->toDateString())" />
                 </div>
                 <div>
+                    <x-input-label for="due_date" value="Vade tarihi" />
+                    <x-text-input id="due_date" name="due_date" type="date" class="mt-1 block w-full" x-model="dueDate" :value="old('due_date', $suggestedDueDate?->format('Y-m-d'))" />
+                    <p class="mt-1 text-xs text-gray-500">
+                        @if ($suggestedDueDate)
+                            Cari vadesinden önerilen tarih: <strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>. Boş bırakırsanız yeniden hesaplanır.
+                        @else
+                            Bu cari vadeli değil. Ödeme istemek için tarihi elle girin veya cari kartına vade günü ekleyin.
+                        @endif
+                    </p>
+                    <x-input-error :messages="$errors->get('due_date')" class="mt-1" />
+                </div>
+                <div class="sm:col-span-2">
                     <x-input-label for="notes" value="Not (opsiyonel)" />
                     <x-text-input id="notes" name="notes" type="text" class="mt-1 block w-full" :value="old('notes')" />
                 </div>

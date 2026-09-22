@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,13 +21,29 @@ class Cari extends Model
         'country_code',
         'tax_number',
         'cari_type',
+        'odeme_vadesi_gun',
     ];
 
     protected function casts(): array
     {
         return [
             'notifications_enabled' => 'boolean',
+            'odeme_vadesi_gun' => 'integer',
         ];
+    }
+
+    public function hasPaymentTerm(): bool
+    {
+        return $this->odeme_vadesi_gun !== null;
+    }
+
+    public function dueDateFrom(?CarbonInterface $documentDate): ?CarbonInterface
+    {
+        if ($documentDate === null || $this->odeme_vadesi_gun === null) {
+            return null;
+        }
+
+        return Carbon::parse($documentDate->toDateString())->addDays((int) $this->odeme_vadesi_gun);
     }
 
     public function canReceiveNotifications(): bool

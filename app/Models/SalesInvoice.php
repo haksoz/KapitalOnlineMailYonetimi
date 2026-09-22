@@ -69,8 +69,8 @@ class SalesInvoice extends Model
     }
 
     /**
-     * Fatura tarihi + satır aboneliklerindeki en kısa ödeme vadesi.
-     * Numara veya tarih yoksa, ya da hiç vade tanımlı değilse null.
+     * Fatura tarihi + müşteri carisinin ödeme vadesi.
+     * Numara veya tarih yoksa, ya da cari vadeli değilse null.
      */
     public function computeDueDate(): ?\Carbon\CarbonInterface
     {
@@ -78,18 +78,9 @@ class SalesInvoice extends Model
             return null;
         }
 
-        $this->loadMissing('lines.pendingBilling.subscription');
+        $this->loadMissing('customerCari');
 
-        $days = $this->lines
-            ->map(fn (SalesInvoiceLine $line) => $line->pendingBilling?->subscription?->odeme_vadesi_gun)
-            ->filter(fn ($value) => $value !== null && $value !== '')
-            ->min();
-
-        if ($days === null) {
-            return null;
-        }
-
-        return $this->our_invoice_date->copy()->addDays((int) $days);
+        return $this->customerCari?->dueDateFrom($this->our_invoice_date);
     }
 
     public function refreshDueDate(): void

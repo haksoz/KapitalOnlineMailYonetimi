@@ -35,7 +35,8 @@ class CariNotificationSettingTest extends TestCase
         $this->actingAs($user)
             ->get(route('caris.edit', $cari))
             ->assertOk()
-            ->assertSee('Bildirim açık', false);
+            ->assertSee('Bildirim açık', false)
+            ->assertSee('Vadeli çalışılıyor', false);
     }
 
     public function test_can_enable_notifications_on_update(): void
@@ -145,5 +146,63 @@ class CariNotificationSettingTest extends TestCase
 
         $this->assertNull($cari->fresh()->email);
         $this->assertFalse($cari->fresh()->notifications_enabled);
+    }
+
+    public function test_can_save_payment_term_on_cari(): void
+    {
+        $user = $this->makeUser();
+        $cari = Cari::create([
+            'name' => 'Acme',
+            'short_name' => 'Acme',
+            'email' => 'acme@example.com',
+            'notifications_enabled' => false,
+            'cari_type' => 'customer',
+            'tax_number' => '1111111111',
+        ]);
+
+        $this->actingAs($user)->patch(route('caris.update', $cari), [
+            'name' => 'Acme',
+            'short_name' => 'Acme',
+            'email' => 'acme@example.com',
+            'notifications_enabled' => '0',
+            'country_code' => 'TR',
+            'tax_number' => '1111111111',
+            'cari_type' => 'customer',
+            'is_vadeli' => '1',
+            'odeme_vadesi_gun' => '14',
+        ])->assertRedirect(route('caris.index'));
+
+        $cari->refresh();
+        $this->assertTrue($cari->hasPaymentTerm());
+        $this->assertSame(14, $cari->odeme_vadesi_gun);
+        $this->assertSame('2026-09-15', $cari->dueDateFrom(\Carbon\Carbon::parse('2026-09-01'))?->format('Y-m-d'));
+    }
+
+    public function test_can_clear_payment_term_on_cari(): void
+    {
+        $user = $this->makeUser();
+        $cari = Cari::create([
+            'name' => 'Acme',
+            'short_name' => 'Acme',
+            'email' => 'acme@example.com',
+            'notifications_enabled' => false,
+            'cari_type' => 'customer',
+            'tax_number' => '1111111111',
+            'odeme_vadesi_gun' => 7,
+        ]);
+
+        $this->actingAs($user)->patch(route('caris.update', $cari), [
+            'name' => 'Acme',
+            'short_name' => 'Acme',
+            'email' => 'acme@example.com',
+            'notifications_enabled' => '0',
+            'country_code' => 'TR',
+            'tax_number' => '1111111111',
+            'cari_type' => 'customer',
+            'is_vadeli' => '0',
+        ])->assertRedirect(route('caris.index'));
+
+        $this->assertNull($cari->fresh()->odeme_vadesi_gun);
+        $this->assertFalse($cari->fresh()->hasPaymentTerm());
     }
 }

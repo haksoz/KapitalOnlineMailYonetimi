@@ -84,6 +84,7 @@ class ExpenseSettlementTest extends TestCase
 
         $this->assertSame('GDN000001', $settlement->gider_number);
         $this->assertSame('2026-08-15', $settlement->settlement_date->format('Y-m-d'));
+        $this->assertNull($settlement->due_date);
         $this->assertEquals(200.0, (float) $settlement->total_amount_tl);
         $this->assertFalse($settlement->is_closed);
         $this->assertNull($settlement->closed_at);
@@ -341,5 +342,83 @@ class ExpenseSettlementTest extends TestCase
         $settlement->refresh();
         $this->assertFalse($settlement->is_closed);
         $this->assertNull($settlement->closed_at);
+    }
+
+    public function test_store_sets_due_date_from_cari_term(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari, , $pendingBilling] = $this->makePendingOrder();
+        $customerCari->update(['odeme_vadesi_gun' => 10]);
+
+        $this->actingAs($user)->post(route('expense-settlements.store'), [
+            'customer_cari_id' => $customerCari->id,
+            'pending_billing_ids' => [$pendingBilling->id],
+            'line_amounts' => [$pendingBilling->id => 200],
+            'settlement_date' => '2026-08-15',
+        ])->assertRedirect();
+
+        $settlement = ExpenseSettlement::query()->firstOrFail();
+        $this->assertSame('2026-08-25', $settlement->due_date?->format('Y-m-d'));
+    }
+
+    public function test_store_accepts_manual_due_date_override(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari, , $pendingBilling] = $this->makePendingOrder();
+        $customerCari->update(['odeme_vadesi_gun' => 10]);
+
+        $this->actingAs($user)->post(route('expense-settlements.store'), [
+            'customer_cari_id' => $customerCari->id,
+            'pending_billing_ids' => [$pendingBilling->id],
+            'line_amounts' => [$pendingBilling->id => 200],
+            'settlement_date' => '2026-08-15',
+            'due_date' => '2026-09-01',
+        ])->assertRedirect();
+
+        $settlement = ExpenseSettlement::query()->firstOrFail();
+        $this->assertSame('2026-09-01', $settlement->due_date?->format('Y-m-d'));
+    }
+
+    public function test_create_form_shows_suggested_due_date_from_cari(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari, , $pendingBilling] = $this->makePendingOrder();
+        $customerCari->update(['odeme_vadesi_gun' => 7]);
+
+        $this->actingAs($user)
+            ->get(route('expense-settlements.create', [
+                'pending_billing_ids' => [$pendingBilling->id],
+            ]))
+            ->assertOk()
+            ->assertSee('Vade tarihi', false)
+            ->assertSee('Cari vadesinden önerilen tarih', false);
+    }
+
+    public function test_can_update_due_date_on_existing_settlement(): void
+    {
+        $user = $this->makeUser();
+        [$customerCari] = $this->makePendingOrder();
+        $customerCari->update(['odeme_vadesi_gun' => 7]);
+
+        $settlement = ExpenseSettlement::create([
+            'customer_cari_id' => $customerCari->id,
+            'gider_number' => 'GDN000090',
+            'settlement_date' => '2026-08-20',
+            'total_amount_tl' => 200,
+        ]);
+
+        $this->actingAs($user)->from(route('expense-settlements.show', $settlement))
+            ->patch(route('expense-settlements.update-due-date', $settlement), [
+                'due_date' => '2026-09-05',
+            ])
+            ->assertRedirect(route('expense-settlements.show', $settlement));
+
+        $this->assertSame('2026-09-05', $settlement->fresh()->due_date?->format('Y-m-d'));
+
+        $this->actingAs($user)->patch(route('expense-settlements.update-due-date', $settlement), [
+            'due_date' => '',
+        ]);
+
+        $this->assertSame('2026-08-27', $settlement->fresh()->due_date?->format('Y-m-d'));
     }
 }

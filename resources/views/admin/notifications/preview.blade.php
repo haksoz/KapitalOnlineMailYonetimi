@@ -16,8 +16,8 @@
                     <p class="text-xs text-slate-500 mt-0.5">Fatura {{ $invoice_number }}</p>
                 @endif
             </div>
-            <a href="{{ route('admin.notifications.edit') }}" class="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50">
-                Bildiri yönetimine dön
+            <a href="{{ route('admin.notifications.templates.index') }}" class="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50">
+                Bildirim yönetimine dön
             </a>
         </div>
 

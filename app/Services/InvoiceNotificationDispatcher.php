@@ -2,228 +2,47 @@
 
 namespace App\Services;
 
+use App\Automation\InvoiceReminderEvaluator;
+use App\Automation\InvoiceTimeWindowDetector;
+use App\Automation\JobRunner;
+use App\Automation\SubscriptionTimeWindowDetector;
+use App\Models\AutomationRule;
 use App\Models\MailSetting;
-use App\Models\NotificationDefinition;
-use App\Models\NotificationSend;
+use App\Models\NotificationTemplate;
 use App\Models\SalesInvoice;
+use App\Automation\InvoicePlaceholders;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class InvoiceNotificationDispatcher
 {
-    /** @var \Illuminate\Support\Collection<string, NotificationDefinition>|null */
-    private $definitionsByKey = null;
-
-    /** @var array<int, true>|null */
-    private $interestSentInvoiceIds = null;
+    public function __construct(
+        private readonly InvoiceTimeWindowDetector $invoiceDetector,
+        private readonly SubscriptionTimeWindowDetector $subscriptionDetector,
+        private readonly JobRunner $runner,
+        private readonly InvoiceReminderEvaluator $evaluator,
+    ) {
+    }
 
     public function dispatch(?CarbonInterface $now = null, bool $respectSendAt = true): int
     {
         MailSetting::applyToRuntime();
         $now = Carbon::parse($now ?? now());
-        $businessDate = $now->copy()->timezone(NotificationDefinition::TIMEZONE)->toDateString();
-        $today = Carbon::parse($businessDate)->startOfDay();
+        $this->invoiceDetector->detect($now);
+        $this->subscriptionDetector->detect($now);
 
-        $this->definitionsByKey = NotificationDefinition::query()->get()->keyBy('key');
-        $legal = $this->definitionsByKey->get(NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE);
-        $this->interestSentInvoiceIds = $legal
-            ? array_fill_keys(
-                NotificationSend::query()
-                    ->where('notification_definition_id', $legal->id)
-                    ->pluck('sales_invoice_id')
-                    ->all(),
-                true
-            )
-            : [];
-
-        try {
-            $sent = 0;
-            $definitions = $this->definitionsByKey->where('is_enabled', true);
-            foreach ($definitions as $definition) {
-                if ($respectSendAt && ! $definition->isSendTimeReached($now)) {
-                    continue;
-                }
-                $sent += $this->dispatchDefinition($definition, $today, $now);
-            }
-
-            return $sent;
-        } finally {
-            $this->definitionsByKey = null;
-            $this->interestSentInvoiceIds = null;
-        }
+        return $this->runner->run($now, $respectSendAt);
     }
 
-    private function dispatchDefinition(NotificationDefinition $definition, Carbon $today, Carbon $now): int
+    public function isEligible(AutomationRule $rule, SalesInvoice $invoice, Carbon $today): bool
     {
-        $invoices = SalesInvoice::query()
-            ->with(['customerCari'])
-            ->where('is_paid', false)
-            ->whereNotNull('due_date')
-            ->whereNotNull('our_invoice_number')
-            ->where('our_invoice_number', '!=', '')
-            ->whereHas('customerCari', function ($q): void {
-                $q->receivesNotifications();
-            })
-            ->get();
-
-        $count = 0;
-        foreach ($invoices as $invoice) {
-            if (! $this->isEligible($definition, $invoice, $today)) {
-                continue;
-            }
-            if (! $this->intervalElapsed($definition, $invoice, $today)) {
-                continue;
-            }
-            if ($this->send($definition, $invoice, $now)) {
-                $count++;
-            }
-        }
-
-        return $count;
+        return $this->evaluator->isEligible($rule, $invoice, $today);
     }
 
-    public function isEligible(NotificationDefinition $definition, SalesInvoice $invoice, Carbon $today): bool
+    public function intervalElapsed(AutomationRule $rule, SalesInvoice $invoice, Carbon $today): bool
     {
-        if ($invoice->is_paid || $invoice->due_date === null || $invoice->our_invoice_date === null || blank($invoice->our_invoice_number)) {
-            return false;
-        }
-
-        if (! $invoice->customerCari?->canReceiveNotifications()) {
-            return false;
-        }
-
-        $due = $invoice->due_date->copy()->startOfDay();
-        $invoiceDate = $invoice->our_invoice_date->copy()->startOfDay();
-        $today = $today->copy()->startOfDay();
-
-        if ($definition->key === NotificationDefinition::KEY_INVOICE_DUE_REMINDER) {
-            if ($today->gt($due)) {
-                return false;
-            }
-            $startOn = $invoiceDate->copy()->addDays((int) $definition->start_after_days);
-
-            return $today->gte($startOn);
-        }
-
-        if ($definition->key === NotificationDefinition::KEY_INVOICE_OVERDUE) {
-            if ($today->lte($due)) {
-                return false;
-            }
-            $startOn = $due->copy()->addDay()->addDays((int) $definition->start_after_days);
-            if ($today->lt($startOn)) {
-                return false;
-            }
-            if ($this->invoiceHasInterestClosureSend($invoice)) {
-                return false;
-            }
-            $legalStart = $this->interestClosureStartDate($due);
-            if ($legalStart !== null && $today->gte($legalStart)) {
-                return false;
-            }
-
-            return true;
-        }
-
-        if ($definition->key === NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE) {
-            if ($today->lte($due)) {
-                return false;
-            }
-            $startOn = $due->copy()->addDays((int) $definition->start_after_days);
-
-            return $today->gte($startOn);
-        }
-
-        return false;
-    }
-
-    private function definitionByKey(string $key): ?NotificationDefinition
-    {
-        if ($this->definitionsByKey !== null) {
-            return $this->definitionsByKey->get($key);
-        }
-
-        return NotificationDefinition::query()->where('key', $key)->first();
-    }
-
-    private function interestClosureStartDate(Carbon $due): ?Carbon
-    {
-        $legal = $this->definitionByKey(NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE);
-        if ($legal === null || ! $legal->is_enabled) {
-            return null;
-        }
-
-        return $due->copy()->startOfDay()->addDays((int) $legal->start_after_days);
-    }
-
-    private function invoiceHasInterestClosureSend(SalesInvoice $invoice): bool
-    {
-        if ($this->interestSentInvoiceIds !== null) {
-            return isset($this->interestSentInvoiceIds[$invoice->id]);
-        }
-
-        $legal = $this->definitionByKey(NotificationDefinition::KEY_INVOICE_INTEREST_CLOSURE);
-        if ($legal === null) {
-            return false;
-        }
-
-        return NotificationSend::query()
-            ->where('notification_definition_id', $legal->id)
-            ->where('sales_invoice_id', $invoice->id)
-            ->exists();
-    }
-
-    public function intervalElapsed(NotificationDefinition $definition, SalesInvoice $invoice, Carbon $today): bool
-    {
-        $last = NotificationSend::query()
-            ->where('notification_definition_id', $definition->id)
-            ->where('sales_invoice_id', $invoice->id)
-            ->orderByDesc('sent_at')
-            ->first();
-
-        if ($last === null) {
-            return true;
-        }
-
-        $nextAllowed = $last->sent_at->copy()->startOfDay()->addDays((int) $definition->interval_days);
-
-        return $nextAllowed->lte($today->copy()->startOfDay());
-    }
-
-    private function send(NotificationDefinition $definition, SalesInvoice $invoice, Carbon $now): bool
-    {
-        $to = (string) $invoice->customerCari?->email;
-        if ($to === '' || ! $invoice->customerCari?->canReceiveNotifications()) {
-            return false;
-        }
-        $replacements = $this->replacements($invoice);
-        $subject = $definition->renderSubject($replacements);
-        $body = $definition->renderBody($replacements);
-        $sentAt = $now->copy()->timezone(NotificationDefinition::TIMEZONE);
-
-        try {
-            Mail::raw($body, function ($message) use ($to, $subject): void {
-                $message->to($to)->subject($subject);
-            });
-        } catch (\Throwable $e) {
-            Log::error('Bildiri maili gönderilemedi.', [
-                'definition' => $definition->key,
-                'sales_invoice_id' => $invoice->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
-
-        NotificationSend::create([
-            'notification_definition_id' => $definition->id,
-            'sales_invoice_id' => $invoice->id,
-            'sent_at' => $sentAt,
-            'to_email' => $to,
-        ]);
-
-        return true;
+        return $this->evaluator->intervalElapsed($rule, $invoice, $today);
     }
 
     /**
@@ -231,31 +50,17 @@ class InvoiceNotificationDispatcher
      */
     public function replacements(SalesInvoice $invoice): array
     {
-        $invoice->loadMissing(['customerCari', 'lines.pendingBilling.subscription']);
-        $cari = $invoice->customerCari;
-        $amount = $invoice->payableAmountTl();
-        $formattedAmount = $amount !== null
-            ? number_format($amount, 2, ',', '.') . ' ₺'
-            : '';
-
-        return [
-            '{musteri}' => (string) ($cari?->short_name ?: $cari?->name ?: ''),
-            '{fatura_no}' => (string) ($invoice->our_invoice_number ?? ''),
-            '{fatura_tarihi}' => $invoice->our_invoice_date?->format('d.m.Y') ?? '',
-            '{vade_tarihi}' => $invoice->due_date?->format('d.m.Y') ?? '',
-            '{tutar}' => $formattedAmount,
-            '{ftn}' => (string) ($invoice->order_number ?? ''),
-        ];
+        return InvoicePlaceholders::forInvoice($invoice);
     }
 
-    public function sendTest(NotificationDefinition $definition, SalesInvoice $invoice, string $to): void
+    public function sendTest(NotificationTemplate $template, SalesInvoice $invoice, string $to): void
     {
         MailSetting::applyToRuntime();
         $invoice->loadMissing(['customerCari', 'lines.pendingBilling.subscription']);
 
         $replacements = $this->replacements($invoice);
-        $subject = '[TEST] ' . $definition->renderSubject($replacements);
-        $body = $definition->renderBody($replacements);
+        $subject = '[TEST] '.$template->renderSubject($replacements);
+        $body = $template->renderBody($replacements);
 
         Mail::raw($body, function ($message) use ($to, $subject): void {
             $message->to($to)->subject($subject);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Automation\DomainEvents;
 use App\Models\Cari;
 use App\Models\ExchangeRate;
 use App\Models\PendingBilling;
@@ -236,8 +237,12 @@ class SalesInvoiceController extends Controller
         if ($salesInvoice->order_number === null || $salesInvoice->order_number === '') {
             $update['order_number'] = SalesInvoice::getNextFaturaTakipNo();
         }
+        $issuedNow = blank($salesInvoice->our_invoice_number) && filled($update['our_invoice_number'] ?? null);
         $salesInvoice->update($update);
         $salesInvoice->refreshDueDate();
+        if ($issuedNow) {
+            app(DomainEvents::class)->invoiceIssued($salesInvoice->fresh(['customerCari', 'lines.pendingBilling.subscription']) ?? $salesInvoice);
+        }
 
         $request->session()->forget('sales_invoice_xml_parsed');
 
@@ -614,6 +619,8 @@ class SalesInvoiceController extends Controller
             $diffReason = null;
         }
 
+        $issuedNow = blank($sales_invoice->our_invoice_number) && filled($validated['our_invoice_number']);
+
         $sales_invoice->update([
             'our_invoice_number' => $validated['our_invoice_number'],
             'our_invoice_date' => $validated['our_invoice_date'],
@@ -631,6 +638,10 @@ class SalesInvoiceController extends Controller
             $sales_invoice->refreshDueDate();
         }
 
+        if ($issuedNow) {
+            app(DomainEvents::class)->invoiceIssued($sales_invoice->fresh(['customerCari', 'lines.pendingBilling.subscription']) ?? $sales_invoice);
+        }
+
         return redirect()
             ->route('sales-invoices.index')
             ->with('success', 'Fatura bilgisi kaydedildi.');
@@ -643,6 +654,7 @@ class SalesInvoiceController extends Controller
         }
 
         $sales_invoice->markAsPaid();
+        app(DomainEvents::class)->invoicePaid($sales_invoice->fresh(['customerCari', 'lines.pendingBilling.subscription']) ?? $sales_invoice);
 
         return back()->with('success', 'Fatura ödendi olarak işaretlendi.');
     }

@@ -26,6 +26,21 @@
                     <dd class="font-medium text-gray-900">{{ $expenseSettlement->settlement_date?->format('d.m.Y') ?? '—' }}</dd>
                 </div>
                 <div>
+                    <dt class="text-gray-500">Vade tarihi</dt>
+                    <dd class="font-medium text-gray-900">{{ $expenseSettlement->due_date?->format('d.m.Y') ?? '—' }}</dd>
+                    <form method="POST" action="{{ route('expense-settlements.update-due-date', $expenseSettlement) }}" class="mt-2 flex flex-wrap items-end gap-2">
+                        @csrf
+                        @method('PATCH')
+                        <div>
+                            <x-input-label for="due_date" value="Vade güncelle" class="!text-xs" />
+                            <x-text-input id="due_date" name="due_date" type="date" class="mt-1 block text-sm" :value="old('due_date', $expenseSettlement->due_date?->format('Y-m-d'))" />
+                        </div>
+                        <button type="submit" class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50">
+                            Kaydet
+                        </button>
+                    </form>
+                </div>
+                <div>
                     <dt class="text-gray-500">Toplam (KDV’siz)</dt>
                     <dd class="font-medium text-gray-900">
                         {{ $expenseSettlement->total_amount_tl !== null ? number_format((float) $expenseSettlement->total_amount_tl, 2, ',', '.') . ' ₺' : '—' }}

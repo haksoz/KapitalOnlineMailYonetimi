@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cari;
 use App\Models\ExchangeRate;
 use App\Models\ExpenseSettlement;
 use App\Models\ExpenseSettlementLine;
 use App\Models\PendingBilling;
 use App\Services\PendingBillingService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,12 +71,17 @@ class ExpenseSettlementController extends Controller
         }
 
         $customerCariId = (string) $customerCariIds[0];
+        $customerCari = Cari::query()->find($customerCariId);
         $usdEfektifSelling = $this->getUsdEfektifSelling();
+        $settlementDate = old('settlement_date', now()->toDateString());
+        $suggestedDueDate = $customerCari?->dueDateFrom(Carbon::parse($settlementDate));
 
         return view('expense-settlements.create', [
             'customerCariId' => $customerCariId,
+            'customerCari' => $customerCari,
             'pendingBillings' => $pendingBillings,
             'usdEfektifSelling' => $usdEfektifSelling,
+            'suggestedDueDate' => $suggestedDueDate,
         ]);
     }
 
@@ -87,6 +94,7 @@ class ExpenseSettlementController extends Controller
             'line_amounts' => ['required', 'array'],
             'line_amounts.*' => ['required', 'numeric', 'min:0'],
             'settlement_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -143,12 +151,16 @@ class ExpenseSettlementController extends Controller
         }
 
         $settlementDate = $validated['settlement_date'] ?? now()->toDateString();
+        $customerCari = Cari::query()->find($customerCariId);
+        $dueDate = filled($validated['due_date'] ?? null)
+            ? $validated['due_date']
+            : $customerCari?->dueDateFrom(Carbon::parse($settlementDate))?->toDateString();
         $notes = isset($validated['notes']) ? trim((string) $validated['notes']) : '';
         if ($notes === '') {
             $notes = null;
         }
 
-        $expenseSettlement = DB::transaction(function () use ($pendingBillings, $customerCariId, $lineAmountsById, $settlementDate, $notes) {
+        $expenseSettlement = DB::transaction(function () use ($pendingBillings, $customerCariId, $lineAmountsById, $settlementDate, $dueDate, $notes) {
             $total = 0.0;
             $resolved = [];
             foreach ($pendingBillings as $pb) {
@@ -164,6 +176,7 @@ class ExpenseSettlementController extends Controller
                 'customer_cari_id' => $customerCariId,
                 'gider_number' => ExpenseSettlement::getNextGiderNo(),
                 'settlement_date' => $settlementDate,
+                'due_date' => $dueDate,
                 'total_amount_tl' => $total,
                 'notes' => $notes,
             ]);
@@ -198,6 +211,21 @@ class ExpenseSettlementController extends Controller
         ]);
 
         return view('expense-settlements.show', ['expenseSettlement' => $expense_settlement]);
+    }
+
+    public function updateDueDate(Request $request, ExpenseSettlement $expense_settlement): RedirectResponse
+    {
+        $validated = $request->validate([
+            'due_date' => ['nullable', 'date'],
+        ]);
+
+        if (filled($validated['due_date'] ?? null)) {
+            $expense_settlement->update(['due_date' => $validated['due_date']]);
+        } else {
+            $expense_settlement->refreshDueDate();
+        }
+
+        return back()->with('success', 'Vade tarihi kaydedildi.');
     }
 
     public function revert(ExpenseSettlement $expense_settlement): RedirectResponse

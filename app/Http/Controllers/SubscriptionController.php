@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Automation\DomainEvents;
 use App\Models\Cari;
 use App\Models\Product;
 use App\Models\ServiceProvider;
@@ -88,7 +89,6 @@ class SubscriptionController extends Controller
             'usd_birim_satis' => ['nullable', 'numeric', 'min:0'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'currency' => ['nullable', 'string', 'in:USD,TRY'],
-            'odeme_vadesi_gun' => ['required', 'integer', 'min:0', 'max:3650'],
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
         if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
@@ -123,6 +123,7 @@ class SubscriptionController extends Controller
 
         $subscription = Subscription::create($validated);
         $this->pendingBillingService->addFirstPeriodForSubscription($subscription);
+        app(DomainEvents::class)->subscriptionCreated($subscription->fresh(['customerCari']) ?? $subscription);
 
         return redirect()->route('subscriptions.index')->with('success', 'Abonelik eklendi.');
     }
@@ -208,7 +209,7 @@ class SubscriptionController extends Controller
             'effective_date' => $validated['effective_date'],
         ]);
 
-        SubscriptionQuantityHistory::create([
+        $history = SubscriptionQuantityHistory::create([
             'subscription_id' => $subscription->id,
             'previous_quantity' => $previousQuantity,
             'new_quantity' => $newQuantity,
@@ -218,6 +219,7 @@ class SubscriptionController extends Controller
         ]);
 
         $subscription->update(['quantity' => $newQuantity]);
+        app(DomainEvents::class)->subscriptionQuantityChanged($subscription->fresh(['customerCari']) ?? $subscription, $history);
 
         return redirect()
             ->route('subscriptions.show', $subscription)
@@ -260,15 +262,11 @@ class SubscriptionController extends Controller
             'usd_birim_alis' => ['nullable', 'numeric', 'min:0'],
             'usd_birim_satis' => ['nullable', 'numeric', 'min:0'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'odeme_vadesi_gun' => ['nullable', 'integer', 'min:0', 'max:3650'],
         ]);
         $validated['auto_renew'] = $request->boolean('auto_renew');
         if (! isset($validated['vat_rate']) || $validated['vat_rate'] === '') {
             $validated['vat_rate'] = 20;
         }
-        $validated['odeme_vadesi_gun'] = $request->filled('odeme_vadesi_gun')
-            ? (int) $validated['odeme_vadesi_gun']
-            : null;
 
         // Para birimi abonelikte kilitli kalır; ürün değişirse yeni ürünün currency'sini al
         if (! empty($validated['product_id'])) {
@@ -306,7 +304,12 @@ class SubscriptionController extends Controller
             }
         }
 
+        $wasAutoRenew = (bool) $subscription->auto_renew;
         $subscription->update($validated);
+        $fresh = $subscription->fresh(['customerCari']) ?? $subscription;
+        if ($wasAutoRenew && ! (bool) $fresh->auto_renew) {
+            app(DomainEvents::class)->subscriptionAutoRenewDisabled($fresh);
+        }
 
         return redirect()->route('subscriptions.index')->with('success', 'Abonelik güncellendi.');
     }
@@ -329,11 +332,15 @@ class SubscriptionController extends Controller
 
         $plannedCancelDate = $bitis?->copy() ?? now()->toDateString();
 
+        $wasAutoRenew = (bool) $subscription->auto_renew;
         $subscription->update([
             'durum' => Subscription::DURUM_PENDING,
             'auto_renew' => false,
             'planned_cancel_date' => $plannedCancelDate,
         ]);
+        if ($wasAutoRenew) {
+            app(DomainEvents::class)->subscriptionAutoRenewDisabled($subscription->fresh(['customerCari']) ?? $subscription);
+        }
 
         return redirect()
             ->route('subscriptions.show', $subscription)
@@ -400,7 +407,11 @@ class SubscriptionController extends Controller
 
         $subscription->update(['auto_renew' => $next]);
 
-        $fresh = $subscription->fresh();
+        $fresh = $subscription->fresh(['customerCari']) ?? $subscription;
+        if ($next === false) {
+            app(DomainEvents::class)->subscriptionAutoRenewDisabled($fresh);
+        }
+
         $label = $fresh->auto_renew ? 'açıldı' : 'kapatıldı';
 
         if ($request->expectsJson()) {

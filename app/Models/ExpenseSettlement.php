@@ -14,6 +14,7 @@ class ExpenseSettlement extends Model
         'customer_cari_id',
         'gider_number',
         'settlement_date',
+        'due_date',
         'total_amount_tl',
         'notes',
         'is_closed',
@@ -24,6 +25,7 @@ class ExpenseSettlement extends Model
     {
         return [
             'settlement_date' => 'date',
+            'due_date' => 'date',
             'total_amount_tl' => 'decimal:2',
             'is_closed' => 'boolean',
             'closed_at' => 'datetime',
@@ -54,6 +56,23 @@ class ExpenseSettlement extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(ExpenseSettlementLine::class, 'expense_settlement_id');
+    }
+
+    public function computeDueDate(): ?\Carbon\CarbonInterface
+    {
+        if ($this->settlement_date === null) {
+            return null;
+        }
+
+        $this->loadMissing('customerCari');
+
+        return $this->customerCari?->dueDateFrom($this->settlement_date);
+    }
+
+    public function refreshDueDate(): void
+    {
+        $this->due_date = $this->computeDueDate();
+        $this->save();
     }
 
     /**

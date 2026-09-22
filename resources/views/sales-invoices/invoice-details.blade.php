@@ -44,10 +44,10 @@
                         class="mt-1 block w-full" :value="old('due_date', $salesInvoice->due_date?->format('Y-m-d'))" />
                     <p class="mt-1 text-xs text-gray-500">
                         @if ($suggestedDueDate)
-                            Abonelik ödeme vadesinden hesaplanan tarih: <strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>.
+                            Cari ödeme vadesinden hesaplanan tarih: <strong>{{ $suggestedDueDate->format('d.m.Y') }}</strong>.
                             Boş bırakırsanız bu değer yazılır; farklı bir tarih girebilirsiniz.
                         @else
-                            Abonelik faturaya dönüşünce vade otomatik gelir. Şimdilik yoksa buraya elle girebilirsiniz.
+                            Bu cari vadeli değil. Vade istiyorsanız tarihi elle girin veya cari kartına vade günü ekleyin.
                         @endif
                     </p>
                     <x-input-error :messages="$errors->get('due_date')" class="mt-1" />

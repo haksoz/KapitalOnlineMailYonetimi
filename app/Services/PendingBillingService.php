@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Automation\DomainEvents;
 use App\Models\ExchangeRate;
 use App\Models\PendingBilling;
 use App\Models\Subscription;
@@ -197,8 +198,12 @@ class PendingBillingService
                     'is_deleted' => false,
                     'status' => PendingBilling::STATUS_PENDING,
                 ]);
+                $restored = $existing->fresh(['subscription.customerCari']);
+                if ($restored !== null) {
+                    $this->emitOrderCreated($restored);
+                }
 
-                return $existing->fresh();
+                return $restored ?? $existing->fresh();
             }
 
             return null;
@@ -214,8 +219,12 @@ class PendingBillingService
         ]);
 
         $this->refreshAmountsForRecord($pending->fresh(['subscription']));
+        $fresh = $pending->fresh(['subscription.customerCari']);
+        if ($fresh !== null) {
+            $this->emitOrderCreated($fresh);
+        }
 
-        return $pending->fresh();
+        return $fresh ?? $pending->fresh();
     }
 
     /**
@@ -284,6 +293,14 @@ class PendingBillingService
                 'period_end' => $periodEnd,
                 'status' => PendingBilling::STATUS_PENDING,
             ]);
+            $created = PendingBilling::query()
+                ->where('subscription_id', $subscription->id)
+                ->whereDate('period_start', $periodStart->toDateString())
+                ->latest('id')
+                ->first();
+            if ($created !== null) {
+                $this->emitOrderCreated($created->load('subscription.customerCari'));
+            }
             $added++;
         }
 
@@ -336,6 +353,14 @@ class PendingBillingService
                     'period_end' => $periodEnd,
                     'status' => PendingBilling::STATUS_PENDING,
                 ]);
+                $created = PendingBilling::query()
+                    ->where('subscription_id', $subscription->id)
+                    ->whereDate('period_start', $cursor->toDateString())
+                    ->latest('id')
+                    ->first();
+                if ($created !== null) {
+                    $this->emitOrderCreated($created->load('subscription.customerCari'));
+                }
                 $added++;
 
                 $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
@@ -390,6 +415,14 @@ class PendingBillingService
                     'period_end' => $periodEnd,
                     'status' => PendingBilling::STATUS_PENDING,
                 ]);
+                $created = PendingBilling::query()
+                    ->where('subscription_id', $subscription->id)
+                    ->whereDate('period_start', $cursor->toDateString())
+                    ->latest('id')
+                    ->first();
+                if ($created !== null) {
+                    $this->emitOrderCreated($created->load('subscription.customerCari'));
+                }
                 $added++;
 
                 $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
@@ -444,5 +477,10 @@ class PendingBillingService
         }
 
         return $copy;
+    }
+
+    private function emitOrderCreated(PendingBilling $pending): void
+    {
+        app(DomainEvents::class)->orderCreated($pending);
     }
 }
