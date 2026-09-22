@@ -13,17 +13,7 @@
 
     <div class="mb-4 max-w-3xl space-y-2">
         <p class="text-sm text-gray-600">E-posta metinleri burada düzenlenir. Kuralın hangi olayda çalışacağı Kurallar sekmesindedir.</p>
-        <div class="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg p-3">
-            <p class="font-medium text-gray-700 mb-2">Mail içeriğinde kullanabileceğiniz yer tutucular</p>
-            <ul class="space-y-1">
-                <li><code class="bg-gray-100 px-1 rounded">{musteri}</code> — müşteri adı</li>
-                <li><code class="bg-gray-100 px-1 rounded">{fatura_no}</code> — fatura numarası</li>
-                <li><code class="bg-gray-100 px-1 rounded">{fatura_tarihi}</code> — fatura tarihi</li>
-                <li><code class="bg-gray-100 px-1 rounded">{vade_tarihi}</code> — vade tarihi</li>
-                <li><code class="bg-gray-100 px-1 rounded">{tutar}</code> — kesilen faturanın <strong>KDV dahil</strong> toplamı</li>
-                <li><code class="bg-gray-100 px-1 rounded">{ftn}</code> — fatura takip no</li>
-            </ul>
-        </div>
+        @include('admin.notifications.partials.placeholders')
     </div>
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden max-w-4xl">

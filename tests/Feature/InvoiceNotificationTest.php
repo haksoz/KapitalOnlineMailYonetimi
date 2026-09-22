@@ -668,6 +668,8 @@ class InvoiceNotificationTest extends TestCase
             ->assertSee('Yeni sekmede aç', false)
             ->assertSee($invoice->our_invoice_number, false)
             ->assertSee('vade '.$invoice->due_date->format('d.m.Y'), false)
+            ->assertSee('{abonelikler}', false)
+            ->assertSee('{abonelik_no}', false)
             ->assertSee('{tutar}', false)
             ->assertSee('Tutar (KDV dahil): {tutar}', false);
     }
@@ -696,6 +698,10 @@ class InvoiceNotificationTest extends TestCase
         $this->assertSame($invoice->due_date->format('d.m.Y'), $replacements['{vade_tarihi}']);
         $this->assertSame('240,00 ₺', $replacements['{tutar}']);
         $this->assertSame('FTN000101', $replacements['{ftn}']);
+        $this->assertSame('SOZ-NTF-001', $replacements['{abonelik_no}']);
+        $this->assertSame('1', $replacements['{adet}']);
+        $this->assertStringContainsString('SOZ-NTF-001', $replacements['{abonelikler}']);
+        $this->assertStringContainsString('1 adet', $replacements['{abonelikler}']);
         $this->assertSame(
             'Hatirlatma ABC2026001',
             $template->fresh()->renderSubject($replacements)
@@ -713,6 +719,20 @@ class InvoiceNotificationTest extends TestCase
 
         $replacements = app(InvoiceNotificationDispatcher::class)->replacements($invoice->fresh());
         $this->assertSame('288,88 ₺', $replacements['{tutar}']);
+    }
+
+    public function test_invoice_placeholders_summarize_subscriptions_and_quantities(): void
+    {
+        $invoice = $this->makeNumberedInvoice(7);
+        $replacements = app(InvoiceNotificationDispatcher::class)->replacements($invoice->fresh());
+
+        $this->assertSame('SOZ-NTF-001', $replacements['{abonelik_no}']);
+        $this->assertSame('1', $replacements['{adet}']);
+        $this->assertNotSame('', $replacements['{abonelikler}']);
+        $this->assertStringContainsString('• ', $replacements['{abonelikler}']);
+        $this->assertStringContainsString('SOZ-NTF-001', $replacements['{abonelikler}']);
+        $this->assertStringContainsString('1 adet', $replacements['{abonelikler}']);
+        $this->assertStringNotContainsString('200,00 ₺', $replacements['{abonelikler}']);
     }
 
     public function test_non_admin_cannot_send_notification_test_mail(): void

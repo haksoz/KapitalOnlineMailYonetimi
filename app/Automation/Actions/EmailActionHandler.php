@@ -69,11 +69,6 @@ final class EmailActionHandler implements ActionHandler
     private function replacements(AutomationJob $job): array
     {
         $fromContext = $job->context['placeholders'] ?? null;
-        if (is_array($fromContext) && $fromContext !== []) {
-            /** @var array<string, string> $fromContext */
-            return $fromContext;
-        }
-
         $subject = $job->subject;
         if ($subject instanceof SalesInvoice) {
             return InvoicePlaceholders::forInvoice($subject);
@@ -83,6 +78,10 @@ final class EmailActionHandler implements ActionHandler
         }
         if ($subject instanceof PendingBilling) {
             return DomainPlaceholders::forOrder($subject);
+        }
+        if (is_array($fromContext) && $fromContext !== []) {
+            /** @var array<string, string> $fromContext */
+            return $fromContext;
         }
 
         return [];

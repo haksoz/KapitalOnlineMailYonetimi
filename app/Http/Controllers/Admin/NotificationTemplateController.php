@@ -150,10 +150,7 @@ class NotificationTemplateController extends Controller
     private function sampleInvoiceQuery(): Builder
     {
         return SalesInvoice::query()
-            ->with([
-                'customerCari:id,name,short_name,email',
-                'lines.pendingBilling.subscription:id,vat_rate',
-            ])
+            ->with(['customerCari:id,name,short_name,email', 'lines.pendingBilling.subscription.product'])
             ->whereNotNull('due_date')
             ->whereNotNull('our_invoice_number')
             ->where('our_invoice_number', '!=', '')
@@ -165,7 +162,7 @@ class NotificationTemplateController extends Controller
     private function findSampleInvoice(int $id): ?SalesInvoice
     {
         return SalesInvoice::query()
-            ->with(['customerCari', 'lines.pendingBilling.subscription'])
+            ->with(['customerCari', 'lines.pendingBilling.subscription.product'])
             ->whereKey($id)
             ->whereNotNull('due_date')
             ->whereNotNull('our_invoice_number')

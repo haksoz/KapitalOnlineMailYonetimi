@@ -36,6 +36,22 @@
                     text == null ? '' : String(text)
                 );
             },
+            insertPlaceholder(token) {
+                const el = this.$refs.bodyField;
+                const current = this.body == null ? '' : String(this.body);
+                if (! el) {
+                    this.body = current + token;
+                    return;
+                }
+                const start = el.selectionStart ?? current.length;
+                const end = el.selectionEnd ?? start;
+                this.body = current.slice(0, start) + token + current.slice(end);
+                this.$nextTick(() => {
+                    el.focus();
+                    const pos = start + String(token).length;
+                    el.setSelectionRange(pos, pos);
+                });
+            },
             get previewSubject() { return this.apply(this.subject); },
             get previewBody() { return this.apply(this.body); },
             get previewTo() { return (this.selected && this.selected.to) || ''; },
@@ -62,9 +78,10 @@
             </div>
             <div>
                 <x-input-label for="body" value="İçerik" />
-                <textarea id="body" name="body" rows="10" x-model="body" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" required></textarea>
+                <textarea id="body" name="body" rows="10" x-ref="bodyField" x-model="body" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" required></textarea>
                 <x-input-error :messages="$errors->get('body')" class="mt-2" />
             </div>
+            @include('admin.notifications.partials.placeholders', ['insertable' => true])
             <x-primary-button>Kaydet</x-primary-button>
         </form>
 
