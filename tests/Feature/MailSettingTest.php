@@ -152,6 +152,53 @@ class MailSettingTest extends TestCase
         $this->assertSame('custom@example.com', config('mail.from.address'));
     }
 
+    public function test_admin_can_save_and_clear_notification_bcc(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->patch(route('admin.mail-settings.update'), [
+            'use_custom' => '0',
+            'driver' => 'log',
+            'host' => '',
+            'port' => '',
+            'username' => '',
+            'encryption' => '',
+            'from_address' => '',
+            'from_name' => '',
+            'bcc_address' => 'takip@example.com',
+        ])->assertRedirect(route('admin.mail-settings.edit'))
+            ->assertSessionHas('success');
+
+        $this->assertSame('takip@example.com', MailSetting::instance()->fresh()->bcc_address);
+        $this->assertSame('takip@example.com', MailSetting::notificationBcc());
+
+        $this->actingAs($admin)->from(route('admin.mail-settings.edit'))
+            ->patch(route('admin.mail-settings.update'), [
+                'use_custom' => '0',
+                'driver' => 'log',
+                'host' => '',
+                'port' => '',
+                'from_address' => '',
+                'from_name' => '',
+                'bcc_address' => 'gecersiz',
+            ])->assertSessionHasErrors('bcc_address');
+
+        $this->actingAs($admin)->patch(route('admin.mail-settings.update'), [
+            'use_custom' => '0',
+            'driver' => 'log',
+            'host' => '',
+            'port' => '',
+            'username' => '',
+            'encryption' => '',
+            'from_address' => '',
+            'from_name' => '',
+            'bcc_address' => '',
+        ])->assertRedirect(route('admin.mail-settings.edit'));
+
+        $this->assertNull(MailSetting::instance()->fresh()->bcc_address);
+        $this->assertNull(MailSetting::notificationBcc());
+    }
+
     public function test_send_test_mail_uses_runtime_settings(): void
     {
         Mail::fake();

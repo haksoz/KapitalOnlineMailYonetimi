@@ -20,6 +20,7 @@ class MailSetting extends Model
         'encryption',
         'from_address',
         'from_name',
+        'bcc_address',
     ];
 
     protected function casts(): array
@@ -81,6 +82,24 @@ class MailSetting extends Model
         $row = static::query()->first();
 
         return $row?->use_custom ?? false;
+    }
+
+    /**
+     * Bildirimi açık carilere giden maillerin gizli kopya adresi. Boşsa kopya gitmez.
+     */
+    public static function notificationBcc(): ?string
+    {
+        try {
+            if (! Schema::hasTable('mail_settings') || ! Schema::hasColumn('mail_settings', 'bcc_address')) {
+                return null;
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $address = trim((string) (static::query()->value('bcc_address') ?? ''));
+
+        return $address !== '' ? $address : null;
     }
 
     /**

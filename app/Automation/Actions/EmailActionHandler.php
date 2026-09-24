@@ -57,7 +57,7 @@ final class EmailActionHandler implements ActionHandler
         $body = $template->renderBody($replacements);
 
         try {
-            NotificationMail::send($recipients, $subject, $body);
+            NotificationMail::send($recipients, $subject, $body, MailSetting::notificationBcc());
         } catch (\Throwable $e) {
             return ActionResult::failed($e->getMessage());
         }

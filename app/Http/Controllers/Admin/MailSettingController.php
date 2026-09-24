@@ -39,11 +39,13 @@ class MailSettingController extends Controller
             'encryption' => ['nullable', 'in:tls,ssl'],
             'from_address' => [Rule::requiredIf($smtpRequired), 'nullable', 'email', 'max:255'],
             'from_name' => ['nullable', 'string', 'max:255'],
+            'bcc_address' => ['nullable', 'email', 'max:255'],
         ], [
             'host.required' => 'Özel SMTP kullanırken sunucu (host) zorunludur.',
             'port.required' => 'Özel SMTP kullanırken port zorunludur.',
             'from_address.required' => 'Özel SMTP kullanırken gönderen e-posta zorunludur.',
             'from_address.email' => 'Gönderen adres geçerli bir e-posta olmalıdır.',
+            'bcc_address.email' => 'Gizli kopya adresi geçerli bir e-posta olmalıdır.',
         ]);
 
         $mailSetting = MailSetting::instance();
@@ -57,6 +59,7 @@ class MailSettingController extends Controller
             'encryption' => $validated['encryption'] ?: null,
             'from_address' => $validated['from_address'] ?: null,
             'from_name' => $validated['from_name'] ?: null,
+            'bcc_address' => ($validated['bcc_address'] ?? null) ?: null,
         ];
 
         if ($request->filled('password')) {

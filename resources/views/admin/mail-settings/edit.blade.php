@@ -26,7 +26,8 @@
             </p>
         @endif
         <p class="text-xs text-gray-500">
-            Bildirimler cari kartındaki e-posta adresine gider. E-postası boş müşterilere mail gönderilemez.
+            Bildirimler, bildirimi açık carilerin e-posta adresine gider. E-postası boş müşterilere mail gönderilemez.
+            Gizli kopya doluysa aynı mail bu adrese de BCC olarak gider; müşteri bu adresi görmez.
         </p>
     </div>
 
@@ -123,6 +124,16 @@
                             <x-text-input id="from_name" name="from_name" type="text" class="mt-1 block w-full" :value="old('from_name', $mailSetting->from_name)" placeholder="Mail Yönetimi" />
                             <x-input-error :messages="$errors->get('from_name')" class="mt-1" />
                         </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-gray-100">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Gizli kopya (takip)</p>
+                    <div>
+                        <x-input-label for="bcc_address" value="BCC e-posta" />
+                        <x-text-input id="bcc_address" name="bcc_address" type="email" class="mt-1 block w-full" :value="old('bcc_address', $mailSetting->bcc_address)" placeholder="takip@example.com" />
+                        <p class="mt-1 text-xs text-gray-500">Bildirimi açık carilere giden her mailin gizli kopyası bu adrese de düşer. Boş bırakılırsa kopya gönderilmez. SMTP özel ayarı kapalı olsa da geçerlidir.</p>
+                        <x-input-error :messages="$errors->get('bcc_address')" class="mt-1" />
                     </div>
                 </div>
             </div>

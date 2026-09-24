@@ -9,6 +9,7 @@ use App\Automation\TimingMode;
 use App\Models\AutomationJob;
 use App\Models\AutomationRule;
 use App\Models\Cari;
+use App\Models\MailSetting;
 use App\Models\NotificationTemplate;
 use App\Models\PendingBilling;
 use App\Models\SalesInvoice;
@@ -18,6 +19,8 @@ use App\Models\User;
 use App\Services\InvoiceNotificationDispatcher;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -582,6 +585,41 @@ class InvoiceNotificationTest extends TestCase
         $job = AutomationJob::query()->where('status', JobStatus::Succeeded)->first();
         $this->assertNotNull($job);
         $this->assertSame('muhasebe@example.com, yonetim@example.com', $job->to_email);
+    }
+
+    public function test_dispatch_bccs_mail_setting_address_for_enabled_cari(): void
+    {
+        MailSetting::instance()->update(['bcc_address' => 'takip@example.com']);
+        $invoice = $this->makeNumberedInvoice(7);
+        $this->configureInvoiceRule(EventType::InvoiceDueApproaching, true, ['interval_days' => 7, 'send_at' => '10:00']);
+        $this->configureInvoiceRule(EventType::InvoiceOverdue, false);
+        $this->configureInvoiceRule(EventType::InvoiceInterestClosure, false);
+
+        $bcc = [];
+        Event::listen(MessageSending::class, function (MessageSending $event) use (&$bcc): void {
+            $bcc = array_map(fn ($address) => $address->getAddress(), $event->message->getBcc());
+        });
+
+        $this->assertSame(1, app(InvoiceNotificationDispatcher::class)->dispatch(Carbon::parse('2026-09-01 10:00:00', 'Europe/Istanbul')));
+        $this->assertSame(['takip@example.com'], $bcc);
+        $this->assertTrue($invoice->exists);
+    }
+
+    public function test_dispatch_skips_bcc_when_address_is_already_a_recipient(): void
+    {
+        MailSetting::instance()->update(['bcc_address' => 'musteri@example.com']);
+        $this->makeNumberedInvoice(7);
+        $this->configureInvoiceRule(EventType::InvoiceDueApproaching, true, ['interval_days' => 7, 'send_at' => '10:00']);
+        $this->configureInvoiceRule(EventType::InvoiceOverdue, false);
+        $this->configureInvoiceRule(EventType::InvoiceInterestClosure, false);
+
+        $bcc = ['unset'];
+        Event::listen(MessageSending::class, function (MessageSending $event) use (&$bcc): void {
+            $bcc = array_map(fn ($address) => $address->getAddress(), $event->message->getBcc());
+        });
+
+        $this->assertSame(1, app(InvoiceNotificationDispatcher::class)->dispatch(Carbon::parse('2026-09-01 10:00:00', 'Europe/Istanbul')));
+        $this->assertSame([], $bcc);
     }
 
     public function test_dispatch_sends_interest_closure_once_automatically(): void
