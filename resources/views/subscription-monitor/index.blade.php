@@ -155,7 +155,7 @@
                                             <tr>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Abonelik</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Adet</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">USD Satış</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Satış</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Sipariş</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Bitiş tarihi</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-600">Alış fat.</th>
@@ -178,7 +178,7 @@
                                                     <td class="px-3 py-2 text-gray-900">{{ $productLabel }}</td>
                                                     <td class="px-3 py-2 text-gray-900">{{ $qty }}</td>
                                                     <td class="px-3 py-2 text-gray-900">
-                                                        <span>{{ number_format($expectedUsd, 2, ',', '.') }} USD</span>
+                                                        <span>{{ number_format($expectedUsd, 2, ',', '.') }} {{ $sub->currencyLabel() }}</span>
                                                     </td>
                                                     <td class="px-3 py-2">
                                                         @if ($pb)

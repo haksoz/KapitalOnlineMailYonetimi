@@ -135,12 +135,6 @@
                 >
                     Atmaca’ya kopyala
                 </button>
-                    <form method="POST" action="{{ route('sales-invoices.revert', $salesInvoice) }}" onsubmit="return confirm('Bu faturalandırma silinecek; bağlı siparişler tekrar bekleyen siparişlere dönecek. Devam etmek istiyor musunuz?');">
-                        @csrf
-                        <button type="submit" class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-lg border border-red-300 text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                            Faturalandırmayı geri al
-                        </button>
-                    </form>
             </div>
         </div>
 
@@ -184,6 +178,18 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p class="text-xs text-gray-500">
+                Faturalandırmayı geri almak bu kaydı siler ve bağlı siparişleri tekrar bekleyen siparişlere döndürür.
+            </p>
+            <form method="POST" action="{{ route('sales-invoices.revert', $salesInvoice) }}" onsubmit="return confirm('Bu faturalandırma silinecek; bağlı siparişler tekrar bekleyen siparişlere dönecek. Devam etmek istiyor musunuz?');">
+                @csrf
+                <button type="submit" class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-lg border border-red-300 text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                    Faturalandırmayı geri al
+                </button>
+            </form>
         </div>
 
         {{-- Atmaca formatı popup --}}
