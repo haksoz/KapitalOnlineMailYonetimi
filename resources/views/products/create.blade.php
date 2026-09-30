@@ -21,6 +21,7 @@
                     <div>
                         <x-input-label for="stock_code" value="Stok kodu" />
                         <x-text-input id="stock_code" name="stock_code" type="text" class="mt-1 block w-full" :value="old('stock_code')" />
+                        <x-input-error :messages="$errors->get('stock_code')" class="mt-1" />
                     </div>
                     <div>
                         <x-input-label for="service_provider_id" value="Servis sağlayıcı" />

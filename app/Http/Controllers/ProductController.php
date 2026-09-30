@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\ServiceProvider;
 use App\Http\Resources\ProductResource;
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -45,19 +46,7 @@ class ProductController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'stock_code' => ['nullable', 'string', 'max:64'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'currency' => ['required', 'string', 'in:USD,TRY'],
-            'service_provider_id' => ['nullable', 'exists:service_providers,id'],
-            'alis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
-            'satis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
-            'alis_usd_monthly_no_commitment' => ['nullable', 'numeric', 'min:0'],
-            'satis_usd_monthly_no_commitment' => ['nullable', 'numeric', 'min:0'],
-            'alis_usd_yearly_commitment' => ['nullable', 'numeric', 'min:0'],
-            'satis_usd_yearly_commitment' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        $validated = $this->validateProduct($request);
 
         Product::create($validated);
 
@@ -81,19 +70,7 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'stock_code' => ['nullable', 'string', 'max:64'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'currency' => ['required', 'string', 'in:USD,TRY'],
-            'service_provider_id' => ['nullable', 'exists:service_providers,id'],
-            'alis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
-            'satis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
-            'alis_usd_monthly_no_commitment' => ['nullable', 'numeric', 'min:0'],
-            'satis_usd_monthly_no_commitment' => ['nullable', 'numeric', 'min:0'],
-            'alis_usd_yearly_commitment' => ['nullable', 'numeric', 'min:0'],
-            'satis_usd_yearly_commitment' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        $validated = $this->validateProduct($request, $product);
 
         $product->update($validated);
 
@@ -121,6 +98,52 @@ class ProductController extends Controller
                 'per_page' => $products->perPage(),
                 'total' => $products->total(),
             ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validateProduct(Request $request, ?Product $product = null): array
+    {
+        $stockCode = $request->input('stock_code');
+        if (is_string($stockCode)) {
+            $stockCode = trim($stockCode);
+            $request->merge([
+                'stock_code' => $stockCode === '' ? null : $stockCode,
+            ]);
+        }
+
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'stock_code' => [
+                'nullable',
+                'string',
+                'max:64',
+                function (string $attribute, mixed $value, Closure $fail) use ($product): void {
+                    if (! is_string($value) || $value === '') {
+                        return;
+                    }
+
+                    $exists = Product::query()
+                        ->whereRaw('LOWER(stock_code) = ?', [mb_strtolower($value)])
+                        ->when($product, fn ($query) => $query->whereKeyNot($product->id))
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('Bu stok kodu başka bir üründe kayıtlı.');
+                    }
+                },
+            ],
+            'description' => ['nullable', 'string', 'max:500'],
+            'currency' => ['required', 'string', 'in:USD,TRY'],
+            'service_provider_id' => ['nullable', 'exists:service_providers,id'],
+            'alis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
+            'satis_usd_monthly_commitment' => ['nullable', 'numeric', 'min:0'],
+            'alis_usd_monthly_no_commitment' => ['nullable', 'numeric', 'min:0'],
+            'satis_usd_monthly_no_commitment' => ['nullable', 'numeric', 'min:0'],
+            'alis_usd_yearly_commitment' => ['nullable', 'numeric', 'min:0'],
+            'satis_usd_yearly_commitment' => ['nullable', 'numeric', 'min:0'],
         ]);
     }
 }
