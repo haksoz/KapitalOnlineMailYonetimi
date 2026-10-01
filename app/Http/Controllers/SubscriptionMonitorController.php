@@ -20,7 +20,7 @@ class SubscriptionMonitorController extends Controller
     public const STATUS_EKSIK_SIPARIS = 'Eksik sipariş var';
     public const STATUS_FATURALANMAMIS = 'Faturalandırılmamış siparişler var';
 
-    public function index(Request $request): View
+    public function index(Request $request, PendingBillingService $pendingBillingService, SubscriptionRenewalService $renewalService): View
     {
         $year = (int) $request->input('year', Carbon::today()->year);
         $month = (int) $request->input('month', Carbon::today()->month);
@@ -92,15 +92,22 @@ class SubscriptionMonitorController extends Controller
                 /** @var Cari|null $cari */
                 $cari = $subs->first()?->customerCari;
 
-                // Bu ay için gerçekten dönem beklediğimiz abonelikleri filtrele.
-                // - Aylık abonelikler: bu ay ile kesişen tüm aktifler (zaten $subscriptions içinde öyle geldiler)
-                // - Yıllık abonelikler: sadece başlangıç ayı seçili ay ise o yıl için bir dönem beklenir
-                $effectiveSubs = $subs->filter(function (Subscription $sub) use ($month): bool {
-                    if ($sub->faturalama_periyodu === Subscription::FATURALAMA_YEARLY) {
-                        return $sub->baslangic_tarihi !== null && $sub->baslangic_tarihi->month === $month;
-                    }
+                // Bu ay için gerçekten dönem beklenen abonelikler.
+                // Takvim kesişmesi yetmez: sipariş, faturalama günü bitişten önceyse açılır.
+                // İptal edilmiş ve o ayda dönemi olmayan kayıt eksik sipariş sayılmaz.
+                // Otomatik yenilemesi açık aktif abonelik, bitişi bu ay sonuna uzatılınca
+                // dönem açılacaksa listede kalır; "Bu ay için siparişleri oluştur" bunu yapar.
+                $effectiveSubs = $subs->filter(function (Subscription $sub) use ($year, $month, $pendingBySubscription, $pendingBillingService, $renewalService): bool {
+                    $hasOrderInMonth = $pendingBySubscription->has($sub->id);
 
-                    return true;
+                    return $this->subscriptionIsExpectedInMonth(
+                        $sub,
+                        $year,
+                        $month,
+                        $hasOrderInMonth,
+                        $pendingBillingService,
+                        $renewalService,
+                    );
                 });
 
                 $subscriptionCount = $effectiveSubs->count();
@@ -295,6 +302,47 @@ class SubscriptionMonitorController extends Controller
         return redirect()
             ->route('subscription-monitor.index', $query)
             ->with('success', "{$monthLabel} için bu cariye ait eksik dönem siparişleri oluşturuldu. {$added} kayıt eklendi." . $renewalPart);
+    }
+
+    /**
+     * Abonelik seçilen ayın takip listesine girer mi?
+     * Siparişi varsa veya mevcut bitişle dönem açılıyorsa girer.
+     * Aktif ve otomatik yenilenen abonelik, bitişi ay sonunu geçene kadar uzatılınca
+     * dönem açılacaksa da girer.
+     */
+    private function subscriptionIsExpectedInMonth(
+        Subscription $subscription,
+        int $year,
+        int $month,
+        bool $hasOrderInMonth,
+        PendingBillingService $pendingBillingService,
+        SubscriptionRenewalService $renewalService,
+    ): bool {
+        if ($hasOrderInMonth || $pendingBillingService->expectsPeriodInMonth($subscription, $year, $month)) {
+            return true;
+        }
+
+        if ($subscription->durum !== Subscription::DURUM_ACTIVE || ! $subscription->auto_renew || $subscription->bitis_tarihi === null) {
+            return false;
+        }
+
+        $monthEnd = Carbon::create($year, $month, 1)->endOfMonth();
+        $projectedEnd = $subscription->bitis_tarihi->copy();
+        if ($projectedEnd->gt($monthEnd)) {
+            return false;
+        }
+
+        $guard = 0;
+        while ($projectedEnd->lte($monthEnd) && $guard < 240) {
+            $next = $renewalService->addPeriod($projectedEnd->copy(), $subscription->taahhut_tipi);
+            if ($next->lte($projectedEnd)) {
+                break;
+            }
+            $projectedEnd = $next;
+            $guard++;
+        }
+
+        return $pendingBillingService->expectsPeriodInMonth($subscription, $year, $month, $projectedEnd);
     }
 }
 

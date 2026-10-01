@@ -228,6 +228,57 @@ class PendingBillingService
     }
 
     /**
+     * Seçilen ayda bu aboneliğin faturalama gününe denk gelen dönem başlangıcı.
+     * Yıllık abonelikte ay, başlangıç ayıyla aynı değilse dönem yoktur.
+     * 29-31 gibi günler kısa aylarda ayın son gününe çekilir.
+     */
+    public function periodStartInMonth(Subscription $subscription, int $year, int $month): ?Carbon
+    {
+        if ($subscription->baslangic_tarihi === null) {
+            return null;
+        }
+
+        if ($subscription->faturalama_periyodu === Subscription::FATURALAMA_YEARLY) {
+            if ((int) $subscription->baslangic_tarihi->month !== $month) {
+                return null;
+            }
+        } elseif ($subscription->faturalama_periyodu !== Subscription::FATURALAMA_MONTHLY) {
+            return null;
+        }
+
+        $billingDay = (int) $subscription->baslangic_tarihi->day;
+        $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
+        $effectiveBillingDay = min($billingDay, $daysInMonth);
+
+        return Carbon::createFromDate($year, $month, $effectiveBillingDay)->startOfDay();
+    }
+
+    /**
+     * Sipariş motoruyla aynı koşul: baslangic_tarihi <= dönem başlangıcı < bitis_tarihi.
+     * Bitiş, faturalama gününe eşitse o ay için yeni dönem açılmaz.
+     */
+    public function expectsPeriodInMonth(Subscription $subscription, int $year, int $month, ?Carbon $bitis = null): bool
+    {
+        if ($subscription->baslangic_tarihi === null) {
+            return false;
+        }
+
+        $bitisDate = ($bitis ?? $subscription->bitis_tarihi)?->copy()->startOfDay();
+        if ($bitisDate === null) {
+            return false;
+        }
+
+        $periodStart = $this->periodStartInMonth($subscription, $year, $month);
+        if ($periodStart === null) {
+            return false;
+        }
+
+        $baslangic = $subscription->baslangic_tarihi->copy()->startOfDay();
+
+        return $periodStart->gte($baslangic) && $periodStart->lt($bitisDate);
+    }
+
+    /**
      * Verilen tarihte dönem başı gelen aktif abonelikler için havuza kayıt ekler.
      * Dönem başı = aboneliğin baslangic_tarihi günü; aylık/yıllık faturalama_periyodu.
      * Koşul: baslangic_tarihi <= period_start < bitis_tarihi.
