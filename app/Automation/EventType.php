@@ -17,6 +17,7 @@ enum EventType: string
     case InvoiceOverdue = 'invoice.overdue';
     case InvoiceInterestClosure = 'invoice.interest_closure';
     case InvoicePaid = 'invoice.paid';
+    case QuoteSent = 'quote.sent';
 
     public function label(): string
     {
@@ -34,6 +35,7 @@ enum EventType: string
             self::InvoiceOverdue => 'Fatura vadesi geçti',
             self::InvoiceInterestClosure => 'Faiz uygulaması ve kapatma',
             self::InvoicePaid => 'Ödeme alındı',
+            self::QuoteSent => 'Teklif gönderildi',
         };
     }
 
@@ -69,7 +71,8 @@ enum EventType: string
             self::SubscriptionQuantityChanged,
             self::OrderCreated,
             self::InvoiceIssued,
-            self::InvoicePaid => true,
+            self::InvoicePaid,
+            self::QuoteSent => true,
             default => false,
         };
     }
@@ -96,6 +99,7 @@ enum EventType: string
             self::SubscriptionExpired => 'Abonelik',
             self::OrderCreated,
             self::OrderPaymentDueApproaching => 'Sipariş',
+            self::QuoteSent => 'Teklif',
             default => 'Fatura',
         };
     }
@@ -107,6 +111,7 @@ enum EventType: string
             self::SubscriptionPriceChanged => 20,
             self::SubscriptionQuantityChanged => 30,
             self::SubscriptionAutoRenewDisabled => 40,
+            self::QuoteSent => 55,
             self::OrderCreated => 50,
             self::InvoiceIssued => 60,
             self::InvoiceDueApproaching => 70,
@@ -153,7 +158,8 @@ enum EventType: string
             self::InvoiceIssued => [DedupePolicy::Once],
             self::SubscriptionPriceChanged,
             self::SubscriptionQuantityChanged,
-            self::InvoicePaid => [DedupePolicy::PerOccurrenceKey],
+            self::InvoicePaid,
+            self::QuoteSent => [DedupePolicy::PerOccurrenceKey],
             default => [DedupePolicy::Once, DedupePolicy::PerOccurrenceKey],
         };
     }
@@ -185,6 +191,7 @@ enum EventType: string
             self::SubscriptionPriceChanged,
             self::SubscriptionQuantityChanged => 'Her değişimde bir kez',
             self::InvoicePaid => 'Her ödemede bir kez',
+            self::QuoteSent => 'Her gönderimde bir kez',
             default => $policy->label(),
         };
     }
@@ -199,6 +206,7 @@ enum EventType: string
             self::SubscriptionPriceChanged => 'Alış veya satış fiyatı her değiştiğinde ayrı gider.',
             self::SubscriptionQuantityChanged => 'Adet her değiştiğinde ayrı gider.',
             self::InvoicePaid => 'Her ödeme bildirimi ayrı gider.',
+            self::QuoteSent => 'Teklif her gönderildiğinde ve tekrar gönderildiğinde ayrı bir e-posta gider.',
             default => 'Bir kez: bu kayda bir daha gitmez. Pencere başına: pencerede kaldığı sürece aralık kadar günde bir tekrarlar.',
         };
     }

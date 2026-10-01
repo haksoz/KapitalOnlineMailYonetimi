@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Product extends Model
 {
     public const CURRENCY_USD = 'USD';
+
     public const CURRENCY_TRY = 'TRY';
 
     protected $fillable = [
@@ -101,6 +102,7 @@ class Product extends Model
         if ($alis <= 0) {
             return null;
         }
+
         return round((($satis - $alis) / $alis) * 100, 2);
     }
 
@@ -112,6 +114,11 @@ class Product extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class, 'product_id');
+    }
+
+    public function quoteItems(): HasMany
+    {
+        return $this->hasMany(QuoteItem::class, 'product_id');
     }
 
     public function priceHistories(): HasMany

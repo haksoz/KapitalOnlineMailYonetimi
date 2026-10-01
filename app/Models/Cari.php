@@ -123,6 +123,11 @@ class Cari extends Model
         });
     }
 
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class, 'customer_cari_id');
+    }
+
     public function subscriptionsAsCustomer(): HasMany
     {
         return $this->hasMany(Subscription::class, 'customer_cari_id');

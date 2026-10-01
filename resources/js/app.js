@@ -8,6 +8,7 @@ Alpine.data('appShell', () => ({
     sidebarOpen: false,
     navGroups: {
         master: false,
+        quotes: false,
         subscriptions: false,
         admin: false,
         integration: false,
@@ -15,17 +16,19 @@ Alpine.data('appShell', () => ({
     init() {
         try {
             const saved = JSON.parse(sessionStorage.getItem('navGroups') || 'null');
-            if (! saved || typeof saved !== 'object') {
-                return;
-            }
-
-            for (const key of Object.keys(this.navGroups)) {
-                if (typeof saved[key] === 'boolean') {
-                    this.navGroups[key] = saved[key];
+            if (saved && typeof saved === 'object') {
+                for (const key of Object.keys(this.navGroups)) {
+                    if (typeof saved[key] === 'boolean') {
+                        this.navGroups[key] = saved[key];
+                    }
                 }
             }
         } catch (e) {
             // Keep default collapsed groups if storage is unreadable.
+        }
+
+        if (window.location.pathname === '/quotes' || window.location.pathname.startsWith('/quotes/')) {
+            this.navGroups.quotes = true;
         }
     },
     toggleNavGroup(key) {

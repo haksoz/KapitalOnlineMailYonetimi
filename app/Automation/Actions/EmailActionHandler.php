@@ -6,11 +6,13 @@ use App\Automation\DomainPlaceholders;
 use App\Automation\EventType;
 use App\Automation\InvoicePlaceholders;
 use App\Automation\NotificationMail;
+use App\Automation\QuotePlaceholders;
 use App\Models\AutomationJob;
 use App\Models\Cari;
 use App\Models\MailSetting;
 use App\Models\NotificationTemplate;
 use App\Models\PendingBilling;
+use App\Models\Quote;
 use App\Models\SalesInvoice;
 use App\Models\Subscription;
 
@@ -34,6 +36,11 @@ final class EmailActionHandler implements ActionHandler
         if (! $cari instanceof Cari) {
             $cari = $job->cari_id ? Cari::query()->find($job->cari_id) : null;
         }
+
+        if ($job->event_type === EventType::QuoteSent) {
+            return $this->sendQuote($job, $template, $cari);
+        }
+
         if ($cari === null || ! $cari->canReceiveNotifications()) {
             return ActionResult::skipped('Cari bildirimi kapalı veya e-posta yok.');
         }
@@ -81,11 +88,57 @@ final class EmailActionHandler implements ActionHandler
         if ($subject instanceof PendingBilling) {
             return DomainPlaceholders::forOrder($subject);
         }
+        if ($subject instanceof Quote) {
+            return QuotePlaceholders::forQuote($subject);
+        }
         if (is_array($fromContext) && $fromContext !== []) {
             /** @var array<string, string> $fromContext */
             return $fromContext;
         }
 
         return [];
+    }
+
+    private function sendQuote(AutomationJob $job, NotificationTemplate $template, ?Cari $cari): ActionResult
+    {
+        $recipients = $this->quoteRecipients($job, $cari);
+        if ($recipients === []) {
+            return ActionResult::skipped('Alıcı e-posta yok.');
+        }
+
+        try {
+            NotificationMail::send(
+                $recipients,
+                $template->renderSubject($this->replacements($job)),
+                $template->renderBody($this->replacements($job)),
+                MailSetting::notificationBcc(),
+            );
+        } catch (\Throwable $e) {
+            return ActionResult::failed($e->getMessage());
+        }
+
+        return ActionResult::success(implode(', ', $recipients));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function quoteRecipients(AutomationJob $job, ?Cari $cari): array
+    {
+        $fromContext = $job->context['recipients'] ?? null;
+        if (is_array($fromContext)) {
+            $clean = [];
+            foreach ($fromContext as $email) {
+                if (! is_string($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+                    continue;
+                }
+                $clean[strtolower($email)] = $email;
+            }
+            if ($clean !== []) {
+                return array_values($clean);
+            }
+        }
+
+        return $cari?->notificationEmails() ?? [];
     }
 }

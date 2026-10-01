@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Automation\EventType;
+use App\Automation\NotificationMail;
+use App\Automation\QuotePlaceholders;
 use App\Http\Controllers\Controller;
 use App\Models\MailSetting;
 use App\Models\NotificationTemplate;
+use App\Models\Quote;
 use App\Models\SalesInvoice;
 use App\Services\InvoiceNotificationDispatcher;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,9 +28,14 @@ class NotificationTemplateController extends Controller
 
     public function edit(NotificationTemplate $template, InvoiceNotificationDispatcher $dispatcher): View
     {
+        $quotePreview = $this->usesQuotePreview($template);
+
         return view('admin.notifications.template-edit', [
             'template' => $template,
-            'sampleInvoices' => $this->sampleInvoicesForPreview($dispatcher),
+            'previewKind' => $quotePreview ? 'quote' : 'invoice',
+            'previewSamples' => $quotePreview
+                ? $this->sampleQuotesForPreview()
+                : $this->sampleInvoicesForPreview($dispatcher),
             'mailFrom' => $this->resolvedMailFrom(),
         ]);
     }
@@ -48,6 +57,10 @@ class NotificationTemplateController extends Controller
 
     public function preview(Request $request, NotificationTemplate $template, InvoiceNotificationDispatcher $dispatcher): View|JsonResponse|RedirectResponse
     {
+        if ($this->usesQuotePreview($template)) {
+            return $this->previewQuote($request, $template);
+        }
+
         $validated = $request->validate([
             'sales_invoice_id' => ['required', 'integer', 'exists:sales_invoices,id'],
             'subject' => ['nullable', 'string', 'max:255'],
@@ -82,6 +95,7 @@ class NotificationTemplateController extends Controller
             'from_address' => $mailFrom['address'],
             'to' => (string) ($invoice->customerCari?->email ?? ''),
             'invoice_number' => (string) ($invoice->our_invoice_number ?? ''),
+            'source_label' => null,
             'subject' => $template->renderSubject($replacements),
             'body' => $template->renderBody($replacements),
         ];
@@ -95,6 +109,10 @@ class NotificationTemplateController extends Controller
 
     public function sendTest(Request $request, NotificationTemplate $template, InvoiceNotificationDispatcher $dispatcher): RedirectResponse
     {
+        if ($this->usesQuotePreview($template)) {
+            return $this->sendQuoteTest($request, $template);
+        }
+
         $validated = $request->validate([
             'test_email' => ['required', 'email', 'max:255'],
             'sales_invoice_id' => ['required', 'integer', 'exists:sales_invoices,id'],
@@ -118,6 +136,130 @@ class NotificationTemplateController extends Controller
         return redirect()
             ->route('admin.notifications.templates.edit', $template)
             ->with('success', $template->name.' test maili gönderildi: '.$validated['test_email']);
+    }
+
+    private function usesQuotePreview(NotificationTemplate $template): bool
+    {
+        if ($template->legacy_key === 'quote_sent') {
+            return true;
+        }
+
+        return $template->actions()
+            ->whereHas('rule', fn (Builder $query) => $query->where('event_type', EventType::QuoteSent->value))
+            ->exists();
+    }
+
+    private function previewQuote(Request $request, NotificationTemplate $template): View|JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'quote_id' => ['required', 'integer', 'exists:quotes,id'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'body' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        $quote = $this->findSampleQuote((int) $validated['quote_id']);
+        if ($quote === null) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Önizleme için bir teklif seçin.',
+                ], 422);
+            }
+
+            return redirect()
+                ->route('admin.notifications.templates.edit', $template)
+                ->with('error', 'Önizleme için bir teklif seçin.');
+        }
+
+        if (isset($validated['subject']) && $validated['subject'] !== '') {
+            $template->subject = $validated['subject'];
+        }
+        if (isset($validated['body']) && $validated['body'] !== '') {
+            $template->body = $validated['body'];
+        }
+
+        $replacements = QuotePlaceholders::forQuote($quote);
+        $mailFrom = $this->resolvedMailFrom();
+        $payload = [
+            'definition_name' => $template->name,
+            'from_name' => $mailFrom['name'],
+            'from_address' => $mailFrom['address'],
+            'to' => (string) ($quote->customerCari?->email ?? ''),
+            'invoice_number' => '',
+            'source_label' => 'Teklif '.$quote->quote_number,
+            'subject' => $template->renderSubject($replacements),
+            'body' => $template->renderBody($replacements),
+        ];
+
+        if ($request->expectsJson()) {
+            return response()->json($payload);
+        }
+
+        return view('admin.notifications.preview', $payload);
+    }
+
+    private function sendQuoteTest(Request $request, NotificationTemplate $template): RedirectResponse
+    {
+        $validated = $request->validate([
+            'test_email' => ['required', 'email', 'max:255'],
+            'quote_id' => ['required', 'integer', 'exists:quotes,id'],
+        ]);
+
+        $quote = $this->findSampleQuote((int) $validated['quote_id']);
+        if ($quote === null) {
+            return redirect()
+                ->route('admin.notifications.templates.edit', $template)
+                ->with('error', 'Test için bir teklif seçin.');
+        }
+
+        try {
+            MailSetting::applyToRuntime();
+            $replacements = QuotePlaceholders::forQuote($quote);
+            NotificationMail::send(
+                $validated['test_email'],
+                '[TEST] '.$template->renderSubject($replacements),
+                $template->renderBody($replacements),
+            );
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('admin.notifications.templates.edit', $template)
+                ->with('error', 'Test e-postası gönderilemedi: '.$e->getMessage());
+        }
+
+        return redirect()
+            ->route('admin.notifications.templates.edit', $template)
+            ->with('success', $template->name.' test maili gönderildi: '.$validated['test_email']);
+    }
+
+    /**
+     * @return list<array{id: int, label: string, to: string, replacements: array<string, string>}>
+     */
+    private function sampleQuotesForPreview(): array
+    {
+        return Quote::query()
+            ->with(['customerCari:id,name,short_name,email', 'items.options'])
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(function (Quote $quote): array {
+                $customer = $quote->customerCari?->short_name ?: $quote->customerCari?->name ?? 'Müşteri';
+
+                return [
+                    'id' => (int) $quote->id,
+                    'label' => $quote->quote_number.' · '.$customer.' · '.Quote::typeLabel($quote->type).' · '.Quote::statusLabel($quote->status),
+                    'to' => (string) ($quote->customerCari?->email ?? ''),
+                    'replacements' => QuotePlaceholders::forQuote($quote),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function findSampleQuote(int $id): ?Quote
+    {
+        return Quote::query()
+            ->with(['customerCari', 'items.options'])
+            ->whereKey($id)
+            ->first();
     }
 
     /**

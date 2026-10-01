@@ -10,6 +10,10 @@
         <x-sidebar-link :href="route('exchange-rates.index')" :active="request()->routeIs('exchange-rates.*')" :close-on-click="$mobile">Kurlar</x-sidebar-link>
     </x-sidebar-group>
 
+    <x-sidebar-group id="quotes" label="Teklifler">
+        <x-sidebar-link :href="route('quotes.index')" :active="request()->routeIs('quotes.*')" :close-on-click="$mobile">Teklifler</x-sidebar-link>
+    </x-sidebar-group>
+
     <x-sidebar-group id="subscriptions" label="Abonelikler">
         <x-sidebar-link :href="route('subscriptions.index')" :active="request()->routeIs('subscriptions.*') && ! request()->routeIs('pending-billings.*') && ! request()->routeIs('sales-invoices.*') && ! request()->routeIs('expense-settlements.*')" :close-on-click="$mobile">Abonelikler</x-sidebar-link>
         <x-sidebar-link :href="route('pending-billings.index')" :active="request()->routeIs('pending-billings.*')" :close-on-click="$mobile">Siparişler</x-sidebar-link>
