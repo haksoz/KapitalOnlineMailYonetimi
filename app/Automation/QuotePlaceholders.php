@@ -25,6 +25,7 @@ final class QuotePlaceholders
             '{tarih}' => $quote->created_at?->timezone('Europe/Istanbul')->format('d.m.Y') ?? '—',
             '{gecerlilik}' => $quote->valid_until?->format('d.m.Y') ?? '—',
             '{satici}' => self::seller($quote),
+            '{cari_unvani}' => (string) ($cari?->name ?: '—'),
             '{alici}' => self::buyer($quote),
             '{kalemler}' => $htmlLines && $quote->isFirm() ? self::firmLinesHtml($quote) : self::lines($quote),
             '{dinamik_kosullar}' => self::warnings($quote),
@@ -59,6 +60,17 @@ final class QuotePlaceholders
         }
 
         return $html;
+    }
+
+    public static function deliveredHtml(string $templateBody, Quote $quote): string
+    {
+        $body = self::renderPreview($templateBody, $quote);
+
+        return '<!DOCTYPE html>'
+            .'<html lang="tr"><head><meta charset="UTF-8"></head>'
+            .'<body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#111827;">'
+            .$body
+            .'</body></html>';
     }
 
     /**

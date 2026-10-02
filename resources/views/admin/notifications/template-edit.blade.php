@@ -206,12 +206,24 @@
 
         <div class="bg-white rounded-xl shadow-sm p-5">
             <h3 class="text-sm font-semibold text-gray-700 mb-1">Test maili gönder</h3>
-            <p class="text-xs text-gray-500 mb-3">{{ $previewKind === 'quote' ? 'Kayıtlı şablon, yukarıda seçilen teklifin gerçek alanlarıyla dolar. Müşteriye gitmez; yalnızca yazdığınız adrese gider. Önce ayarı kaydedin.' : 'Kayıtlı şablon, yukarıda seçilen faturanın gerçek alanlarıyla dolar. Müşteriye gitmez; yalnızca yazdığınız adrese gider. Önce ayarı kaydedin.' }}</p>
+            <p class="text-xs text-gray-500 mb-3">{{ $previewKind === 'quote' ? 'Bu sayfadaki konu ve içerik, seçilen teklifin gerçek alanlarıyla dolar. Müşteriye gitmez; yalnızca yazdığınız adrese gider. Kaydetmeden de deneyebilirsiniz. Ekteki PDF müşteri belgesidir.' : 'Kayıtlı şablon, yukarıda seçilen faturanın gerçek alanlarıyla dolar. Müşteriye gitmez; yalnızca yazdığınız adrese gider. Önce ayarı kaydedin.' }}</p>
             @if (empty($previewSamples))
                 <p class="text-xs text-amber-700">{{ $previewKind === 'quote' ? 'Kayıtlı teklif yok. Bir teklif olunca test edilebilir.' : 'Vadesi kayıtlı satış faturası yok. Fatura no/tarihi girilmiş bir kayıt olunca test edilebilir.' }}</p>
             @else
-                <form id="notification-test-form" action="{{ route('admin.notifications.templates.test', $template) }}" method="POST" class="space-y-3">
+                <form
+                    id="notification-test-form"
+                    action="{{ route('admin.notifications.templates.test', $template) }}"
+                    method="POST"
+                    class="space-y-3"
+                    @if ($previewKind === 'quote')
+                        @submit="$refs.testSubject.value = subject; $refs.testBody.value = body"
+                    @endif
+                >
                     @csrf
+                    @if ($previewKind === 'quote')
+                        <input type="hidden" name="subject" x-ref="testSubject">
+                        <input type="hidden" name="body" x-ref="testBody">
+                    @endif
                     <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
                         <div class="flex-1 w-full">
                             <x-input-label for="test_email" value="Test e-posta adresi *" />

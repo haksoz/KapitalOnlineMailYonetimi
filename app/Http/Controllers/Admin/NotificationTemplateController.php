@@ -223,6 +223,8 @@ class NotificationTemplateController extends Controller
         $validated = $request->validate([
             'test_email' => ['required', 'email', 'max:255'],
             'quote_id' => ['required', 'integer', 'exists:quotes,id'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'body' => ['nullable', 'string', 'max:20000'],
         ]);
 
         $quote = $this->findSampleQuote((int) $validated['quote_id']);
@@ -230,6 +232,13 @@ class NotificationTemplateController extends Controller
             return redirect()
                 ->route('admin.notifications.templates.edit', $template)
                 ->with('error', 'Test için bir teklif seçin.');
+        }
+
+        if (isset($validated['subject']) && $validated['subject'] !== '') {
+            $template->subject = $validated['subject'];
+        }
+        if (isset($validated['body']) && $validated['body'] !== '') {
+            $template->body = $validated['body'];
         }
 
         $pdf = null;
@@ -243,7 +252,7 @@ class NotificationTemplateController extends Controller
                 '[TEST] '.$template->renderSubject($replacements),
                 $template->renderBody($replacements),
                 null,
-                view('quotes.mail', ['quote' => $quote])->render(),
+                QuotePlaceholders::deliveredHtml((string) $template->body, $quote),
                 [['path' => $pdf['path'], 'name' => $pdf['filename']]],
             );
         } catch (\Throwable $e) {

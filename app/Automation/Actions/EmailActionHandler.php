@@ -124,7 +124,7 @@ final class EmailActionHandler implements ActionHandler
                 $template->renderSubject($replacements),
                 $template->renderBody($replacements),
                 MailSetting::notificationBcc(),
-                view('quotes.mail', ['quote' => $quote])->render(),
+                QuotePlaceholders::deliveredHtml((string) $template->body, $quote),
                 [['path' => $pdf['path'], 'name' => $pdf['filename']]],
             );
         } catch (\Throwable $e) {

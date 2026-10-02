@@ -248,10 +248,35 @@ class QuoteManagementTest extends TestCase
         $this->assertStringContainsString('- Yıllık taahhütlü seçeneğinde, yıllık ödenir.', $mail['{dinamik_kosullar}']);
         $this->assertStringNotContainsString('4,20', $mail['{kalemler}']);
         $this->assertStringContainsString('VD YAKACIK - Vergi No: 4980863169', $mail['{satici}']);
+        $this->assertSame('Örnek Müşteri', $mail['{cari_unvani}']);
+        $this->assertStringNotContainsString('1111111111', $mail['{cari_unvani}']);
         $this->assertStringContainsString('Vergi No: 1111111111', $mail['{alici}']);
         $html = view('quotes.mail', ['quote' => $quote->fresh(['customerCari', 'items'])])->render();
         $this->assertStringContainsString('Kesin Teklif', $html);
         $this->assertStringContainsString('Genel toplam:', $html);
+
+        NotificationTemplate::query()->where('legacy_key', 'quote_firm_sent')->update([
+            'body' => "Merhaba,\n\n{cari_unvani} için hazırladığımız {teklif_no} numaralı teklifimizi aşağıda ve ekte bilgilerinize sunarız.\n\n{kalemler}\n{dinamik_kosullar}\n\nİyi çalışmalar dileriz.",
+        ]);
+        $this->actingAs($user)->post(route('quotes.send', $quote))->assertRedirect(route('quotes.show', $quote));
+        $transport = Mail::mailer()->getSymfonyTransport();
+        $this->assertInstanceOf(ArrayTransport::class, $transport);
+        $sent = $transport->messages()->last()?->getOriginalMessage();
+        $this->assertInstanceOf(Email::class, $sent);
+        $sentHtml = (string) $sent->getHtmlBody();
+        $this->assertStringContainsString('Örnek Müşteri için hazırladığımız '.$quote->quote_number.' numaralı teklifimizi', $sentHtml);
+        $this->assertStringNotContainsString('Vergi No: 1111111111', $sentHtml);
+        $this->assertStringContainsString('<table', $sentHtml);
+        $this->assertStringContainsString('Microsoft 365 Business Basic', $sentHtml);
+        $this->assertStringContainsString('Genel toplam:', $sentHtml);
+        $this->assertStringContainsString('Birim fiyatlara KDV dahil değildir.', $sentHtml);
+        $this->assertStringContainsString('İyi çalışmalar dileriz.', $sentHtml);
+        $this->assertStringNotContainsString('background:#f3f4f6', $sentHtml);
+        $this->assertStringNotContainsString('Satıcı', $sentHtml);
+        $this->assertStringNotContainsString('VD YAKACIK', $sentHtml);
+        $this->assertStringNotContainsString('Orta Mah.', $sentHtml);
+        $this->assertStringContainsString('için hazırladığımız', (string) $sent->getTextBody());
+        $this->assertCount(1, $sent->getAttachments());
     }
 
     public function test_optional_quote_converts_from_its_snapshot_and_cannot_convert_twice(): void
@@ -509,6 +534,24 @@ class QuoteManagementTest extends TestCase
             ->assertSee('124,80 USD', false)
             ->assertDontSee('Birim fiyatlara KDV dahil değildir.', false)
             ->assertDontSee('Yıllık taahhütlü seçeneğinde, yıllık ödenir.', false);
+
+        $this->actingAs($admin)->post(route('admin.notifications.templates.test', $firmTemplate), [
+            'test_email' => 'deneme@example.com',
+            'quote_id' => $firm->id,
+            'subject' => 'Sayfadaki konu {teklif_no}',
+            'body' => "Sayfadaki metin {teklif_no}\n\n{kalemler}",
+        ])->assertRedirect(route('admin.notifications.templates.edit', $firmTemplate));
+
+        $transport = Mail::mailer()->getSymfonyTransport();
+        $this->assertInstanceOf(ArrayTransport::class, $transport);
+        $sent = $transport->messages()->last()?->getOriginalMessage();
+        $this->assertInstanceOf(Email::class, $sent);
+        $this->assertSame('[TEST] Sayfadaki konu '.$firm->quote_number, $sent->getSubject());
+        $sentHtml = (string) $sent->getHtmlBody();
+        $this->assertStringContainsString('Sayfadaki metin '.$firm->quote_number, $sentHtml);
+        $this->assertStringContainsString('<table', $sentHtml);
+        $this->assertStringNotContainsString('Satıcı', $sentHtml);
+        $this->assertCount(1, $sent->getAttachments());
     }
 
     public function test_mixed_currencies_are_rejected(): void
