@@ -25,6 +25,7 @@ final class QuotePlaceholders
             '{tarih}' => $quote->created_at?->timezone('Europe/Istanbul')->format('d.m.Y') ?? '—',
             '{gecerlilik}' => $quote->valid_until?->format('d.m.Y') ?? '—',
             '{satici}' => self::seller($quote),
+            '{cari_unvani}' => (string) ($cari?->name ?: '—'),
             '{alici}' => self::buyer($quote),
             '{kalemler}' => $htmlLines && $quote->isFirm() ? self::firmLinesHtml($quote) : self::lines($quote),
             '{dinamik_kosullar}' => self::warnings($quote),

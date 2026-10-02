@@ -248,13 +248,15 @@ class QuoteManagementTest extends TestCase
         $this->assertStringContainsString('- Yıllık taahhütlü seçeneğinde, yıllık ödenir.', $mail['{dinamik_kosullar}']);
         $this->assertStringNotContainsString('4,20', $mail['{kalemler}']);
         $this->assertStringContainsString('VD YAKACIK - Vergi No: 4980863169', $mail['{satici}']);
+        $this->assertSame('Örnek Müşteri', $mail['{cari_unvani}']);
+        $this->assertStringNotContainsString('1111111111', $mail['{cari_unvani}']);
         $this->assertStringContainsString('Vergi No: 1111111111', $mail['{alici}']);
         $html = view('quotes.mail', ['quote' => $quote->fresh(['customerCari', 'items'])])->render();
         $this->assertStringContainsString('Kesin Teklif', $html);
         $this->assertStringContainsString('Genel toplam:', $html);
 
         NotificationTemplate::query()->where('legacy_key', 'quote_firm_sent')->update([
-            'body' => "Merhaba,\n\n{alici} için hazırladığımız {teklif_no} numaralı teklifimizi aşağıda ve ekte bilgilerinize sunarız.\n\n{kalemler}\n{dinamik_kosullar}\n\nİyi çalışmalar dileriz.",
+            'body' => "Merhaba,\n\n{cari_unvani} için hazırladığımız {teklif_no} numaralı teklifimizi aşağıda ve ekte bilgilerinize sunarız.\n\n{kalemler}\n{dinamik_kosullar}\n\nİyi çalışmalar dileriz.",
         ]);
         $this->actingAs($user)->post(route('quotes.send', $quote))->assertRedirect(route('quotes.show', $quote));
         $transport = Mail::mailer()->getSymfonyTransport();
@@ -262,7 +264,8 @@ class QuoteManagementTest extends TestCase
         $sent = $transport->messages()->last()?->getOriginalMessage();
         $this->assertInstanceOf(Email::class, $sent);
         $sentHtml = (string) $sent->getHtmlBody();
-        $this->assertStringContainsString('için hazırladığımız '.$quote->quote_number.' numaralı teklifimizi', $sentHtml);
+        $this->assertStringContainsString('Örnek Müşteri için hazırladığımız '.$quote->quote_number.' numaralı teklifimizi', $sentHtml);
+        $this->assertStringNotContainsString('Vergi No: 1111111111', $sentHtml);
         $this->assertStringContainsString('<table', $sentHtml);
         $this->assertStringContainsString('Microsoft 365 Business Basic', $sentHtml);
         $this->assertStringContainsString('Genel toplam:', $sentHtml);
