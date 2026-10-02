@@ -28,23 +28,72 @@
                 <option value="pending" @selected(request('durum') === 'pending')>Beklemede</option>
             </select>
         </div>
+        @if (request()->filled('sort'))
+            <input type="hidden" name="sort" value="{{ request('sort') }}">
+            <input type="hidden" name="direction" value="{{ request('direction') === 'desc' ? 'desc' : 'asc' }}">
+        @endif
         <div class="pb-1">
             <x-primary-button type="submit">Filtrele</x-primary-button>
         </div>
     </form>
+
+    @php
+        $sortUrl = function (string $column): string {
+            $next = request('sort') === $column && request('direction') !== 'desc' ? 'desc' : 'asc';
+
+            return route('subscriptions.index', array_merge(request()->except('page'), [
+                'sort' => $column,
+                'direction' => $next,
+            ]));
+        };
+        $sortClass = function (string $column): string {
+            $active = request('sort') === $column;
+
+            return 'hover:text-gray-800 '.($active ? 'text-gray-900' : '');
+        };
+        $sortMark = function (string $column): string {
+            if (request('sort') !== $column) {
+                return '';
+            }
+
+            return request('direction') === 'desc' ? ' ↓' : ' ↑';
+        };
+    @endphp
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sözleşme / Müşteri</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ürün</th>
-                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Adet</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alış / Satış / Kar %</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Başlangıç / Bitiş</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Otomatik</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ $sortUrl('sozlesme') }}" class="{{ $sortClass('sozlesme') }}">Sözleşme{{ $sortMark('sozlesme') }}</a>
+                            <span class="text-gray-300">/</span>
+                            <a href="{{ $sortUrl('musteri') }}" class="{{ $sortClass('musteri') }}">Müşteri{{ $sortMark('musteri') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ $sortUrl('urun') }}" class="{{ $sortClass('urun') }}">Ürün{{ $sortMark('urun') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ $sortUrl('adet') }}" class="{{ $sortClass('adet') }}">Adet{{ $sortMark('adet') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ $sortUrl('alis') }}" class="{{ $sortClass('alis') }}">Alış{{ $sortMark('alis') }}</a>
+                            <span class="text-gray-300">/</span>
+                            <a href="{{ $sortUrl('satis') }}" class="{{ $sortClass('satis') }}">Satış{{ $sortMark('satis') }}</a>
+                            <span class="text-gray-300">/</span>
+                            <a href="{{ $sortUrl('kar') }}" class="{{ $sortClass('kar') }}">Kar %{{ $sortMark('kar') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ $sortUrl('baslangic') }}" class="{{ $sortClass('baslangic') }}">Başlangıç{{ $sortMark('baslangic') }}</a>
+                            <span class="text-gray-300">/</span>
+                            <a href="{{ $sortUrl('bitis') }}" class="{{ $sortClass('bitis') }}">Bitiş{{ $sortMark('bitis') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ $sortUrl('durum') }}" class="{{ $sortClass('durum') }}">Durum{{ $sortMark('durum') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ $sortUrl('otomatik') }}" class="{{ $sortClass('otomatik') }}">Otomatik{{ $sortMark('otomatik') }}</a>
+                        </th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
                     </tr>
                 </thead>
@@ -157,7 +206,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">Henüz abonelik eklenmemiş.</td>
+                            <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">Henüz abonelik eklenmemiş.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -106,7 +106,7 @@
                                     </table>
                                 @else
                                     @foreach ($quote->items as $item)
-                                        <div style="margin:0 0 8px;font-size:16px;font-weight:700;">{{ $item->product_name }} - <span style="display:inline-block;margin-left:4px;padding:2px 8px;border-radius:6px;background:#e2e8f0;font-size:15px;">{{ $item->quantity }} adet</span></div>
+                                        <div style="margin:0 0 8px;font-size:16px;font-weight:700;"><span style="display:inline-block;margin-right:6px;padding:2px 8px;border-radius:6px;background:#e2e8f0;font-size:15px;">{{ $item->quantity }} adet</span> - {{ $item->product_name }}</div>
                                         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:24px;">
                                             <tr>
                                                 <th style="{{ $cell }}width:18%;"></th>

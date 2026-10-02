@@ -80,7 +80,7 @@ class QuoteManagementTest extends TestCase
         $customer->assertOk();
         $customer->assertDontSee('Fiyatlara KDV dahil değildir.');
         $customer->assertSee('104,00');
-        $customer->assertSee('Microsoft 365 Business Basic -', false);
+        $customer->assertSee('20 adet</span> - Microsoft 365 Business Basic', false);
         $customer->assertDontSee('M365-BB');
         $customer->assertSee('20 adet');
         $customer->assertSee('quote-qty', false);

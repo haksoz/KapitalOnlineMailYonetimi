@@ -16,7 +16,7 @@
         .quote-summary-figures { margin-left: auto; text-align: right; white-space: nowrap; font-size: 0.875rem; color: #374151; }
         .quote-summary-figures p + p { margin-top: 0.25rem; }
         .quote-summary-figures .quote-gross { font-size: 1rem; font-weight: 700; color: #111827; }
-        .quote-qty { display: inline-block; margin-left: 0.15rem; padding: 0.1rem 0.5rem; border-radius: 0.375rem; background: #e2e8f0; font-size: 1rem; font-weight: 800; color: #0f172a; letter-spacing: 0.01em; }
+        .quote-qty { display: inline-block; margin-right: 0.35rem; padding: 0.1rem 0.5rem; border-radius: 0.375rem; background: #e2e8f0; font-size: 1rem; font-weight: 800; color: #0f172a; letter-spacing: 0.01em; }
         @media print {
             aside, header, .no-print { display: none !important; }
             .lg\:ml-64 { margin-left: 0 !important; }

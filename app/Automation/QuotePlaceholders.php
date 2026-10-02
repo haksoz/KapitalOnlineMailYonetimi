@@ -122,7 +122,7 @@ final class QuotePlaceholders
 
     private static function optionalLine(Quote $quote, QuoteItem $item): string
     {
-        $lines = [trim($item->product_name).' - '.$item->quantity.' adet'];
+        $lines = [$item->quantity.' adet - '.trim($item->product_name)];
         foreach (Quote::COMMITMENTS as $tip) {
             $option = $item->options->firstWhere('taahhut_tipi', $tip);
             $lines[] = '';

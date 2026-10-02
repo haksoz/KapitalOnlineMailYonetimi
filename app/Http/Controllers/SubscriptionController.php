@@ -4,18 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Automation\DomainEvents;
 use App\Models\Cari;
+use App\Models\PendingBilling;
 use App\Models\Product;
 use App\Models\ServiceProvider;
 use App\Models\Subscription;
 use App\Models\SubscriptionQuantityChange;
 use App\Models\SubscriptionQuantityHistory;
-use App\Models\PendingBilling;
 use App\Services\PendingBillingService;
 use App\Services\SubscriptionProjectionService;
 use App\Services\SubscriptionRenewalService;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class SubscriptionController extends Controller
@@ -34,8 +35,7 @@ class SubscriptionController extends Controller
                 'providerCari:id,name,short_name,uuid',
                 'product:id,name,stock_code',
                 'serviceProvider:id,name,code',
-            ])
-            ->latest('baslangic_tarihi');
+            ]);
 
         if ($request->filled('customer_cari_id')) {
             $query->where('customer_cari_id', $request->customer_cari_id);
@@ -44,11 +44,47 @@ class SubscriptionController extends Controller
             $query->where('durum', $request->durum);
         }
 
+        $this->applyIndexSort($query, $request);
+
         $subscriptions = $query->paginate(15)->withQueryString();
 
         $caris = Cari::orderBy('name')->get(['id', 'name', 'short_name']);
 
         return view('subscriptions.index', compact('subscriptions', 'caris'));
+    }
+
+    private function applyIndexSort(Builder $query, Request $request): void
+    {
+        $sort = (string) $request->query('sort', '');
+        $direction = $request->query('direction') === 'desc' ? 'desc' : 'asc';
+        $columns = [
+            'sozlesme' => 'subscriptions.sozlesme_no',
+            'adet' => 'subscriptions.quantity',
+            'alis' => 'subscriptions.usd_birim_alis',
+            'satis' => 'subscriptions.usd_birim_satis',
+            'baslangic' => 'subscriptions.baslangic_tarihi',
+            'bitis' => 'subscriptions.bitis_tarihi',
+            'durum' => 'subscriptions.durum',
+            'otomatik' => 'subscriptions.auto_renew',
+        ];
+
+        if (! isset($columns[$sort]) && ! in_array($sort, ['musteri', 'urun', 'kar'], true)) {
+            $query->orderByDesc('subscriptions.baslangic_tarihi')->orderByDesc('subscriptions.id');
+
+            return;
+        }
+
+        if ($sort === 'musteri') {
+            $query->orderByRaw("(SELECT COALESCE(NULLIF(short_name, ''), name) FROM caris WHERE caris.id = subscriptions.customer_cari_id) {$direction}");
+        } elseif ($sort === 'urun') {
+            $query->orderByRaw("(SELECT name FROM products WHERE products.id = subscriptions.product_id) {$direction}");
+        } elseif ($sort === 'kar') {
+            $query->orderByRaw("CASE WHEN subscriptions.usd_birim_alis > 0 THEN (subscriptions.usd_birim_satis - subscriptions.usd_birim_alis) / subscriptions.usd_birim_alis END {$direction}");
+        } else {
+            $query->orderBy($columns[$sort], $direction);
+        }
+
+        $query->orderBy('subscriptions.id');
     }
 
     public function create(): View
@@ -418,13 +454,13 @@ class SubscriptionController extends Controller
             return response()->json([
                 'ok' => true,
                 'auto_renew' => (bool) $fresh->auto_renew,
-                'message' => 'Otomatik yenileme ' . $label . '.',
+                'message' => 'Otomatik yenileme '.$label.'.',
             ]);
         }
 
         return redirect()
             ->route('subscriptions.index', $request->query())
-            ->with('success', 'Otomatik yenileme ' . $label . '.');
+            ->with('success', 'Otomatik yenileme '.$label.'.');
     }
 
     public function createProjection(Request $request, Subscription $subscription): RedirectResponse
@@ -442,6 +478,6 @@ class SubscriptionController extends Controller
 
         return redirect()
             ->route('subscriptions.show', $subscription)
-            ->with('success', $validated['year'] . '-' . str_pad($validated['month'], 2, '0', STR_PAD_LEFT) . ' için beklenen maliyet kaydı oluşturuldu.');
+            ->with('success', $validated['year'].'-'.str_pad($validated['month'], 2, '0', STR_PAD_LEFT).' için beklenen maliyet kaydı oluşturuldu.');
     }
 }

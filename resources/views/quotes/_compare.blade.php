@@ -8,7 +8,7 @@
 
 @foreach ($quote->items as $item)
     <section class="mb-8">
-        <h2 class="mb-3 text-base font-semibold text-gray-900">{{ $item->product_name }} - <span class="quote-qty">{{ $item->quantity }} adet</span></h2>
+        <h2 class="mb-3 text-base font-semibold text-gray-900"><span class="quote-qty">{{ $item->quantity }} adet</span> - {{ $item->product_name }}</h2>
         <table class="quote-compare">
             <thead>
                 <tr>

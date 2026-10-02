@@ -16,7 +16,7 @@
     .name { margin-top: 6px; font-weight: 700; }
     .line { margin-top: 3px; }
     .product { margin-top: 18px; font-size: 13px; font-weight: 700; }
-    .qty { display: inline-block; margin-left: 4px; padding: 1px 6px; background: #e2e8f0; font-size: 13px; font-weight: 800; }
+    .qty { display: inline-block; margin-right: 6px; padding: 1px 6px; background: #e2e8f0; font-size: 13px; font-weight: 800; }
     .compare { margin-top: 8px; }
     .compare th, .compare td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: top; }
     .compare thead th { text-align: right; font-size: 11px; }
@@ -144,7 +144,7 @@
         </table>
     @else
         @foreach ($quote->items as $item)
-            <h2 class="product">{{ $item->product_name }} - <span class="qty">{{ $item->quantity }} adet</span></h2>
+            <h2 class="product"><span class="qty">{{ $item->quantity }} adet</span> - {{ $item->product_name }}</h2>
             <table class="compare">
                 <thead>
                     <tr>
