@@ -61,6 +61,21 @@ final class QuotePlaceholders
         return $html;
     }
 
+    public static function deliveredHtml(string $templateBody, Quote $quote): string
+    {
+        if ($quote->isFirm()) {
+            $body = self::renderPreview($templateBody, $quote);
+
+            return '<!DOCTYPE html>'
+                .'<html lang="tr"><head><meta charset="UTF-8"></head>'
+                .'<body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#111827;">'
+                .$body
+                .'</body></html>';
+        }
+
+        return view('quotes.mail', ['quote' => $quote])->render();
+    }
+
     /**
      * @param  list<string>  $recipients
      * @return array<string, mixed>

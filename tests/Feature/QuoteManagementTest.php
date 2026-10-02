@@ -252,6 +252,25 @@ class QuoteManagementTest extends TestCase
         $html = view('quotes.mail', ['quote' => $quote->fresh(['customerCari', 'items'])])->render();
         $this->assertStringContainsString('Kesin Teklif', $html);
         $this->assertStringContainsString('Genel toplam:', $html);
+
+        NotificationTemplate::query()->where('legacy_key', 'quote_firm_sent')->update([
+            'body' => "Merhaba,\n\n{alici} için hazırladığımız {teklif_no} numaralı teklifimizi aşağıda ve ekte bilgilerinize sunarız.\n\n{kalemler}\n{dinamik_kosullar}\n\nİyi çalışmalar dileriz.",
+        ]);
+        $this->actingAs($user)->post(route('quotes.send', $quote))->assertRedirect(route('quotes.show', $quote));
+        $transport = Mail::mailer()->getSymfonyTransport();
+        $this->assertInstanceOf(ArrayTransport::class, $transport);
+        $sent = $transport->messages()->last()?->getOriginalMessage();
+        $this->assertInstanceOf(Email::class, $sent);
+        $sentHtml = (string) $sent->getHtmlBody();
+        $this->assertStringContainsString('için hazırladığımız '.$quote->quote_number.' numaralı teklifimizi', $sentHtml);
+        $this->assertStringContainsString('<table', $sentHtml);
+        $this->assertStringContainsString('Microsoft 365 Business Basic', $sentHtml);
+        $this->assertStringContainsString('Genel toplam:', $sentHtml);
+        $this->assertStringContainsString('Birim fiyatlara KDV dahil değildir.', $sentHtml);
+        $this->assertStringContainsString('İyi çalışmalar dileriz.', $sentHtml);
+        $this->assertStringNotContainsString('background:#f3f4f6', $sentHtml);
+        $this->assertStringContainsString('için hazırladığımız', (string) $sent->getTextBody());
+        $this->assertCount(1, $sent->getAttachments());
     }
 
     public function test_optional_quote_converts_from_its_snapshot_and_cannot_convert_twice(): void

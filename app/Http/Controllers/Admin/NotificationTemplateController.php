@@ -243,7 +243,7 @@ class NotificationTemplateController extends Controller
                 '[TEST] '.$template->renderSubject($replacements),
                 $template->renderBody($replacements),
                 null,
-                view('quotes.mail', ['quote' => $quote])->render(),
+                QuotePlaceholders::deliveredHtml((string) $template->body, $quote),
                 [['path' => $pdf['path'], 'name' => $pdf['filename']]],
             );
         } catch (\Throwable $e) {
