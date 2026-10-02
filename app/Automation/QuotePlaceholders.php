@@ -12,7 +12,7 @@ final class QuotePlaceholders
     /**
      * @return array<string, string>
      */
-    public static function forQuote(Quote $quote): array
+    public static function forQuote(Quote $quote, bool $htmlLines = false): array
     {
         $quote->loadMissing(['customerCari', 'items.options']);
         $cari = $quote->customerCari;
@@ -26,10 +26,39 @@ final class QuotePlaceholders
             '{gecerlilik}' => $quote->valid_until?->format('d.m.Y') ?? '—',
             '{satici}' => self::seller($quote),
             '{alici}' => self::buyer($quote),
-            '{kalemler}' => self::lines($quote),
+            '{kalemler}' => $htmlLines && $quote->isFirm() ? self::firmLinesHtml($quote) : self::lines($quote),
+            '{dinamik_kosullar}' => self::warnings($quote),
             '{not}' => trim((string) $quote->notes),
             '{kosullar}' => self::terms(),
         ];
+    }
+
+    /**
+     * Şablon metnini kaçışlayıp yalnızca kesin teklifin {kalemler} tablosunu HTML bırakır.
+     */
+    public static function renderPreview(string $template, Quote $quote): string
+    {
+        $replacements = self::forQuote($quote, htmlLines: true);
+        $htmlTokens = $quote->isFirm() ? ['{kalemler}'] : [];
+        $slots = [];
+        foreach ($htmlTokens as $index => $token) {
+            $slot = '%%HTMLTOKEN'.$index.'%%';
+            $slots[$slot] = $replacements[$token] ?? '';
+            $template = str_replace($token, $slot, $template);
+        }
+
+        $html = nl2br(e($template), false);
+        foreach ($replacements as $token => $value) {
+            if (in_array($token, $htmlTokens, true)) {
+                continue;
+            }
+            $html = str_replace($token, nl2br(e($value), false), $html);
+        }
+        foreach ($slots as $slot => $value) {
+            $html = str_replace($slot, $value, $html);
+        }
+
+        return $html;
     }
 
     /**
@@ -51,7 +80,21 @@ final class QuotePlaceholders
 
     public static function documentBody(): string
     {
-        return "{tur}\nNo {teklif_no}\n\nTarih {tarih}\nGeçerlilik {gecerlilik}\n\nSatıcı\n{satici}\n\nAlıcı\n{alici}\n\n{kalemler}\n\n{not}\n\n{kosullar}";
+        return self::skeleton(false);
+    }
+
+    public static function firmDocumentBody(): string
+    {
+        return self::skeleton(true);
+    }
+
+    private static function skeleton(bool $warnings): string
+    {
+        $afterLines = $warnings
+            ? "{kalemler}\n\n{dinamik_kosullar}\n\n{not}\n\n{kosullar}"
+            : "{kalemler}\n\n{not}\n\n{kosullar}";
+
+        return "{tur}\nNo {teklif_no}\n\nTarih {tarih}\nGeçerlilik {gecerlilik}\n\nSatıcı\n{satici}\n\nAlıcı\n{alici}\n\n".$afterLines;
     }
 
     public static function seller(Quote $quote): string
@@ -84,6 +127,20 @@ final class QuotePlaceholders
         return implode("\n", $lines);
     }
 
+    public static function warnings(Quote $quote): string
+    {
+        if (! $quote->isFirm()) {
+            return '';
+        }
+
+        $lines = ['- Birim fiyatlara KDV dahil değildir.'];
+        foreach (self::firmPaymentNotes($quote) as $note) {
+            $lines[] = '- '.$note;
+        }
+
+        return implode("\n", $lines);
+    }
+
     public static function terms(): string
     {
         return implode("\n", [
@@ -105,16 +162,13 @@ final class QuotePlaceholders
                 : self::optionalLine($quote, $item);
         }
 
-        $blocks[] = 'Birim fiyatlara KDV dahil değildir.';
-
         if ($quote->isFirm()) {
-            foreach (self::firmPaymentNotes($quote) as $note) {
-                $blocks[] = $note;
-            }
             $summary = $quote->firmSummary();
             $blocks[] = 'Ara toplam: '.$quote->formatMoney($summary['net'])
                 ."\n".'KDV (%'.QuoteMath::display($quote->vat_rate).'): '.$quote->formatMoney($summary['vat'])
                 ."\n".'Genel toplam: '.$quote->formatMoney($summary['gross']);
+        } else {
+            $blocks[] = 'Birim fiyatlara KDV dahil değildir.';
         }
 
         return implode("\n\n", array_filter($blocks, fn (string $block): bool => $block !== ''));
@@ -143,6 +197,40 @@ final class QuotePlaceholders
             'Birim fiyat: '.$quote->formatMoney($item->birim_satis),
             'Tutar: '.$quote->formatMoney($item->saleTotal()),
         ]);
+    }
+
+    private static function firmLinesHtml(Quote $quote): string
+    {
+        $cell = 'padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;';
+        $head = 'padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;letter-spacing:0.04em;text-transform:uppercase;color:#6b7280;font-weight:600;';
+        $rows = '';
+        foreach ($quote->items as $item) {
+            $rows .= '<tr>'
+                .'<td style="'.$cell.'font-weight:600;">'.e(trim($item->product_name)).'</td>'
+                .'<td style="'.$cell.'">'.e($item->commitmentLabel() ?: '—').'</td>'
+                .'<td align="right" style="'.$cell.'">'.e((string) $item->quantity).'</td>'
+                .'<td align="right" style="'.$cell.'">'.e($quote->formatMoney($item->birim_satis)).'</td>'
+                .'<td align="right" style="'.$cell.'font-weight:600;">'.e($quote->formatMoney($item->saleTotal())).'</td>'
+                .'</tr>';
+        }
+
+        $summary = $quote->firmSummary();
+
+        return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">'
+            .'<tr>'
+            .'<th align="left" style="'.$head.'">Ürün</th>'
+            .'<th align="left" style="'.$head.'">Taahhüt</th>'
+            .'<th align="right" style="'.$head.'">Adet</th>'
+            .'<th align="right" style="'.$head.'">Birim fiyat</th>'
+            .'<th align="right" style="'.$head.'">Tutar</th>'
+            .'</tr>'
+            .$rows
+            .'</table>'
+            .'<div style="margin-top:16px;text-align:right;font-size:14px;color:#374151;">'
+            .'<div>Ara toplam: '.e($quote->formatMoney($summary['net'])).'</div>'
+            .'<div style="margin-top:4px;">KDV (%'.e(QuoteMath::display($quote->vat_rate)).'): '.e($quote->formatMoney($summary['vat'])).'</div>'
+            .'<div style="margin-top:4px;font-size:16px;font-weight:700;color:#111827;">Genel toplam: '.e($quote->formatMoney($summary['gross'])).'</div>'
+            .'</div>';
     }
 
     /**

@@ -11,11 +11,11 @@
         .quote-compare td { text-align: right; font-size: 0.875rem; color: #111827; }
         .quote-pay { display: block; margin-top: 0.2rem; font-size: 0.75rem; font-weight: 400; color: #6b7280; }
         .quote-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-top: 1rem; }
-        .quote-summary-notes { font-size: 0.875rem; line-height: 1.45; color: #374151; }
-        .quote-summary-notes p + p { margin-top: 0.25rem; }
         .quote-summary-figures { margin-left: auto; text-align: right; white-space: nowrap; font-size: 0.875rem; color: #374151; }
         .quote-summary-figures p + p { margin-top: 0.25rem; }
         .quote-summary-figures .quote-gross { font-size: 1rem; font-weight: 700; color: #111827; }
+        .quote-notices { margin-top: 1.5rem; border-top: 1px solid #e5e7eb; padding-top: 1rem; font-size: 0.875rem; line-height: 1.45; color: #374151; }
+        .quote-notices div + div { margin-top: 0.25rem; }
         .quote-qty { display: inline-block; margin-right: 0.35rem; padding: 0.1rem 0.5rem; border-radius: 0.375rem; background: #e2e8f0; font-size: 1rem; font-weight: 800; color: #0f172a; letter-spacing: 0.01em; }
         @media print {
             aside, header, .no-print { display: none !important; }
@@ -27,6 +27,7 @@
             .quote-compare { width: 100% !important; }
             .quote-summary { display: flex !important; justify-content: space-between !important; }
             .quote-summary-figures { margin-left: auto !important; text-align: right !important; }
+            .quote-notices { border-top: 1px solid #e5e7eb !important; }
         }
     </style>
 
@@ -90,6 +91,10 @@
                 @include('quotes._compare')
             @endif
         </div>
+
+        @if ($quote->isFirm())
+            @include('quotes._firm_notices')
+        @endif
 
         @include('quotes._terms')
     </div>

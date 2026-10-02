@@ -1,10 +1,4 @@
 @php
-    $paymentNotes = [
-        \App\Models\Subscription::TAAHHUT_MONTHLY_COMMITMENT => 'Aylık taahhütlü seçeneğinde yıllık taahhüt verilir, aylık ödenir.',
-        \App\Models\Subscription::TAAHHUT_MONTHLY_NO_COMMITMENT => 'Aylık taahhütsüz seçeneğinde aylık ödenir.',
-        \App\Models\Subscription::TAAHHUT_ANNUAL_COMMITMENT => 'Yıllık taahhütlü seçeneğinde, yıllık ödenir.',
-    ];
-    $used = $quote->items->pluck('taahhut_tipi')->filter()->unique();
     $summary = $quote->firmSummary();
 @endphp
 
@@ -34,14 +28,6 @@
 </table>
 
 <div class="quote-summary">
-    <div class="quote-summary-notes">
-        <p>Birim fiyatlara KDV dahil değildir.</p>
-        @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-            @if ($used->contains($tip))
-                <p>{{ $paymentNotes[$tip] }}</p>
-            @endif
-        @endforeach
-    </div>
     <div class="quote-summary-figures">
         <p>Ara toplam: {{ $quote->formatMoney($summary['net']) }}</p>
         <p>KDV (%{{ \App\Services\QuoteMath::display($quote->vat_rate) }}): {{ $quote->formatMoney($summary['vat']) }}</p>

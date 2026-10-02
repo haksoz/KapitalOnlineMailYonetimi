@@ -4,12 +4,6 @@
         \App\Models\Subscription::TAAHHUT_MONTHLY_NO_COMMITMENT => 'Aylık ödeme',
         \App\Models\Subscription::TAAHHUT_ANNUAL_COMMITMENT => 'Yıllık ödeme',
     ];
-    $paymentNotes = [
-        \App\Models\Subscription::TAAHHUT_MONTHLY_COMMITMENT => 'Aylık taahhütlü seçeneğinde yıllık taahhüt verilir, aylık ödenir.',
-        \App\Models\Subscription::TAAHHUT_MONTHLY_NO_COMMITMENT => 'Aylık taahhütsüz seçeneğinde aylık ödenir.',
-        \App\Models\Subscription::TAAHHUT_ANNUAL_COMMITMENT => 'Yıllık taahhütlü seçeneğinde, yıllık ödenir.',
-    ];
-    $used = $quote->items->pluck('taahhut_tipi')->filter()->unique();
     $summary = $quote->isFirm() ? $quote->firmSummary() : null;
     $label = 'font-size:11px;letter-spacing:0.04em;text-transform:uppercase;color:#64748b;font-weight:600;';
     $muted = 'color:#6b7280;';
@@ -89,14 +83,6 @@
                                     </table>
                                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
                                         <tr>
-                                            <td style="vertical-align:top;font-size:14px;line-height:1.45;color:#374151;padding-right:16px;">
-                                                <div>Birim fiyatlara KDV dahil değildir.</div>
-                                                @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                                                    @if ($used->contains($tip))
-                                                        <div style="margin-top:4px;">{{ $paymentNotes[$tip] }}</div>
-                                                    @endif
-                                                @endforeach
-                                            </td>
                                             <td style="vertical-align:top;text-align:right;white-space:nowrap;font-size:14px;color:#374151;">
                                                 <div>Ara toplam: {{ $quote->formatMoney($summary['net']) }}</div>
                                                 <div style="margin-top:4px;">KDV (%{{ \App\Services\QuoteMath::display($quote->vat_rate) }}): {{ $quote->formatMoney($summary['vat']) }}</div>
@@ -136,6 +122,12 @@
                                     <div style="font-size:14px;color:#374151;">Birim fiyatlara KDV dahil değildir.</div>
                                 @endif
                             </div>
+
+                            @if ($quote->isFirm())
+                                <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:14px;line-height:1.5;color:#374151;">
+                                    @include('quotes._firm_notices')
+                                </div>
+                            @endif
 
                             <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:14px;line-height:1.5;color:#374151;">
                                 @if (filled($quote->notes))

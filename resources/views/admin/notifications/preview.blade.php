@@ -55,11 +55,15 @@
                     <span class="font-medium text-slate-900">{{ $subject }}</span>
                 </div>
             </header>
-            <div class="px-5 py-6 text-sm text-slate-800 whitespace-pre-wrap break-words leading-relaxed">{{ $body }}</div>
+            @if (! empty($body_is_html))
+                <div class="px-5 py-6 text-sm text-slate-800 break-words leading-relaxed">{!! $body !!}</div>
+            @else
+                <div class="px-5 py-6 text-sm text-slate-800 whitespace-pre-wrap break-words leading-relaxed">{{ $body }}</div>
+            @endif
         </article>
 
         <p class="mt-4 text-xs text-slate-500">
-            Bu ekran gönderilen düz metin e-postanın görünümüdür. Gerçek gönderim yapılmaz.
+            Bu ekran şablonun doldurulmuş halidir. Gerçek gönderim yapılmaz.
         </p>
     </div>
 </body>

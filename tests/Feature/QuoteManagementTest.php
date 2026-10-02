@@ -213,7 +213,18 @@ class QuoteManagementTest extends TestCase
         $customer->assertDontSee('GIZLI-NOT-XYZ');
         $customer->assertDontSee('23,81%');
         $customer->assertSee('Birim fiyatlara KDV dahil değildir.');
+        $customer->assertSee('quote-notices', false);
+        $customer->assertDontSee('quote-summary-notes', false);
         $customer->assertSee('Yıllık taahhütlü seçeneğinde, yıllık ödenir.');
+        $firmContent = $customer->getContent();
+        $totalsAt = strpos($firmContent, 'Genel toplam:');
+        $noticeAt = strpos($firmContent, 'class="quote-notices ');
+        $termsAt = strpos($firmContent, 'Sipariş geçildikten sonra iade veya iptal hakkı yoktur.');
+        $this->assertNotFalse($totalsAt);
+        $this->assertNotFalse($noticeAt);
+        $this->assertNotFalse($termsAt);
+        $this->assertLessThan($noticeAt, $totalsAt);
+        $this->assertLessThan($termsAt, $noticeAt);
         $customer->assertDontSee('Aylık taahhütsüz seçeneğinde aylık ödenir.');
         $customer->assertDontSee('Yıllık taahhüt, aylık ödeme');
         $customer->assertSee('otomatik yenileme yapılmayacak');
@@ -231,7 +242,10 @@ class QuoteManagementTest extends TestCase
         $this->assertStringContainsString('Tutar: 104,00 USD', $mail['{kalemler}']);
         $this->assertStringContainsString('Ara toplam: 104,00 USD', $mail['{kalemler}']);
         $this->assertStringContainsString('Genel toplam: 124,80 USD', $mail['{kalemler}']);
-        $this->assertStringContainsString('Yıllık taahhütlü seçeneğinde, yıllık ödenir.', $mail['{kalemler}']);
+        $this->assertStringNotContainsString('Birim fiyatlara KDV dahil değildir.', $mail['{kalemler}']);
+        $this->assertStringNotContainsString('Yıllık taahhütlü seçeneğinde, yıllık ödenir.', $mail['{kalemler}']);
+        $this->assertStringContainsString('- Birim fiyatlara KDV dahil değildir.', $mail['{dinamik_kosullar}']);
+        $this->assertStringContainsString('- Yıllık taahhütlü seçeneğinde, yıllık ödenir.', $mail['{dinamik_kosullar}']);
         $this->assertStringNotContainsString('4,20', $mail['{kalemler}']);
         $this->assertStringContainsString('VD YAKACIK - Vergi No: 4980863169', $mail['{satici}']);
         $this->assertStringContainsString('Vergi No: 1111111111', $mail['{alici}']);
@@ -460,6 +474,41 @@ class QuoteManagementTest extends TestCase
             ->get(route('admin.notifications.templates.edit', $firmTemplate))
             ->assertOk()
             ->assertDontSee($quote->quote_number, false);
+
+        $this->actingAs($user)->post(route('quotes.store'), [
+            'type' => 'firm',
+            'customer_cari_id' => $cari->id,
+            'vat_rate' => '20',
+            'items' => [[
+                'product_id' => $product->id,
+                'quantity' => 20,
+                'taahhut_tipi' => 'annual_commitment',
+                'birim_satis' => '5.20',
+            ]],
+        ])->assertRedirect();
+        $firm = Quote::query()->where('type', Quote::TYPE_FIRM)->first();
+
+        $this->actingAs($admin)
+            ->get(route('admin.notifications.templates.edit', $firmTemplate))
+            ->assertOk()
+            ->assertSee($firm->quote_number, false)
+            ->assertSee('{kalemler}', false);
+
+        $this->actingAs($admin)->post(route('admin.notifications.templates.preview', $firmTemplate), [
+            'quote_id' => $firm->id,
+            'subject' => 'Kesin {teklif_no}',
+            'body' => '{kalemler}',
+        ])->assertOk()
+            ->assertSee('<table', false)
+            ->assertSee('Ürün', false)
+            ->assertSee('Taahhüt', false)
+            ->assertSee('Microsoft 365 Business Basic', false)
+            ->assertSee('5,20 USD', false)
+            ->assertSee('104,00 USD', false)
+            ->assertSee('Genel toplam:', false)
+            ->assertSee('124,80 USD', false)
+            ->assertDontSee('Birim fiyatlara KDV dahil değildir.', false)
+            ->assertDontSee('Yıllık taahhütlü seçeneğinde, yıllık ödenir.', false);
     }
 
     public function test_mixed_currencies_are_rejected(): void

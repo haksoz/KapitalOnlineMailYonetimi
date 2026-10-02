@@ -99,6 +99,7 @@ class NotificationTemplateController extends Controller
             'source_label' => null,
             'subject' => $template->renderSubject($replacements),
             'body' => $template->renderBody($replacements),
+            'body_is_html' => false,
         ];
 
         if ($request->expectsJson()) {
@@ -206,7 +207,8 @@ class NotificationTemplateController extends Controller
             'invoice_number' => '',
             'source_label' => 'Teklif '.$quote->quote_number,
             'subject' => $template->renderSubject($replacements),
-            'body' => $template->renderBody($replacements),
+            'body' => QuotePlaceholders::renderPreview((string) $template->body, $quote),
+            'body_is_html' => true,
         ];
 
         if ($request->expectsJson()) {
@@ -260,7 +262,7 @@ class NotificationTemplateController extends Controller
     }
 
     /**
-     * @return list<array{id: int, label: string, to: string, replacements: array<string, string>}>
+     * @return list<array{id: int, label: string, to: string, replacements: array<string, string>, htmlTokens: list<string>}>
      */
     private function sampleQuotesForPreview(string $type): array
     {
@@ -277,7 +279,8 @@ class NotificationTemplateController extends Controller
                     'id' => (int) $quote->id,
                     'label' => $quote->quote_number.' · '.$customer.' · '.Quote::typeLabel($quote->type).' · '.Quote::statusLabel($quote->status),
                     'to' => (string) ($quote->customerCari?->email ?? ''),
-                    'replacements' => QuotePlaceholders::forQuote($quote),
+                    'replacements' => QuotePlaceholders::forQuote($quote, htmlLines: true),
+                    'htmlTokens' => $quote->isFirm() ? ['{kalemler}'] : [],
                 ];
             })
             ->values()

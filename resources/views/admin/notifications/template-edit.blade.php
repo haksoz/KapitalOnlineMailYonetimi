@@ -54,6 +54,33 @@
             },
             get previewSubject() { return this.apply(this.subject); },
             get previewBody() { return this.apply(this.body); },
+            get previewBodyHtml() {
+                const replacements = (this.selected && this.selected.replacements) || {};
+                const htmlTokens = (this.selected && this.selected.htmlTokens) || [];
+                let text = this.body == null ? '' : String(this.body);
+                const slots = {};
+                htmlTokens.forEach((token, index) => {
+                    const slot = '%%HTMLTOKEN' + index + '%%';
+                    slots[slot] = replacements[token] == null ? '' : String(replacements[token]);
+                    text = text.split(token).join(slot);
+                });
+                const escape = (value) => String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                let html = escape(text).replace(/\n/g, '<br>');
+                Object.keys(replacements).forEach((key) => {
+                    if (htmlTokens.indexOf(key) !== -1) {
+                        return;
+                    }
+                    const safe = escape(replacements[key] == null ? '' : replacements[key]).replace(/\n/g, '<br>');
+                    html = html.split(key).join(safe);
+                });
+                Object.keys(slots).forEach((slot) => {
+                    html = html.split(slot).join(slots[slot]);
+                });
+                return html;
+            },
             get previewTo() { return (this.selected && this.selected.to) || ''; },
             get fromLine() {
                 if (this.fromName && this.fromAddress) {
@@ -168,7 +195,11 @@
                             <span class="font-medium text-slate-900 break-words" x-text="previewSubject"></span>
                         </div>
                     </header>
-                    <div class="px-4 py-4 text-sm text-slate-800 whitespace-pre-wrap break-words leading-relaxed min-h-[8rem]" x-text="previewBody"></div>
+                    @if ($previewKind === 'quote')
+                        <div class="px-4 py-4 text-sm text-slate-800 break-words leading-relaxed min-h-[8rem]" x-html="previewBodyHtml"></div>
+                    @else
+                        <div class="px-4 py-4 text-sm text-slate-800 whitespace-pre-wrap break-words leading-relaxed min-h-[8rem]" x-text="previewBody"></div>
+                    @endif
                 </article>
             </div>
         </div>
