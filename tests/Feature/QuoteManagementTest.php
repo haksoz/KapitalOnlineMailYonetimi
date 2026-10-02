@@ -269,6 +269,9 @@ class QuoteManagementTest extends TestCase
         $this->assertStringContainsString('Birim fiyatlara KDV dahil değildir.', $sentHtml);
         $this->assertStringContainsString('İyi çalışmalar dileriz.', $sentHtml);
         $this->assertStringNotContainsString('background:#f3f4f6', $sentHtml);
+        $this->assertStringNotContainsString('Satıcı', $sentHtml);
+        $this->assertStringNotContainsString('VD YAKACIK', $sentHtml);
+        $this->assertStringNotContainsString('Orta Mah.', $sentHtml);
         $this->assertStringContainsString('için hazırladığımız', (string) $sent->getTextBody());
         $this->assertCount(1, $sent->getAttachments());
     }

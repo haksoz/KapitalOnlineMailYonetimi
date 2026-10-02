@@ -210,11 +210,19 @@
             @if (empty($previewSamples))
                 <p class="text-xs text-amber-700">{{ $previewKind === 'quote' ? 'Kayıtlı teklif yok. Bir teklif olunca test edilebilir.' : 'Vadesi kayıtlı satış faturası yok. Fatura no/tarihi girilmiş bir kayıt olunca test edilebilir.' }}</p>
             @else
-                <form id="notification-test-form" action="{{ route('admin.notifications.templates.test', $template) }}" method="POST" class="space-y-3">
+                <form
+                    id="notification-test-form"
+                    action="{{ route('admin.notifications.templates.test', $template) }}"
+                    method="POST"
+                    class="space-y-3"
+                    @if ($previewKind === 'quote')
+                        @submit="$refs.testSubject.value = subject; $refs.testBody.value = body"
+                    @endif
+                >
                     @csrf
                     @if ($previewKind === 'quote')
-                        <input type="hidden" name="subject" :value="subject">
-                        <input type="hidden" name="body" :value="body">
+                        <input type="hidden" name="subject" x-ref="testSubject">
+                        <input type="hidden" name="body" x-ref="testBody">
                     @endif
                     <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
                         <div class="flex-1 w-full">
