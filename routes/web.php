@@ -1,27 +1,28 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
+use App\Http\Controllers\Admin\ApiSettingsController as AdminApiSettingsController;
+use App\Http\Controllers\Admin\AutomationJobController as AdminAutomationJobController;
+use App\Http\Controllers\Admin\AutomationRuleController as AdminAutomationRuleController;
+use App\Http\Controllers\Admin\CariLedgerReportController as AdminCariLedgerReportController;
+use App\Http\Controllers\Admin\IntegrationPreviewController as AdminIntegrationPreviewController;
+use App\Http\Controllers\Admin\MailSettingController as AdminMailSettingController;
+use App\Http\Controllers\Admin\NotificationCariController as AdminNotificationCariController;
+use App\Http\Controllers\Admin\NotificationTemplateController as AdminNotificationTemplateController;
+use App\Http\Controllers\Admin\PendingBillingAdminController as AdminPendingBillingController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\CariController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExchangeRateController;
+use App\Http\Controllers\ExpenseSettlementController;
+use App\Http\Controllers\PendingBillingController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\SalesInvoiceController;
 use App\Http\Controllers\ServiceProviderController;
 use App\Http\Controllers\SubscriptionController;
-use App\Http\Controllers\PendingBillingController;
-use App\Http\Controllers\SalesInvoiceController;
-use App\Http\Controllers\ExpenseSettlementController;
 use App\Http\Controllers\SubscriptionMonitorController;
-use App\Http\Controllers\Admin\MailSettingController as AdminMailSettingController;
-use App\Http\Controllers\Admin\NotificationTemplateController as AdminNotificationTemplateController;
-use App\Http\Controllers\Admin\AutomationJobController as AdminAutomationJobController;
-use App\Http\Controllers\Admin\NotificationCariController as AdminNotificationCariController;
-use App\Http\Controllers\Admin\AutomationRuleController as AdminAutomationRuleController;
-use App\Http\Controllers\Admin\CariLedgerReportController as AdminCariLedgerReportController;
-use App\Http\Controllers\Admin\PendingBillingAdminController as AdminPendingBillingController;
-use App\Http\Controllers\Admin\UserController as AdminUserController;
-use App\Http\Controllers\Admin\IntegrationPreviewController as AdminIntegrationPreviewController;
-use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
-use App\Http\Controllers\Admin\ApiSettingsController as AdminApiSettingsController;
 use App\Http\Controllers\TriggersController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,7 @@ Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');
     }
+
     return redirect()->route('login');
 });
 
@@ -45,6 +47,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('caris/{cari}/quick', [CariController::class, 'quickUpdate'])->name('caris.quick-update');
     Route::resource('service-providers', ServiceProviderController::class)->except(['show']);
     Route::resource('products', ProductController::class);
+    Route::get('quotes/{quote}/customer', [QuoteController::class, 'customer'])->name('quotes.customer');
+    Route::get('quotes/{quote}/customer/pdf', [QuoteController::class, 'customerPdf'])->name('quotes.customer.pdf');
+    Route::get('quotes/{quote}/convert', [QuoteController::class, 'convertForm'])->name('quotes.convert');
+    Route::post('quotes/{quote}/convert', [QuoteController::class, 'convertStore'])->name('quotes.convert.store');
+    Route::post('quotes/{quote}/send', [QuoteController::class, 'send'])->name('quotes.send');
+    Route::post('quotes/{quote}/approve', [QuoteController::class, 'approve'])->name('quotes.approve');
+    Route::post('quotes/{quote}/reject', [QuoteController::class, 'reject'])->name('quotes.reject');
+    Route::post('quotes/{quote}/expire', [QuoteController::class, 'expire'])->name('quotes.expire');
+    Route::post('quotes/{quote}/cancel', [QuoteController::class, 'cancel'])->name('quotes.cancel');
+    Route::resource('quotes', QuoteController::class);
     Route::get('products/api/data', [ProductController::class, 'api'])->name('products.api');
     Route::resource('subscriptions', SubscriptionController::class)->except(['destroy']);
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');

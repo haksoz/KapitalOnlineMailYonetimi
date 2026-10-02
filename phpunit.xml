@@ -31,5 +31,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="LARAVEL_PDF_DRIVER" value="gotenberg"/>
+        <env name="GOTENBERG_URL" value="http://gotenberg.test"/>
     </php>
 </phpunit>

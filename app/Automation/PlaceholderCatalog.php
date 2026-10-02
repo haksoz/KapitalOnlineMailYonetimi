@@ -40,6 +40,21 @@ final class PlaceholderCatalog
                 ],
             ],
             [
+                'group' => 'Teklif',
+                'items' => [
+                    ['token' => '{tur}', 'hint' => 'Belge başlığı: Birim Fiyat Teklifi veya Kesin Teklif'],
+                    ['token' => '{teklif_no}', 'hint' => 'Teklif numarası'],
+                    ['token' => '{teklif_turu}', 'hint' => 'Birim fiyat teklifi veya kesin teklif'],
+                    ['token' => '{tarih}', 'hint' => 'Teklif tarihi'],
+                    ['token' => '{gecerlilik}', 'hint' => 'Geçerlilik tarihi'],
+                    ['token' => '{satici}', 'hint' => 'Satıcı. Birim fiyat teklifinde ünvan; kesin teklifte adres ve vergi satırları'],
+                    ['token' => '{alici}', 'hint' => 'Alıcı ünvanı. Kesin teklifte vergi no ve e-posta'],
+                    ['token' => '{kalemler}', 'hint' => 'Müşteri belgesindeki ürün, birim fiyat ve tutar düzeni. Alış ve kâr yazılmaz'],
+                    ['token' => '{not}', 'hint' => 'Müşteri notu. Koşulların üstünde durur'],
+                    ['token' => '{kosullar}', 'hint' => 'Müşteri belgesinin altındaki sabit koşullar'],
+                ],
+            ],
+            [
                 'group' => 'Sipariş',
                 'items' => [
                     ['token' => '{donem_baslangic}', 'hint' => 'Dönem başlangıcı'],

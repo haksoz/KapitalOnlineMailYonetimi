@@ -12,7 +12,7 @@
     @include('admin.notifications.partials.tabs')
 
     <script>
-        window.notificationSampleInvoices = {!! \Illuminate\Support\Js::from($sampleInvoices) !!};
+        window.notificationSampleInvoices = {!! \Illuminate\Support\Js::from($previewSamples) !!};
         window.notificationMailFrom = {!! \Illuminate\Support\Js::from($mailFrom) !!};
     </script>
 
@@ -86,22 +86,22 @@
         </form>
 
         <div class="bg-white rounded-xl shadow-sm p-5">
-            @if (empty($sampleInvoices))
-                <p class="text-xs text-amber-700 mb-3">Vadesi kayıtlı satış faturası yok. Fatura no/tarihi girilmiş bir kayıt olunca yer tutucular doldurulabilir ve test edilebilir.</p>
+            @if (empty($previewSamples))
+                <p class="text-xs text-amber-700 mb-3">{{ $previewKind === 'quote' ? 'Kayıtlı teklif yok. Bir teklif olunca yer tutucular doldurulabilir ve test edilebilir.' : 'Vadesi kayıtlı satış faturası yok. Fatura no/tarihi girilmiş bir kayıt olunca yer tutucular doldurulabilir ve test edilebilir.' }}</p>
             @else
                 <div class="mb-4">
-                    <x-input-label for="invoice_preview" value="Örnek fatura *" />
+                    <x-input-label for="invoice_preview" value="{{ $previewKind === 'quote' ? 'Örnek teklif *' : 'Örnek fatura *' }}" />
                     <select
                         id="invoice_preview"
-                        name="sales_invoice_id"
+                        name="{{ $previewKind === 'quote' ? 'quote_id' : 'sales_invoice_id' }}"
                         form="notification-test-form"
                         required
                         x-model="invoiceId"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
                     >
-                        <option value="">— Fatura seçin —</option>
-                        @foreach ($sampleInvoices as $invoice)
-                            <option value="{{ $invoice['id'] }}">{{ $invoice['label'] }}</option>
+                        <option value="">{{ $previewKind === 'quote' ? '— Teklif seçin —' : '— Fatura seçin —' }}</option>
+                        @foreach ($previewSamples as $sample)
+                            <option value="{{ $sample['id'] }}">{{ $sample['label'] }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -120,7 +120,7 @@
                     </svg>
                     Mail önizlemesi
                 </button>
-                @if (! empty($sampleInvoices))
+                @if (! empty($previewSamples))
                     <form
                         action="{{ route('admin.notifications.templates.preview', $template) }}"
                         method="POST"
@@ -130,7 +130,7 @@
                         x-cloak
                     >
                         @csrf
-                        <input type="hidden" name="sales_invoice_id" :value="invoiceId">
+                        <input type="hidden" name="{{ $previewKind === 'quote' ? 'quote_id' : 'sales_invoice_id' }}" :value="invoiceId">
                         <input type="hidden" name="subject" :value="subject">
                         <input type="hidden" name="body" :value="body">
                         <button
@@ -145,7 +145,7 @@
             </div>
 
             <div id="notification-preview" x-show="previewOpen" x-cloak class="mt-3">
-                <p class="text-xs text-gray-500 mb-3">Yazdığınız konu ve içerik, seçilen faturanın gerçek alanlarıyla dolar. Kaydetmeniz gerekmez.</p>
+                <p class="text-xs text-gray-500 mb-3">{{ $previewKind === 'quote' ? 'Yazdığınız konu ve içerik, seçilen teklifin gerçek alanlarıyla dolar. Kaydetmeniz gerekmez.' : 'Yazdığınız konu ve içerik, seçilen faturanın gerçek alanlarıyla dolar. Kaydetmeniz gerekmez.' }}</p>
                 <article class="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden" aria-label="Mail önizlemesi">
                     <header class="px-4 py-3 space-y-1.5 text-xs border-b border-slate-200 bg-white">
                         <div class="flex gap-2">
@@ -159,7 +159,7 @@
                                     <span x-text="previewTo"></span>
                                 </template>
                                 <template x-if="! previewTo">
-                                    <span class="text-slate-400" x-text="invoiceId ? 'Müşterinin e-posta adresi yok' : 'Fatura seçince müşteri adresi görünür'"></span>
+                                    <span class="text-slate-400" x-text="invoiceId ? 'Müşterinin e-posta adresi yok' : {{ \Illuminate\Support\Js::from($previewKind === 'quote' ? 'Teklif seçince müşteri adresi görünür' : 'Fatura seçince müşteri adresi görünür') }}"></span>
                                 </template>
                             </span>
                         </div>
@@ -175,9 +175,9 @@
 
         <div class="bg-white rounded-xl shadow-sm p-5">
             <h3 class="text-sm font-semibold text-gray-700 mb-1">Test maili gönder</h3>
-            <p class="text-xs text-gray-500 mb-3">Kayıtlı şablon, yukarıda seçilen faturanın gerçek alanlarıyla dolar. Müşteriye gitmez; yalnızca yazdığınız adrese gider. Önce ayarı kaydedin.</p>
-            @if (empty($sampleInvoices))
-                <p class="text-xs text-amber-700">Vadesi kayıtlı satış faturası yok. Fatura no/tarihi girilmiş bir kayıt olunca test edilebilir.</p>
+            <p class="text-xs text-gray-500 mb-3">{{ $previewKind === 'quote' ? 'Kayıtlı şablon, yukarıda seçilen teklifin gerçek alanlarıyla dolar. Müşteriye gitmez; yalnızca yazdığınız adrese gider. Önce ayarı kaydedin.' : 'Kayıtlı şablon, yukarıda seçilen faturanın gerçek alanlarıyla dolar. Müşteriye gitmez; yalnızca yazdığınız adrese gider. Önce ayarı kaydedin.' }}</p>
+            @if (empty($previewSamples))
+                <p class="text-xs text-amber-700">{{ $previewKind === 'quote' ? 'Kayıtlı teklif yok. Bir teklif olunca test edilebilir.' : 'Vadesi kayıtlı satış faturası yok. Fatura no/tarihi girilmiş bir kayıt olunca test edilebilir.' }}</p>
             @else
                 <form id="notification-test-form" action="{{ route('admin.notifications.templates.test', $template) }}" method="POST" class="space-y-3">
                     @csrf

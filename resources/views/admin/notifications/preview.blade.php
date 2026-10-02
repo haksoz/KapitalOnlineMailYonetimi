@@ -12,7 +12,9 @@
             <div>
                 <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Mail önizlemesi</p>
                 <h1 class="text-sm font-semibold text-slate-800">{{ $definition_name }}</h1>
-                @if ($invoice_number !== '')
+                @if (! empty($source_label))
+                    <p class="text-xs text-slate-500 mt-0.5">{{ $source_label }}</p>
+                @elseif ($invoice_number !== '')
                     <p class="text-xs text-slate-500 mt-0.5">Fatura {{ $invoice_number }}</p>
                 @endif
             </div>

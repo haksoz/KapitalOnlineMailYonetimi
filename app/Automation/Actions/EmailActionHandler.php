@@ -6,16 +6,21 @@ use App\Automation\DomainPlaceholders;
 use App\Automation\EventType;
 use App\Automation\InvoicePlaceholders;
 use App\Automation\NotificationMail;
+use App\Automation\QuotePlaceholders;
 use App\Models\AutomationJob;
 use App\Models\Cari;
 use App\Models\MailSetting;
 use App\Models\NotificationTemplate;
 use App\Models\PendingBilling;
+use App\Models\Quote;
 use App\Models\SalesInvoice;
 use App\Models\Subscription;
+use App\Services\QuotePdf;
 
 final class EmailActionHandler implements ActionHandler
 {
+    public function __construct(private QuotePdf $pdfs) {}
+
     public function handle(AutomationJob $job): ActionResult
     {
         MailSetting::applyToRuntime();
@@ -34,6 +39,11 @@ final class EmailActionHandler implements ActionHandler
         if (! $cari instanceof Cari) {
             $cari = $job->cari_id ? Cari::query()->find($job->cari_id) : null;
         }
+
+        if (in_array($job->event_type, [EventType::QuoteSent, EventType::QuoteOptionalSent, EventType::QuoteFirmSent], true)) {
+            return $this->sendQuote($job, $template, $cari);
+        }
+
         if ($cari === null || ! $cari->canReceiveNotifications()) {
             return ActionResult::skipped('Cari bildirimi kapalı veya e-posta yok.');
         }
@@ -81,11 +91,82 @@ final class EmailActionHandler implements ActionHandler
         if ($subject instanceof PendingBilling) {
             return DomainPlaceholders::forOrder($subject);
         }
+        if ($subject instanceof Quote) {
+            return QuotePlaceholders::forQuote($subject);
+        }
         if (is_array($fromContext) && $fromContext !== []) {
             /** @var array<string, string> $fromContext */
             return $fromContext;
         }
 
         return [];
+    }
+
+    private function sendQuote(AutomationJob $job, NotificationTemplate $template, ?Cari $cari): ActionResult
+    {
+        $recipients = $this->quoteRecipients($job, $cari);
+        if ($recipients === []) {
+            return ActionResult::skipped('Alıcı e-posta yok.');
+        }
+
+        $quote = $this->quoteFromJob($job);
+        if (! $quote instanceof Quote) {
+            return ActionResult::failed('Teklif bulunamadı.');
+        }
+
+        $pdf = null;
+        try {
+            $quote->loadMissing(['customerCari', 'items.options']);
+            $pdf = $this->pdfs->write($quote);
+            $replacements = $this->replacements($job);
+            NotificationMail::send(
+                $recipients,
+                $template->renderSubject($replacements),
+                $template->renderBody($replacements),
+                MailSetting::notificationBcc(),
+                view('quotes.mail', ['quote' => $quote])->render(),
+                [['path' => $pdf['path'], 'name' => $pdf['filename']]],
+            );
+        } catch (\Throwable $e) {
+            return ActionResult::failed($e->getMessage());
+        } finally {
+            if (is_array($pdf) && is_file($pdf['path'])) {
+                unlink($pdf['path']);
+            }
+        }
+
+        return ActionResult::success(implode(', ', $recipients));
+    }
+
+    private function quoteFromJob(AutomationJob $job): ?Quote
+    {
+        $quote = $job->subject instanceof Quote ? $job->subject : null;
+        if (! $quote instanceof Quote && $job->subject_id) {
+            $quote = Quote::query()->find($job->subject_id);
+        }
+
+        return $quote instanceof Quote ? $quote : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function quoteRecipients(AutomationJob $job, ?Cari $cari): array
+    {
+        $fromContext = $job->context['recipients'] ?? null;
+        if (is_array($fromContext)) {
+            $clean = [];
+            foreach ($fromContext as $email) {
+                if (! is_string($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+                    continue;
+                }
+                $clean[strtolower($email)] = $email;
+            }
+            if ($clean !== []) {
+                return array_values($clean);
+            }
+        }
+
+        return $cari?->notificationEmails() ?? [];
     }
 }

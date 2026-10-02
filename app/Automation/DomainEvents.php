@@ -2,7 +2,9 @@
 
 namespace App\Automation;
 
+use App\Models\AutomationJob;
 use App\Models\PendingBilling;
+use App\Models\Quote;
 use App\Models\SalesInvoice;
 use App\Models\Subscription;
 use App\Models\SubscriptionPriceHistory;
@@ -129,6 +131,45 @@ final class DomainEvents
             fingerprint: 'paid:'.$paidDay,
             occurredAt: now()->timezone(Automation::TIMEZONE),
         ));
+    }
+
+    /**
+     * @param  list<string>  $recipients
+     */
+    public function quoteSent(Quote $quote, array $recipients): string
+    {
+        $quote->loadMissing(['customerCari', 'items.options']);
+        $fingerprint = 'sent:'.($quote->sent_at?->timezone(Automation::TIMEZONE)->format('YmdHis') ?? now()->timezone(Automation::TIMEZONE)->format('YmdHis'));
+
+        try {
+            $created = $this->bus->emit(new DomainEvent(
+                type: QuotePlaceholders::eventFor($quote),
+                subject: $quote,
+                cariId: $quote->customer_cari_id,
+                context: QuotePlaceholders::context($quote, $recipients),
+                fingerprint: $fingerprint,
+                occurredAt: now()->timezone(Automation::TIMEZONE),
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Teklif e-postası kuyruğa yazılamadı.', [
+                'quote_id' => $quote->getKey(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'failed';
+        }
+
+        if ($created === 0) {
+            return 'disabled';
+        }
+
+        $sent = AutomationJob::query()
+            ->where('event_type', QuotePlaceholders::eventFor($quote))
+            ->where('subject_id', $quote->getKey())
+            ->where('status', JobStatus::Succeeded)
+            ->exists();
+
+        return $sent ? 'sent' : 'failed';
     }
 
     private function emitSafely(DomainEvent $event): void
