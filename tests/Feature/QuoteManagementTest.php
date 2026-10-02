@@ -13,11 +13,26 @@ use App\Models\Quote;
 use App\Models\User;
 use App\Services\QuoteMath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Mail\Transport\ArrayTransport;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use Symfony\Component\Mime\Email;
 use Tests\TestCase;
 
 class QuoteManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::fake([
+            'http://gotenberg.test/*' => Http::response('%PDF-1.4', 200, ['Content-Type' => 'application/pdf']),
+        ]);
+    }
 
     public function test_guest_is_redirected_from_quotes(): void
     {
@@ -101,6 +116,7 @@ class QuoteManagementTest extends TestCase
         $customer->assertDontSee('4,20');
         $customer->assertDontSee('GIZLI-NOT-XYZ');
         $customer->assertDontSee('Ara toplam');
+        $customer->assertSee('PDF indir');
     }
 
     public function test_draft_keeps_cost_snapshot_until_catalog_refresh_is_requested(): void
@@ -209,6 +225,7 @@ class QuoteManagementTest extends TestCase
         $customer->assertSee('Vergi No: 1111111111');
         $customer->assertSee('E-posta: karar@ornek.test');
         $customer->assertDontSee('+90 216 377 4000');
+        $customer->assertSee('PDF indir');
         $mail = QuotePlaceholders::forQuote($quote->fresh(['customerCari', 'items']));
         $this->assertStringContainsString('Birim fiyat: 5,20 USD', $mail['{kalemler}']);
         $this->assertStringContainsString('Tutar: 104,00 USD', $mail['{kalemler}']);
@@ -325,6 +342,18 @@ class QuoteManagementTest extends TestCase
         $this->assertSame(EventType::QuoteOptionalSent, $job->event_type);
         $this->assertSame(JobStatus::Succeeded, $job->status);
         $this->assertSame('musteri@example.com', $job->to_email);
+
+        $transport = Mail::mailer()->getSymfonyTransport();
+        $this->assertInstanceOf(ArrayTransport::class, $transport);
+        $sent = $transport->messages()->last()?->getOriginalMessage();
+        $this->assertInstanceOf(Email::class, $sent);
+        $this->assertStringContainsString('Birim Fiyat Teklifi', (string) $sent->getHtmlBody());
+        $this->assertStringContainsString('20 adet', (string) $sent->getHtmlBody());
+        $attachments = $sent->getAttachments();
+        $this->assertCount(1, $attachments);
+        $this->assertSame('application/pdf', $attachments[0]->getContentType());
+        $this->assertStringStartsWith($quote->quote_number.'-', (string) $attachments[0]->getFilename());
+        $this->assertStringEndsWith('.pdf', (string) $attachments[0]->getFilename());
 
         $this->actingAs($user)
             ->patch(route('quotes.update', $quote), [])
@@ -485,6 +514,89 @@ class QuoteManagementTest extends TestCase
             ->assertSee('Alıcı bilgileri')
             ->assertSee('KAPİTAL ONLİNE BİLGİSAYAR VE İLETİŞİM HİZ. TİC. LTD. ŞTİ.')
             ->assertSee('VD YAKACIK - Vergi No: 4980863169');
+    }
+
+    public function test_customer_document_pdf_is_built_by_gotenberg_on_download(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-02 08:04:00'));
+        [$user, $cari, $product] = $this->fixtures();
+        $this->get(route('quotes.customer.pdf', 1))->assertRedirect(route('login'));
+
+        Http::fake([
+            'http://gotenberg.test/*' => Http::response('%PDF-1.4', 200, ['Content-Type' => 'application/pdf']),
+        ]);
+
+        $this->actingAs($user)->post(route('quotes.store'), $this->optionalPayload($cari, $product));
+        $optional = Quote::query()->first();
+        $optionalResponse = $this->actingAs($user)->get(route('quotes.customer.pdf', $optional));
+        $optionalResponse->assertOk();
+        $optionalResponse->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString(
+            'attachment; filename="'.$optional->quote_number.'-20261002-0804.pdf"',
+            (string) $optionalResponse->headers->get('content-disposition')
+        );
+
+        Http::assertSent(function ($request) use ($optional) {
+            $body = $request->body();
+
+            return str_contains($request->url(), '/forms/chromium/convert/html')
+                && str_contains($body, 'data:image/png;base64,')
+                && str_contains($body, 'Birim Fiyat Teklifi')
+                && str_contains($body, $optional->quote_number)
+                && str_contains($body, '20 adet')
+                && str_contains($body, '104,00')
+                && ! str_contains($body, 'name="landscape"')
+                && str_contains($body, 'marginTop')
+                && str_contains($body, '10mm')
+                && ! str_contains($body, 'M365-BB')
+                && ! str_contains($body, '4,20')
+                && ! str_contains($body, 'GIZLI-NOT-XYZ')
+                && ! str_contains($body, '4980863169')
+                && ! str_contains($body, 'Gönderim')
+                && ! $request->hasHeader('Authorization');
+        });
+
+        $cari->update(['email' => 'karar@ornek.test', 'tax_number' => '1111111111']);
+        $this->actingAs($user)->post(route('quotes.store'), [
+            'type' => 'firm',
+            'customer_cari_id' => $cari->id,
+            'vat_rate' => '20',
+            'internal_notes' => 'GIZLI-NOT-XYZ',
+            'items' => [[
+                'product_id' => $product->id,
+                'quantity' => 20,
+                'taahhut_tipi' => 'annual_commitment',
+                'birim_satis' => '5.20',
+            ]],
+        ]);
+        $firm = Quote::query()->where('type', Quote::TYPE_FIRM)->first();
+        $firmResponse = $this->actingAs($user)->get(route('quotes.customer.pdf', $firm));
+        $firmResponse->assertOk();
+        $firmResponse->assertHeader('content-type', 'application/pdf');
+
+        Http::assertSent(function ($request) use ($firm) {
+            $body = $request->body();
+
+            return str_contains($body, $firm->quote_number)
+                && str_contains($body, 'Kesin Teklif')
+                && str_contains($body, 'Genel toplam')
+                && str_contains($body, '124,80')
+                && str_contains($body, 'VD YAKACIK - Vergi No: 4980863169')
+                && str_contains($body, 'Vergi No: 1111111111')
+                && str_contains($body, 'E-posta: karar@ornek.test')
+                && ! str_contains($body, 'name="landscape"')
+                && ! str_contains($body, 'M365-BB')
+                && ! str_contains($body, '4,20')
+                && ! str_contains($body, 'GIZLI-NOT-XYZ');
+        });
+
+        Http::swap(new Factory);
+        Http::fake([
+            'http://gotenberg.test/*' => Http::response('down', 500),
+        ]);
+        $this->actingAs($user)->get(route('quotes.customer.pdf', $firm))
+            ->assertRedirect(route('quotes.customer', $firm))
+            ->assertSessionHas('error');
     }
 
     /**

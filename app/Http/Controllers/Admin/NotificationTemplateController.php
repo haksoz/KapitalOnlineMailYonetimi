@@ -11,6 +11,7 @@ use App\Models\NotificationTemplate;
 use App\Models\Quote;
 use App\Models\SalesInvoice;
 use App\Services\InvoiceNotificationDispatcher;
+use App\Services\QuotePdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -229,21 +230,28 @@ class NotificationTemplateController extends Controller
                 ->with('error', 'Test için bir teklif seçin.');
         }
 
+        $pdf = null;
         try {
             MailSetting::applyToRuntime();
             $replacements = QuotePlaceholders::forQuote($quote);
             $quote->loadMissing(['customerCari', 'items.options']);
+            $pdf = app(QuotePdf::class)->write($quote);
             NotificationMail::send(
                 $validated['test_email'],
                 '[TEST] '.$template->renderSubject($replacements),
                 $template->renderBody($replacements),
                 null,
                 view('quotes.mail', ['quote' => $quote])->render(),
+                [['path' => $pdf['path'], 'name' => $pdf['filename']]],
             );
         } catch (\Throwable $e) {
             return redirect()
                 ->route('admin.notifications.templates.edit', $template)
                 ->with('error', 'Test e-postası gönderilemedi: '.$e->getMessage());
+        } finally {
+            if (is_array($pdf) && is_file($pdf['path'])) {
+                unlink($pdf['path']);
+            }
         }
 
         return redirect()

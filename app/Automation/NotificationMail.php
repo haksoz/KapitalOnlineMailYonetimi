@@ -9,16 +9,23 @@ final class NotificationMail
 {
     /**
      * @param  list<string>|string  $to
+     * @param  list<array{path: string, name: string}>  $attachments
      */
-    public static function send(array|string $to, string $subject, string $plainBody, ?string $bcc = null, ?string $html = null): void
+    public static function send(array|string $to, string $subject, string $plainBody, ?string $bcc = null, ?string $html = null, array $attachments = []): void
     {
         $html = $html ?? self::htmlFromPlain($plainBody);
         $bcc = self::bccNotAlreadyRecipient($to, $bcc);
 
-        Mail::html($html, function (Message $message) use ($to, $subject, $plainBody, $bcc): void {
+        Mail::html($html, function (Message $message) use ($to, $subject, $plainBody, $bcc, $attachments): void {
             $message->to($to)->subject($subject)->text($plainBody);
             if ($bcc !== null) {
                 $message->bcc($bcc);
+            }
+            foreach ($attachments as $attachment) {
+                $message->attach($attachment['path'], [
+                    'as' => $attachment['name'],
+                    'mime' => 'application/pdf',
+                ]);
             }
         });
     }

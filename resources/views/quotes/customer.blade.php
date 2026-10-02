@@ -31,6 +31,7 @@
     </style>
 
     <div class="no-print mb-4">
+        <x-flash-messages />
         <x-page-toolbar title="Müşteri belgesi">
             <x-slot name="left">
                 <a href="{{ route('quotes.show', $quote) }}" class="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50" aria-label="Geri">
@@ -38,6 +39,7 @@
                 </a>
             </x-slot>
             <x-slot name="right">
+                <a href="{{ route('quotes.customer.pdf', $quote) }}" class="inline-flex items-center justify-center min-h-[40px] px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-slate-800 uppercase tracking-widest">PDF indir</a>
                 <button type="button" onclick="window.print()" class="inline-flex items-center justify-center min-h-[40px] px-3 py-2 bg-slate-800 rounded-lg text-xs font-semibold text-white uppercase tracking-widest">Yazdır</button>
             </x-slot>
         </x-page-toolbar>

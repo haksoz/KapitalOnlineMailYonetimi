@@ -48,6 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('service-providers', ServiceProviderController::class)->except(['show']);
     Route::resource('products', ProductController::class);
     Route::get('quotes/{quote}/customer', [QuoteController::class, 'customer'])->name('quotes.customer');
+    Route::get('quotes/{quote}/customer/pdf', [QuoteController::class, 'customerPdf'])->name('quotes.customer.pdf');
     Route::get('quotes/{quote}/convert', [QuoteController::class, 'convertForm'])->name('quotes.convert');
     Route::post('quotes/{quote}/convert', [QuoteController::class, 'convertStore'])->name('quotes.convert.store');
     Route::post('quotes/{quote}/send', [QuoteController::class, 'send'])->name('quotes.send');

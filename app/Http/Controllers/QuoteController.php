@@ -9,18 +9,26 @@ use App\Models\Quote;
 use App\Models\QuoteItem;
 use App\Models\Subscription;
 use App\Services\QuoteMath;
+use App\Services\QuotePdf;
 use App\Services\QuoteService;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Spatie\LaravelPdf\Exceptions\CouldNotGeneratePdf;
+use Symfony\Component\HttpFoundation\Response;
 
 class QuoteController extends Controller
 {
-    public function __construct(private QuoteService $quotes, private DomainEvents $events) {}
+    public function __construct(
+        private QuoteService $quotes,
+        private DomainEvents $events,
+        private QuotePdf $pdfs,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -136,6 +144,26 @@ class QuoteController extends Controller
         $quote->load(['customerCari', 'items.options']);
 
         return view('quotes.customer', compact('quote'));
+    }
+
+    public function customerPdf(Quote $quote): Response|RedirectResponse
+    {
+        $quote->load(['customerCari', 'items.options']);
+
+        try {
+            $file = $this->pdfs->write($quote);
+
+            return response()->file($file['path'], [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="'.$file['filename'].'"',
+            ])->deleteFileAfterSend();
+        } catch (ConnectionException|CouldNotGeneratePdf $exception) {
+            report($exception);
+
+            return redirect()
+                ->route('quotes.customer', $quote)
+                ->with('error', 'PDF oluşturulamadı. Gotenberg servisine ulaşılamadı.');
+        }
     }
 
     public function convertForm(Quote $quote): View|RedirectResponse

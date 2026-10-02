@@ -15,9 +15,12 @@ use App\Models\PendingBilling;
 use App\Models\Quote;
 use App\Models\SalesInvoice;
 use App\Models\Subscription;
+use App\Services\QuotePdf;
 
 final class EmailActionHandler implements ActionHandler
 {
+    public function __construct(private QuotePdf $pdfs) {}
+
     public function handle(AutomationJob $job): ActionResult
     {
         MailSetting::applyToRuntime();
@@ -106,35 +109,43 @@ final class EmailActionHandler implements ActionHandler
             return ActionResult::skipped('Alıcı e-posta yok.');
         }
 
+        $quote = $this->quoteFromJob($job);
+        if (! $quote instanceof Quote) {
+            return ActionResult::failed('Teklif bulunamadı.');
+        }
+
+        $pdf = null;
         try {
+            $quote->loadMissing(['customerCari', 'items.options']);
+            $pdf = $this->pdfs->write($quote);
             $replacements = $this->replacements($job);
             NotificationMail::send(
                 $recipients,
                 $template->renderSubject($replacements),
                 $template->renderBody($replacements),
                 MailSetting::notificationBcc(),
-                $this->quoteHtml($job),
+                view('quotes.mail', ['quote' => $quote])->render(),
+                [['path' => $pdf['path'], 'name' => $pdf['filename']]],
             );
         } catch (\Throwable $e) {
             return ActionResult::failed($e->getMessage());
+        } finally {
+            if (is_array($pdf) && is_file($pdf['path'])) {
+                unlink($pdf['path']);
+            }
         }
 
         return ActionResult::success(implode(', ', $recipients));
     }
 
-    private function quoteHtml(AutomationJob $job): ?string
+    private function quoteFromJob(AutomationJob $job): ?Quote
     {
         $quote = $job->subject instanceof Quote ? $job->subject : null;
         if (! $quote instanceof Quote && $job->subject_id) {
             $quote = Quote::query()->find($job->subject_id);
         }
-        if (! $quote instanceof Quote) {
-            return null;
-        }
 
-        $quote->loadMissing(['customerCari', 'items.options']);
-
-        return view('quotes.mail', ['quote' => $quote])->render();
+        return $quote instanceof Quote ? $quote : null;
     }
 
     /**
