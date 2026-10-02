@@ -143,7 +143,7 @@ final class DomainEvents
 
         try {
             $created = $this->bus->emit(new DomainEvent(
-                type: EventType::QuoteSent,
+                type: QuotePlaceholders::eventFor($quote),
                 subject: $quote,
                 cariId: $quote->customer_cari_id,
                 context: QuotePlaceholders::context($quote, $recipients),
@@ -164,7 +164,7 @@ final class DomainEvents
         }
 
         $sent = AutomationJob::query()
-            ->where('event_type', EventType::QuoteSent)
+            ->where('event_type', QuotePlaceholders::eventFor($quote))
             ->where('subject_id', $quote->getKey())
             ->where('status', JobStatus::Succeeded)
             ->exists();

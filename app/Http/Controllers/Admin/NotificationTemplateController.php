@@ -28,13 +28,13 @@ class NotificationTemplateController extends Controller
 
     public function edit(NotificationTemplate $template, InvoiceNotificationDispatcher $dispatcher): View
     {
-        $quotePreview = $this->usesQuotePreview($template);
+        $quoteType = $this->quotePreviewType($template);
 
         return view('admin.notifications.template-edit', [
             'template' => $template,
-            'previewKind' => $quotePreview ? 'quote' : 'invoice',
-            'previewSamples' => $quotePreview
-                ? $this->sampleQuotesForPreview()
+            'previewKind' => $quoteType !== null ? 'quote' : 'invoice',
+            'previewSamples' => $quoteType !== null
+                ? $this->sampleQuotesForPreview($quoteType)
                 : $this->sampleInvoicesForPreview($dispatcher),
             'mailFrom' => $this->resolvedMailFrom(),
         ]);
@@ -57,7 +57,7 @@ class NotificationTemplateController extends Controller
 
     public function preview(Request $request, NotificationTemplate $template, InvoiceNotificationDispatcher $dispatcher): View|JsonResponse|RedirectResponse
     {
-        if ($this->usesQuotePreview($template)) {
+        if ($this->quotePreviewType($template) !== null) {
             return $this->previewQuote($request, $template);
         }
 
@@ -109,7 +109,7 @@ class NotificationTemplateController extends Controller
 
     public function sendTest(Request $request, NotificationTemplate $template, InvoiceNotificationDispatcher $dispatcher): RedirectResponse
     {
-        if ($this->usesQuotePreview($template)) {
+        if ($this->quotePreviewType($template) !== null) {
             return $this->sendQuoteTest($request, $template);
         }
 
@@ -138,15 +138,33 @@ class NotificationTemplateController extends Controller
             ->with('success', $template->name.' test maili gönderildi: '.$validated['test_email']);
     }
 
-    private function usesQuotePreview(NotificationTemplate $template): bool
+    private function quotePreviewType(NotificationTemplate $template): ?string
     {
-        if ($template->legacy_key === 'quote_sent') {
-            return true;
+        $byLegacy = [
+            'quote_optional_sent' => Quote::TYPE_OPTIONAL,
+            'quote_sent' => Quote::TYPE_OPTIONAL,
+            'quote_firm_sent' => Quote::TYPE_FIRM,
+        ];
+        if (isset($byLegacy[$template->legacy_key])) {
+            return $byLegacy[$template->legacy_key];
         }
 
-        return $template->actions()
-            ->whereHas('rule', fn (Builder $query) => $query->where('event_type', EventType::QuoteSent->value))
-            ->exists();
+        $events = $template->actions()
+            ->with('rule')
+            ->get()
+            ->map(fn ($action) => $action->rule?->event_type)
+            ->filter();
+
+        foreach ($events as $event) {
+            if ($event === EventType::QuoteFirmSent) {
+                return Quote::TYPE_FIRM;
+            }
+            if ($event === EventType::QuoteOptionalSent || $event === EventType::QuoteSent) {
+                return Quote::TYPE_OPTIONAL;
+            }
+        }
+
+        return null;
     }
 
     private function previewQuote(Request $request, NotificationTemplate $template): View|JsonResponse|RedirectResponse
@@ -214,10 +232,13 @@ class NotificationTemplateController extends Controller
         try {
             MailSetting::applyToRuntime();
             $replacements = QuotePlaceholders::forQuote($quote);
+            $quote->loadMissing(['customerCari', 'items.options']);
             NotificationMail::send(
                 $validated['test_email'],
                 '[TEST] '.$template->renderSubject($replacements),
                 $template->renderBody($replacements),
+                null,
+                view('quotes.mail', ['quote' => $quote])->render(),
             );
         } catch (\Throwable $e) {
             return redirect()
@@ -233,10 +254,11 @@ class NotificationTemplateController extends Controller
     /**
      * @return list<array{id: int, label: string, to: string, replacements: array<string, string>}>
      */
-    private function sampleQuotesForPreview(): array
+    private function sampleQuotesForPreview(string $type): array
     {
         return Quote::query()
             ->with(['customerCari:id,name,short_name,email', 'items.options'])
+            ->where('type', $type)
             ->orderByDesc('id')
             ->limit(100)
             ->get()

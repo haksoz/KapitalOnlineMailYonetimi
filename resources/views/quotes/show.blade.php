@@ -107,7 +107,7 @@
                                 <x-input-error :messages="$errors->get('email')" class="mt-2" />
                             </div>
                         @endif
-                        <p class="mt-4 text-xs text-gray-500">Gönderince fiyatlar kilitlenir. E-posta, Bildirim Yönetimi’ndeki «Teklif gönderildi» şablonuyla bu adrese gider. Alış ve kâr metne yazılmaz.</p>
+                        <p class="mt-4 text-xs text-gray-500">Gönderince fiyatlar kilitlenir. E-posta, Bildirim Yönetimi’ndeki «{{ $quote->isFirm() ? 'Kesin teklif gönderildi' : 'Birim fiyat teklifi gönderildi' }}» şablonuyla bu adrese gider. Alış ve kâr metne yazılmaz.</p>
                         <div class="mt-6 flex justify-end gap-3">
                             <x-secondary-button x-on:click="$dispatch('close')">Vazgeç</x-secondary-button>
                             <x-primary-button>{{ $resend ? 'Tekrar gönder' : 'Gönder' }}</x-primary-button>

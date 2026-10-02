@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Automation\EventType;
 use App\Automation\JobStatus;
 use App\Automation\QuotePlaceholders;
 use App\Models\AutomationJob;
@@ -64,14 +65,19 @@ class QuoteManagementTest extends TestCase
         $customer->assertOk();
         $customer->assertDontSee('Fiyatlara KDV dahil değildir.');
         $customer->assertSee('104,00');
-        $customer->assertSee('Adet: 20');
-        $customer->assertSee('Teklif bilgileri');
+        $customer->assertSee('Microsoft 365 Business Basic -', false);
+        $customer->assertDontSee('M365-BB');
+        $customer->assertSee('20 adet');
+        $customer->assertSee('quote-qty', false);
         $customer->assertSee('Birim Fiyat Teklifi');
-        $customer->assertSee('quote-dates', false);
-        $customer->assertDontSee('>Tür<', false);
-        $customer->assertSee('Tarih bilgileri');
-        $customer->assertSee('Satıcı bilgileri');
-        $customer->assertSee('Alıcı bilgileri');
+        $customer->assertSee('quote-compare', false);
+        $customer->assertSee('Yıllık taahhüt, aylık ödeme');
+        $customer->assertSee('Aylık ödeme');
+        $customer->assertSee('Yıllık ödeme');
+        $customer->assertDontSee('Teklif bilgileri');
+        $customer->assertDontSee('Tarih bilgileri');
+        $customer->assertSee('Satıcı');
+        $customer->assertSee('Alıcı');
         $customer->assertSee('Örnek Müşteri');
         $customer->assertDontSee('karar@ornek.test');
         $customer->assertDontSee('1111111111');
@@ -79,13 +85,18 @@ class QuoteManagementTest extends TestCase
         $customer->assertDontSee('KAPİTAL ONLİNE BİLGİSAYAR VE İLETİŞİM HİZMETLERİ TİCARET LİMİTED ŞİRKETİ');
         $customer->assertDontSee('4980863169');
         $customer->assertDontSee('muhasebe@ko.com.tr');
+        $customer->assertDontSee('Aylık taahhütlü seçeneğinde yıllık taahhüt verilir, aylık ödenir.');
         $customer->assertSee('Müşteriye görünen not');
         $customer->assertSee('Birim fiyatlara KDV dahil değildir.');
         $customer->assertSee('Sipariş geçildikten sonra iade veya iptal hakkı yoktur.');
-        $noteAt = strpos($customer->getContent(), 'Müşteriye görünen not');
-        $termsAt = strpos($customer->getContent(), 'Birim fiyatlara KDV dahil değildir.');
+        $content = $customer->getContent();
+        $vatAt = strpos($content, 'Birim fiyatlara KDV dahil değildir.');
+        $noteAt = strpos($content, 'Müşteriye görünen not');
+        $termsAt = strpos($content, 'Sipariş geçildikten sonra iade veya iptal hakkı yoktur.');
+        $this->assertNotFalse($vatAt);
         $this->assertNotFalse($noteAt);
         $this->assertNotFalse($termsAt);
+        $this->assertLessThan($noteAt, $vatAt);
         $this->assertLessThan($termsAt, $noteAt);
         $customer->assertDontSee('4,20');
         $customer->assertDontSee('GIZLI-NOT-XYZ');
@@ -177,18 +188,39 @@ class QuoteManagementTest extends TestCase
         $cari->update(['email' => 'karar@ornek.test', 'tax_number' => '1111111111']);
         $customer = $this->actingAs($user)->get(route('quotes.customer', $quote));
         $customer->assertOk();
+        $customer->assertSee('quote-summary', false);
         $customer->assertSee('Genel toplam');
+        $customer->assertDontSee('M365-BB');
         $customer->assertSee('124,80');
         $customer->assertSee('KDV');
         $customer->assertDontSee('4,20');
         $customer->assertDontSee('GIZLI-NOT-XYZ');
         $customer->assertDontSee('23,81%');
         $customer->assertSee('Birim fiyatlara KDV dahil değildir.');
+        $customer->assertSee('Yıllık taahhütlü seçeneğinde, yıllık ödenir.');
+        $customer->assertDontSee('Aylık taahhütsüz seçeneğinde aylık ödenir.');
+        $customer->assertDontSee('Yıllık taahhüt, aylık ödeme');
         $customer->assertSee('otomatik yenileme yapılmayacak');
         $customer->assertSee('karar@ornek.test');
         $customer->assertSee('1111111111');
-        $customer->assertSee('KAPİTAL ONLİNE BİLGİSAYAR VE İLETİŞİM HİZMETLERİ TİCARET LİMİTED ŞİRKETİ');
-        $customer->assertSee('4980863169');
+        $customer->assertSee('KAPİTAL ONLİNE BİLGİSAYAR VE İLETİŞİM HİZ. TİC. LTD. ŞTİ.');
+        $customer->assertSee('VD YAKACIK - Vergi No: 4980863169');
+        $customer->assertSee('E-posta: muhasebe@ko.com.tr');
+        $customer->assertSee('Vergi No: 1111111111');
+        $customer->assertSee('E-posta: karar@ornek.test');
+        $customer->assertDontSee('+90 216 377 4000');
+        $mail = QuotePlaceholders::forQuote($quote->fresh(['customerCari', 'items']));
+        $this->assertStringContainsString('Birim fiyat: 5,20 USD', $mail['{kalemler}']);
+        $this->assertStringContainsString('Tutar: 104,00 USD', $mail['{kalemler}']);
+        $this->assertStringContainsString('Ara toplam: 104,00 USD', $mail['{kalemler}']);
+        $this->assertStringContainsString('Genel toplam: 124,80 USD', $mail['{kalemler}']);
+        $this->assertStringContainsString('Yıllık taahhütlü seçeneğinde, yıllık ödenir.', $mail['{kalemler}']);
+        $this->assertStringNotContainsString('4,20', $mail['{kalemler}']);
+        $this->assertStringContainsString('VD YAKACIK - Vergi No: 4980863169', $mail['{satici}']);
+        $this->assertStringContainsString('Vergi No: 1111111111', $mail['{alici}']);
+        $html = view('quotes.mail', ['quote' => $quote->fresh(['customerCari', 'items'])])->render();
+        $this->assertStringContainsString('Kesin Teklif', $html);
+        $this->assertStringContainsString('Genel toplam:', $html);
     }
 
     public function test_optional_quote_converts_from_its_snapshot_and_cannot_convert_twice(): void
@@ -261,7 +293,7 @@ class QuoteManagementTest extends TestCase
         $show->assertOk();
         $show->assertSee('Kayıtlı e-posta');
         $show->assertSee('musteri@example.com');
-        $show->assertSee('Teklif gönderildi');
+        $show->assertSee('Birim fiyat teklifi gönderildi');
 
         $this->actingAs($user)->post(route('quotes.send', $quote))
             ->assertRedirect(route('quotes.show', $quote))
@@ -276,11 +308,21 @@ class QuoteManagementTest extends TestCase
 
         $quote->load('items.options', 'customerCari');
         $mail = QuotePlaceholders::forQuote($quote);
-        $this->assertStringContainsString('5,20', $mail['{kalemler}']);
+        $this->assertStringContainsString('Birim fiyat: 5,20 USD', $mail['{kalemler}']);
+        $this->assertStringContainsString('Tutar: 104,00 USD', $mail['{kalemler}']);
+        $this->assertStringContainsString('20 adet', $mail['{kalemler}']);
+        $this->assertStringNotContainsString('Ara toplam:', $mail['{kalemler}']);
         $this->assertStringNotContainsString('4,20', $mail['{kalemler}']);
+        $this->assertStringContainsString('KAPİTAL ONLİNE BİLGİSAYAR VE İLETİŞİM HİZ. TİC. LTD. ŞTİ.', $mail['{satici}']);
+        $this->assertStringContainsString('Sipariş geçildikten sonra iade veya iptal hakkı yoktur.', $mail['{kosullar}']);
+        $html = view('quotes.mail', ['quote' => $quote])->render();
+        $this->assertStringContainsString('Birim Fiyat Teklifi', $html);
+        $this->assertStringContainsString('Aylık Taahhütlü', $html);
+        $this->assertStringContainsString('20 adet', $html);
 
         $job = AutomationJob::query()->where('subject_id', $quote->id)->first();
         $this->assertNotNull($job);
+        $this->assertSame(EventType::QuoteOptionalSent, $job->event_type);
         $this->assertSame(JobStatus::Succeeded, $job->status);
         $this->assertSame('musteri@example.com', $job->to_email);
 
@@ -363,7 +405,7 @@ class QuoteManagementTest extends TestCase
         [$user, $cari, $product] = $this->fixtures();
         $this->actingAs($user)->post(route('quotes.store'), $this->optionalPayload($cari, $product));
         $quote = Quote::query()->first();
-        $template = NotificationTemplate::query()->where('legacy_key', 'quote_sent')->firstOrFail();
+        $template = NotificationTemplate::query()->where('legacy_key', 'quote_optional_sent')->firstOrFail();
 
         $this->actingAs($admin)
             ->get(route('admin.notifications.templates.edit', $template))
@@ -379,8 +421,16 @@ class QuoteManagementTest extends TestCase
         ])->assertOk()
             ->assertSee('Taslak '.$quote->quote_number, false)
             ->assertSee('Teklif '.$quote->quote_number, false)
-            ->assertSee('5,20', false)
-            ->assertDontSee('4,20', false);
+            ->assertSee('Birim fiyat: 5,20 USD', false)
+            ->assertSee('Tutar:', false)
+            ->assertDontSee('4,20', false)
+            ->assertDontSee('Ara toplam:', false);
+
+        $firmTemplate = NotificationTemplate::query()->where('legacy_key', 'quote_firm_sent')->firstOrFail();
+        $this->actingAs($admin)
+            ->get(route('admin.notifications.templates.edit', $firmTemplate))
+            ->assertOk()
+            ->assertDontSee($quote->quote_number, false);
     }
 
     public function test_mixed_currencies_are_rejected(): void
@@ -433,7 +483,8 @@ class QuoteManagementTest extends TestCase
             ->assertSee('Tarih bilgileri')
             ->assertSee('Satıcı bilgileri')
             ->assertSee('Alıcı bilgileri')
-            ->assertSee('KAPİTAL ONLİNE BİLGİSAYAR VE İLETİŞİM HİZMETLERİ TİCARET LİMİTED ŞİRKETİ');
+            ->assertSee('KAPİTAL ONLİNE BİLGİSAYAR VE İLETİŞİM HİZ. TİC. LTD. ŞTİ.')
+            ->assertSee('VD YAKACIK - Vergi No: 4980863169');
     }
 
     /**

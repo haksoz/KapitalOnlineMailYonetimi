@@ -2,12 +2,6 @@
     @if (filled($quote->notes))
         <p class="whitespace-pre-line">{{ $quote->notes }}</p>
     @endif
-    <ul class="space-y-1">
-        <li>• Birim fiyatlara KDV dahil değildir.</li>
-        <li>• Aylık taahhütlü seçeneğinde yıllık taahhüt verilir, aylık ödenir.</li>
-        <li>• Aylık taahhütsüz seçeneğinde aylık ödenir.</li>
-        <li>• Yıllık taahhütlü seçeneğinde, yıllık ödenir.</li>
-    </ul>
     <ol class="space-y-1">
         <li>1. Sipariş geçildikten sonra iade veya iptal hakkı yoktur.</li>
         <li>2. Sipariş geçilirken bir sonraki sene otomatik yenileme yapılıp yapılmayacağının iletilmesi rica edilir. Otomatik yenileme fiyatı sabitlemez. Fiyatlarda değişim var ise bilgi verilir.</li>

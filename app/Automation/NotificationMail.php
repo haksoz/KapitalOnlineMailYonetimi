@@ -10,9 +10,9 @@ final class NotificationMail
     /**
      * @param  list<string>|string  $to
      */
-    public static function send(array|string $to, string $subject, string $plainBody, ?string $bcc = null): void
+    public static function send(array|string $to, string $subject, string $plainBody, ?string $bcc = null, ?string $html = null): void
     {
-        $html = self::htmlFromPlain($plainBody);
+        $html = $html ?? self::htmlFromPlain($plainBody);
         $bcc = self::bccNotAlreadyRecipient($to, $bcc);
 
         Mail::html($html, function (Message $message) use ($to, $subject, $plainBody, $bcc): void {

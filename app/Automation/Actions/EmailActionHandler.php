@@ -37,7 +37,7 @@ final class EmailActionHandler implements ActionHandler
             $cari = $job->cari_id ? Cari::query()->find($job->cari_id) : null;
         }
 
-        if ($job->event_type === EventType::QuoteSent) {
+        if (in_array($job->event_type, [EventType::QuoteSent, EventType::QuoteOptionalSent, EventType::QuoteFirmSent], true)) {
             return $this->sendQuote($job, $template, $cari);
         }
 
@@ -107,17 +107,34 @@ final class EmailActionHandler implements ActionHandler
         }
 
         try {
+            $replacements = $this->replacements($job);
             NotificationMail::send(
                 $recipients,
-                $template->renderSubject($this->replacements($job)),
-                $template->renderBody($this->replacements($job)),
+                $template->renderSubject($replacements),
+                $template->renderBody($replacements),
                 MailSetting::notificationBcc(),
+                $this->quoteHtml($job),
             );
         } catch (\Throwable $e) {
             return ActionResult::failed($e->getMessage());
         }
 
         return ActionResult::success(implode(', ', $recipients));
+    }
+
+    private function quoteHtml(AutomationJob $job): ?string
+    {
+        $quote = $job->subject instanceof Quote ? $job->subject : null;
+        if (! $quote instanceof Quote && $job->subject_id) {
+            $quote = Quote::query()->find($job->subject_id);
+        }
+        if (! $quote instanceof Quote) {
+            return null;
+        }
+
+        $quote->loadMissing(['customerCari', 'items.options']);
+
+        return view('quotes.mail', ['quote' => $quote])->render();
     }
 
     /**
