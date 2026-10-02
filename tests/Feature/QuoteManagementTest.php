@@ -528,6 +528,24 @@ class QuoteManagementTest extends TestCase
             ->assertSee('124,80 USD', false)
             ->assertDontSee('Birim fiyatlara KDV dahil değildir.', false)
             ->assertDontSee('Yıllık taahhütlü seçeneğinde, yıllık ödenir.', false);
+
+        $this->actingAs($admin)->post(route('admin.notifications.templates.test', $firmTemplate), [
+            'test_email' => 'deneme@example.com',
+            'quote_id' => $firm->id,
+            'subject' => 'Sayfadaki konu {teklif_no}',
+            'body' => "Sayfadaki metin {teklif_no}\n\n{kalemler}",
+        ])->assertRedirect(route('admin.notifications.templates.edit', $firmTemplate));
+
+        $transport = Mail::mailer()->getSymfonyTransport();
+        $this->assertInstanceOf(ArrayTransport::class, $transport);
+        $sent = $transport->messages()->last()?->getOriginalMessage();
+        $this->assertInstanceOf(Email::class, $sent);
+        $this->assertSame('[TEST] Sayfadaki konu '.$firm->quote_number, $sent->getSubject());
+        $sentHtml = (string) $sent->getHtmlBody();
+        $this->assertStringContainsString('Sayfadaki metin '.$firm->quote_number, $sentHtml);
+        $this->assertStringContainsString('<table', $sentHtml);
+        $this->assertStringNotContainsString('Satıcı', $sentHtml);
+        $this->assertCount(1, $sent->getAttachments());
     }
 
     public function test_mixed_currencies_are_rejected(): void
