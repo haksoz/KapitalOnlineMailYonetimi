@@ -26,7 +26,8 @@
     .pay { display: block; margin-top: 2px; font-size: 10px; font-weight: 400; color: #6b7280; }
     .lines { margin-top: 16px; }
     .lines th, .lines td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; }
-    .lines .num { text-align: right; }
+    .lines th.mid, .lines td.mid { text-align: center; }
+    .lines th.num, .lines td.num { text-align: right; }
     .summary { width: 100%; margin-top: 12px; }
     .summary td { vertical-align: top; border: 0; }
     .figures { text-align: right; white-space: nowrap; }
@@ -100,20 +101,20 @@
             <thead>
                 <tr>
                     <th>Ürün</th>
-                    <th>Taahhüt</th>
-                    <th class="num">Adet</th>
-                    <th class="num">Birim fiyat</th>
-                    <th class="num">Tutar</th>
+                    <th class="mid" align="center">Taahhüt</th>
+                    <th class="mid" align="center">Adet</th>
+                    <th class="num" align="right">Birim fiyat</th>
+                    <th class="num" align="right">Tutar</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($quote->items as $item)
                     <tr>
                         <td>{{ $item->product_name }}</td>
-                        <td>{{ $item->commitmentLabel() }}</td>
-                        <td class="num">{{ $item->quantity }}</td>
-                        <td class="num">{{ $quote->formatMoney($item->birim_satis) }}</td>
-                        <td class="num">{{ $quote->formatMoney($item->saleTotal()) }}</td>
+                        <td class="mid" align="center">{{ $item->commitmentLabel() }}</td>
+                        <td class="mid" align="center">{{ $item->quantity }}</td>
+                        <td class="num" align="right">{{ $quote->formatMoney($item->birim_satis) }}</td>
+                        <td class="num" align="right">{{ $quote->formatMoney($item->saleTotal()) }}</td>
                     </tr>
                 @endforeach
             </tbody>

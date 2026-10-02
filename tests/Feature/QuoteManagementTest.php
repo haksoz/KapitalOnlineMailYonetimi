@@ -205,6 +205,7 @@ class QuoteManagementTest extends TestCase
         $customer = $this->actingAs($user)->get(route('quotes.customer', $quote));
         $customer->assertOk();
         $customer->assertSee('quote-summary', false);
+        $customer->assertSee('text-center', false);
         $customer->assertSee('Genel toplam');
         $customer->assertDontSee('M365-BB');
         $customer->assertSee('124,80');
@@ -680,6 +681,8 @@ class QuoteManagementTest extends TestCase
             return str_contains($body, $firm->quote_number)
                 && str_contains($body, 'Kesin Teklif')
                 && str_contains($body, 'Genel toplam')
+                && str_contains($body, 'align="center"')
+                && str_contains($body, 'align="right"')
                 && str_contains($body, '124,80')
                 && str_contains($body, 'VD YAKACIK - Vergi No: 4980863169')
                 && str_contains($body, 'Vergi No: 1111111111')

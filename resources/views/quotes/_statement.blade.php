@@ -6,8 +6,8 @@
     <thead>
         <tr class="border-b border-gray-200 text-left text-xs uppercase tracking-wider text-gray-500">
             <th class="py-2 pr-3">Ürün</th>
-            <th class="py-2 pr-3">Taahhüt</th>
-            <th class="py-2 pr-3 text-right">Adet</th>
+            <th class="py-2 pr-3 text-center">Taahhüt</th>
+            <th class="py-2 pr-3 text-center">Adet</th>
             <th class="py-2 pr-3 text-right">Birim fiyat</th>
             <th class="py-2 text-right">Tutar</th>
         </tr>
@@ -18,8 +18,8 @@
                 <td class="py-3 pr-3">
                     <div class="font-medium text-gray-900">{{ $item->product_name }}</div>
                 </td>
-                <td class="py-3 pr-3">{{ $item->commitmentLabel() }}</td>
-                <td class="py-3 pr-3 text-right">{{ $item->quantity }}</td>
+                <td class="py-3 pr-3 text-center">{{ $item->commitmentLabel() }}</td>
+                <td class="py-3 pr-3 text-center">{{ $item->quantity }}</td>
                 <td class="py-3 pr-3 text-right">{{ $quote->formatMoney($item->birim_satis) }}</td>
                 <td class="py-3 text-right font-medium">{{ $quote->formatMoney($item->saleTotal()) }}</td>
             </tr>
