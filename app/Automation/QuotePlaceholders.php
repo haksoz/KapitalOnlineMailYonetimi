@@ -219,10 +219,10 @@ final class QuotePlaceholders
         foreach ($quote->items as $item) {
             $rows .= '<tr>'
                 .'<td style="'.$cell.'font-weight:600;">'.e(trim($item->product_name)).'</td>'
-                .'<td style="'.$cell.'">'.e($item->commitmentLabel() ?: '—').'</td>'
-                .'<td align="right" style="'.$cell.'">'.e((string) $item->quantity).'</td>'
-                .'<td align="right" style="'.$cell.'">'.e($quote->formatMoney($item->birim_satis)).'</td>'
-                .'<td align="right" style="'.$cell.'font-weight:600;">'.e($quote->formatMoney($item->saleTotal())).'</td>'
+                .'<td align="center" style="'.$cell.'text-align:center;">'.e($item->commitmentLabel() ?: '—').'</td>'
+                .'<td align="center" style="'.$cell.'text-align:center;">'.e((string) $item->quantity).'</td>'
+                .'<td align="right" style="'.$cell.'text-align:right;">'.e($quote->formatMoney($item->birim_satis)).'</td>'
+                .'<td align="right" style="'.$cell.'text-align:right;font-weight:600;">'.e($quote->formatMoney($item->saleTotal())).'</td>'
                 .'</tr>';
         }
 
@@ -231,10 +231,10 @@ final class QuotePlaceholders
         return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">'
             .'<tr>'
             .'<th align="left" style="'.$head.'">Ürün</th>'
-            .'<th align="left" style="'.$head.'">Taahhüt</th>'
-            .'<th align="right" style="'.$head.'">Adet</th>'
-            .'<th align="right" style="'.$head.'">Birim fiyat</th>'
-            .'<th align="right" style="'.$head.'">Tutar</th>'
+            .'<th align="center" style="'.$head.'text-align:center;">Taahhüt</th>'
+            .'<th align="center" style="'.$head.'text-align:center;">Adet</th>'
+            .'<th align="right" style="'.$head.'text-align:right;">Birim fiyat</th>'
+            .'<th align="right" style="'.$head.'text-align:right;">Tutar</th>'
             .'</tr>'
             .$rows
             .'</table>'

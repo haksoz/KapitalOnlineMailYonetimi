@@ -251,6 +251,14 @@ class QuoteManagementTest extends TestCase
         $this->assertSame('Örnek Müşteri', $mail['{cari_unvani}']);
         $this->assertStringNotContainsString('1111111111', $mail['{cari_unvani}']);
         $this->assertStringContainsString('Vergi No: 1111111111', $mail['{alici}']);
+        $kalemler = QuotePlaceholders::forQuote($quote->fresh(['customerCari', 'items.options']), htmlLines: true)['{kalemler}'];
+        $this->assertMatchesRegularExpression('/align="center"[^>]*>Taahhüt</', $kalemler);
+        $this->assertMatchesRegularExpression('/align="center"[^>]*>Adet</', $kalemler);
+        $this->assertMatchesRegularExpression('/align="center"[^>]*>Yıllık Taahhütlü</', $kalemler);
+        $this->assertMatchesRegularExpression('/align="center"[^>]*>20</', $kalemler);
+        $this->assertMatchesRegularExpression('/align="right"[^>]*>Birim fiyat</', $kalemler);
+        $this->assertMatchesRegularExpression('/align="right"[^>]*>Tutar</', $kalemler);
+        $this->assertMatchesRegularExpression('/align="right"[^>]*>5,20 USD</', $kalemler);
         $html = view('quotes.mail', ['quote' => $quote->fresh(['customerCari', 'items'])])->render();
         $this->assertStringContainsString('Kesin Teklif', $html);
         $this->assertStringContainsString('Genel toplam:', $html);
