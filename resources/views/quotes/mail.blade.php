@@ -96,9 +96,9 @@
                                         <tr>
                                             <th style="{{ $cell }}width:28%;"></th>
                                             @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                                                <th align="right" style="{{ $cell }}font-weight:700;text-align:right;">
-                                                    {{ \App\Models\Quote::commitmentLabel($tip) }}
-                                                    <div style="margin-top:3px;font-size:12px;font-weight:400;{{ $muted }}">{{ $paymentHints[$tip] }}</div>
+                                                <th align="center" style="{{ $cell }}font-weight:700;text-align:center;">
+                                                    {{ \App\Models\Quote::commitmentLabel($tip) }}<br>
+                                                    <span style="font-size:12px;font-weight:400;{{ $muted }}">{{ $paymentHints[$tip] }}</span>
                                                 </th>
                                             @endforeach
                                         </tr>

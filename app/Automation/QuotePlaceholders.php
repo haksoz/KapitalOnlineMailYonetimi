@@ -97,7 +97,7 @@ final class QuotePlaceholders
 
     public static function optionalPdfIntro(): string
     {
-        return 'Aşağıdaki tabloda satın almak istediğiniz ürünü işaretleyin ve adedini yazın. Buna göre size son fiyat teklifimizi göndeririz.';
+        return self::optionalIntro();
     }
 
     public static function documentBody(): string
@@ -219,13 +219,13 @@ final class QuotePlaceholders
     private static function optionalLinesHtml(Quote $quote): string
     {
         $cell = 'padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;vertical-align:top;';
-        $head = 'padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700;color:#111827;text-align:right;vertical-align:bottom;';
-        $hint = 'display:block;margin-top:3px;font-size:12px;font-weight:400;color:#6b7280;';
+        $head = 'padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700;color:#111827;text-align:center;vertical-align:bottom;';
+        $hint = 'font-size:12px;font-weight:400;color:#6b7280;';
 
         $headers = '<th style="'.$head.'text-align:left;width:28%;"></th>';
         foreach (Quote::COMMITMENTS as $tip) {
-            $headers .= '<th align="right" style="'.$head.'">'.e(Quote::commitmentLabel($tip))
-                .'<span style="'.$hint.'">'.e(self::paymentHint($tip)).'</span></th>';
+            $headers .= '<th align="center" style="'.$head.'">'.e(Quote::commitmentLabel($tip))
+                .'<br><span style="'.$hint.'">'.e(self::paymentHint($tip)).'</span></th>';
         }
 
         $rows = '';
