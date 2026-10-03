@@ -94,11 +94,11 @@
                                     <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#374151;">{{ \App\Automation\QuotePlaceholders::optionalIntro() }}</p>
                                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                                         <tr>
-                                            <th style="{{ $cell }}width:28%;"></th>
+                                            <th style="{{ $cell }}width:22%;"></th>
                                             @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                                                <th align="center" style="{{ $cell }}font-weight:700;text-align:center;">
+                                                <th align="right" width="26%" style="{{ $cell }}width:26%;padding:10px 14px;font-weight:700;text-align:right;">
                                                     {{ \App\Models\Quote::commitmentLabel($tip) }}<br>
-                                                    <span style="font-size:12px;font-weight:400;{{ $muted }}">{{ $paymentHints[$tip] }}</span>
+                                                    <span style="display:block;margin-top:4px;font-size:13px;line-height:1.35;font-weight:400;text-align:right;{{ $muted }}">{{ $paymentHints[$tip] }}</span>
                                                 </th>
                                             @endforeach
                                         </tr>

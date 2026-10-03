@@ -520,7 +520,7 @@ class QuoteManagementTest extends TestCase
             ->assertSee('Teklif '.$quote->quote_number, false)
             ->assertSee('5,20 USD', false)
             ->assertSee('Aylık Taahhütlü', false)
-            ->assertSee('align="center"', false)
+            ->assertSee('align="right"', false)
             ->assertSee('Aylık Taahhütlü<br>', false)
             ->assertSee('Yıllık taahhüt, aylık ödeme', false)
             ->assertSee('<table', false)
