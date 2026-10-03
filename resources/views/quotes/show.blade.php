@@ -76,7 +76,7 @@
                 </div>
             @endif
             @if ($quote->isOptional())
-                <p class="text-xs text-gray-500">Taahhüt seçenekleri ayrı fiyatlanır. Adet, her taahhütün müşteri tutarını göstermek içindir. KDV ve genel toplam kesin teklifte hesaplanır. Alış ve kâr yalnızca bu ekranda görünür.</p>
+                <p class="text-xs text-gray-500">Taahhüt seçenekleri ayrı birim fiyatlanır. Adet kesin teklife geçerken girilir. KDV ve genel toplam kesin teklifte hesaplanır. Alış ve kâr yalnızca bu ekranda görünür.</p>
             @endif
         </div>
         <div class="bg-white rounded-xl shadow-sm p-5 space-y-2">
@@ -185,17 +185,24 @@
                     </div>
                 </div>
             @else
+                @php
+                    $showQuantity = $quote->items->contains(fn ($item) => $item->hasQuantity());
+                @endphp
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
                         <tr>
                             <th class="px-3 py-3 text-left">Ürün</th>
                             <th class="px-3 py-3 text-left">Taahhüt</th>
-                            <th class="px-3 py-3 text-right">Adet</th>
+                            @if ($showQuantity)
+                                <th class="px-3 py-3 text-right">Adet</th>
+                            @endif
                             <th class="px-3 py-3 text-right">Birim alış</th>
                             <th class="px-3 py-3 text-right">Birim satış</th>
-                            <th class="px-3 py-3 text-right">Alış toplamı</th>
-                            <th class="px-3 py-3 text-right">Satış tutarı</th>
-                            <th class="px-3 py-3 text-right">Kâr</th>
+                            @if ($showQuantity)
+                                <th class="px-3 py-3 text-right">Alış toplamı</th>
+                                <th class="px-3 py-3 text-right">Satış tutarı</th>
+                                <th class="px-3 py-3 text-right">Kâr</th>
+                            @endif
                             <th class="px-3 py-3 text-right">Kâr oranı</th>
                         </tr>
                     </thead>
@@ -210,12 +217,16 @@
                                             <div class="text-xs text-gray-500">{{ $item->stock_code ?: '—' }}</div>
                                         </td>
                                         <td class="px-3 py-3">{{ $option->commitmentLabel() }}</td>
-                                        <td class="px-3 py-3 text-right">{{ $item->quantity }}</td>
+                                        @if ($showQuantity)
+                                            <td class="px-3 py-3 text-right">{{ $item->quantity ?? '—' }}</td>
+                                        @endif
                                         <td class="px-3 py-3 text-right">{{ $quote->formatMoney($option->birim_alis) }}</td>
                                         <td class="px-3 py-3 text-right font-medium">{{ $quote->formatMoney($option->birim_satis) }}</td>
-                                        <td class="px-3 py-3 text-right">{{ $quote->formatMoney($option->costTotal()) }}</td>
-                                        <td class="px-3 py-3 text-right">{{ $quote->formatMoney($option->saleTotal()) }}</td>
-                                        <td class="px-3 py-3 text-right">{{ $quote->formatMoney($option->profitAmount()) }}</td>
+                                        @if ($showQuantity)
+                                            <td class="px-3 py-3 text-right">{{ $item->hasQuantity() ? $quote->formatMoney($option->costTotal()) : '—' }}</td>
+                                            <td class="px-3 py-3 text-right">{{ $item->hasQuantity() ? $quote->formatMoney($option->saleTotal()) : '—' }}</td>
+                                            <td class="px-3 py-3 text-right">{{ $item->hasQuantity() ? $quote->formatMoney($option->profitAmount()) : '—' }}</td>
+                                        @endif
                                         <td class="px-3 py-3 text-right">{{ \App\Services\QuoteMath::displayRate($option->profitRate()) }}</td>
                                     </tr>
                                 @endif

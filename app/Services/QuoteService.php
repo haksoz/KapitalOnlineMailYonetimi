@@ -173,11 +173,14 @@ class QuoteService
                 ]);
             }
 
-            $quantity = (int) $row['quantity'];
-            if ($quantity < 1) {
-                throw ValidationException::withMessages([
-                    "items.$index.quantity" => 'Adet en az 1 olmalıdır.',
-                ]);
+            $quantity = null;
+            if ($type === Quote::TYPE_FIRM) {
+                $quantity = (int) ($row['quantity'] ?? 0);
+                if ($quantity < 1) {
+                    throw ValidationException::withMessages([
+                        "items.$index.quantity" => 'Adet en az 1 olmalıdır.',
+                    ]);
+                }
             }
 
             $existing = $this->existingItem($existingItems, $row['id'] ?? null);

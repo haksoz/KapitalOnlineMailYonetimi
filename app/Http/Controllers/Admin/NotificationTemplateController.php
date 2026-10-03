@@ -289,7 +289,7 @@ class NotificationTemplateController extends Controller
                     'label' => $quote->quote_number.' · '.$customer.' · '.Quote::typeLabel($quote->type).' · '.Quote::statusLabel($quote->status),
                     'to' => (string) ($quote->customerCari?->email ?? ''),
                     'replacements' => QuotePlaceholders::forQuote($quote, htmlLines: true),
-                    'htmlTokens' => $quote->isFirm() ? ['{kalemler}'] : [],
+                    'htmlTokens' => ['{kalemler}'],
                 ];
             })
             ->values()

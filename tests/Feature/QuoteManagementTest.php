@@ -39,7 +39,7 @@ class QuoteManagementTest extends TestCase
         $this->get(route('quotes.index'))->assertRedirect(route('login'));
     }
 
-    public function test_optional_quote_snapshots_prices_and_shows_quantity_totals_without_grand_total(): void
+    public function test_optional_quote_snapshots_unit_prices_without_quantity_or_grand_total(): void
     {
         [$user, $cari, $product] = $this->fixtures();
 
@@ -53,11 +53,10 @@ class QuoteManagementTest extends TestCase
         $this->assertNull($quote->vat_rate);
 
         $item = $quote->items()->with('options')->first();
-        $this->assertSame(20, $item->quantity);
+        $this->assertNull($item->quantity);
         $annual = $item->options->firstWhere('taahhut_tipi', 'annual_commitment');
         $this->assertSame('4.2000', QuoteMath::unit($annual->birim_alis));
         $this->assertSame('5.2000', QuoteMath::unit($annual->birim_satis));
-        $this->assertSame('104.00', $annual->saleTotal());
         $this->assertSame('23.81', $annual->profitRate());
 
         $product->update([
@@ -74,17 +73,26 @@ class QuoteManagementTest extends TestCase
         $show->assertSee('23,81%');
         $show->assertSee('GIZLI-NOT-XYZ');
         $show->assertDontSee('Genel toplam');
+        $show->assertDontSee('Satış tutarı');
+        $show->assertDontSee('104,00');
 
         $cari->update(['email' => 'karar@ornek.test', 'tax_number' => '1111111111']);
         $customer = $this->actingAs($user)->get(route('quotes.customer', $quote));
         $customer->assertOk();
         $customer->assertDontSee('Fiyatlara KDV dahil değildir.');
-        $customer->assertSee('104,00');
-        $customer->assertSee('20 adet</span> - Microsoft 365 Business Basic', false);
+        $customer->assertDontSee('104,00');
+        $customer->assertDontSee('20 adet');
+        $customer->assertDontSee('quote-qty', false);
+        $customer->assertDontSee('>Tutar<', false);
+        $customer->assertSee('Microsoft 365 Business Basic');
+        $customer->assertSee('5,50 USD');
+        $customer->assertSee('6,20 USD');
+        $customer->assertSee('5,20 USD');
         $customer->assertDontSee('M365-BB');
-        $customer->assertSee('20 adet');
-        $customer->assertSee('quote-qty', false);
         $customer->assertSee('Birim Fiyat Teklifi');
+        $customer->assertSee('birim fiyat bilgilendirmesidir');
+        $customer->assertSee('kesin teklifimizi hazırlayarak');
+        $customer->assertDontSee('adedini yazın');
         $customer->assertSee('quote-compare', false);
         $customer->assertSee('Yıllık taahhüt, aylık ödeme');
         $customer->assertSee('Aylık ödeme');
@@ -105,12 +113,17 @@ class QuoteManagementTest extends TestCase
         $customer->assertSee('Birim fiyatlara KDV dahil değildir.');
         $customer->assertSee('Sipariş geçildikten sonra iade veya iptal hakkı yoktur.');
         $content = $customer->getContent();
+        $introAt = strpos($content, 'kesin teklifimizi hazırlayarak');
+        $tableAt = strpos($content, 'class="quote-compare"');
         $vatAt = strpos($content, 'Birim fiyatlara KDV dahil değildir.');
         $noteAt = strpos($content, 'Müşteriye görünen not');
         $termsAt = strpos($content, 'Sipariş geçildikten sonra iade veya iptal hakkı yoktur.');
+        $this->assertNotFalse($introAt);
+        $this->assertNotFalse($tableAt);
         $this->assertNotFalse($vatAt);
         $this->assertNotFalse($noteAt);
         $this->assertNotFalse($termsAt);
+        $this->assertLessThan($tableAt, $introAt);
         $this->assertLessThan($noteAt, $vatAt);
         $this->assertLessThan($termsAt, $noteAt);
         $customer->assertDontSee('4,20');
@@ -373,9 +386,11 @@ class QuoteManagementTest extends TestCase
 
         $quote->load('items.options', 'customerCari');
         $mail = QuotePlaceholders::forQuote($quote);
-        $this->assertStringContainsString('Birim fiyat: 5,20 USD', $mail['{kalemler}']);
-        $this->assertStringContainsString('Tutar: 104,00 USD', $mail['{kalemler}']);
-        $this->assertStringContainsString('20 adet', $mail['{kalemler}']);
+        $this->assertStringContainsString('kesin teklifimizi hazırlayarak', $mail['{kalemler}']);
+        $this->assertStringContainsString('Yıllık Taahhütlü — Yıllık ödeme: 5,20 USD', $mail['{kalemler}']);
+        $this->assertStringContainsString('Microsoft 365 Business Basic', $mail['{kalemler}']);
+        $this->assertStringNotContainsString('Tutar:', $mail['{kalemler}']);
+        $this->assertStringNotContainsString('20 adet', $mail['{kalemler}']);
         $this->assertStringNotContainsString('Ara toplam:', $mail['{kalemler}']);
         $this->assertStringNotContainsString('4,20', $mail['{kalemler}']);
         $this->assertStringContainsString('KAPİTAL ONLİNE BİLGİSAYAR VE İLETİŞİM HİZ. TİC. LTD. ŞTİ.', $mail['{satici}']);
@@ -383,7 +398,9 @@ class QuoteManagementTest extends TestCase
         $html = view('quotes.mail', ['quote' => $quote])->render();
         $this->assertStringContainsString('Birim Fiyat Teklifi', $html);
         $this->assertStringContainsString('Aylık Taahhütlü', $html);
-        $this->assertStringContainsString('20 adet', $html);
+        $this->assertStringContainsString('5,20 USD', $html);
+        $this->assertStringNotContainsString('20 adet', $html);
+        $this->assertStringNotContainsString('>Tutar<', $html);
 
         $job = AutomationJob::query()->where('subject_id', $quote->id)->first();
         $this->assertNotNull($job);
@@ -395,8 +412,11 @@ class QuoteManagementTest extends TestCase
         $this->assertInstanceOf(ArrayTransport::class, $transport);
         $sent = $transport->messages()->last()?->getOriginalMessage();
         $this->assertInstanceOf(Email::class, $sent);
-        $this->assertStringContainsString('Birim Fiyat Teklifi', (string) $sent->getHtmlBody());
-        $this->assertStringContainsString('20 adet', (string) $sent->getHtmlBody());
+        $sentHtml = (string) $sent->getHtmlBody();
+        $this->assertStringContainsString('Birim Fiyat Teklifi', $sentHtml);
+        $this->assertStringContainsString('5,20 USD', $sentHtml);
+        $this->assertStringContainsString('<table', $sentHtml);
+        $this->assertStringNotContainsString('20 adet', $sentHtml);
         $attachments = $sent->getAttachments();
         $this->assertCount(1, $attachments);
         $this->assertSame('application/pdf', $attachments[0]->getContentType());
@@ -498,8 +518,11 @@ class QuoteManagementTest extends TestCase
         ])->assertOk()
             ->assertSee('Taslak '.$quote->quote_number, false)
             ->assertSee('Teklif '.$quote->quote_number, false)
-            ->assertSee('Birim fiyat: 5,20 USD', false)
-            ->assertSee('Tutar:', false)
+            ->assertSee('5,20 USD', false)
+            ->assertSee('Aylık Taahhütlü', false)
+            ->assertSee('<table', false)
+            ->assertDontSee('Tutar:', false)
+            ->assertDontSee('20 adet', false)
             ->assertDontSee('4,20', false)
             ->assertDontSee('Ara toplam:', false);
 
@@ -644,8 +667,15 @@ class QuoteManagementTest extends TestCase
                 && str_contains($body, 'data:image/png;base64,')
                 && str_contains($body, 'Birim Fiyat Teklifi')
                 && str_contains($body, $optional->quote_number)
-                && str_contains($body, '20 adet')
-                && str_contains($body, '104,00')
+                && str_contains($body, 'Microsoft 365 Business Basic')
+                && str_contains($body, '5,20 USD')
+                && str_contains($body, 'Aylık Taahhütlü')
+                && str_contains($body, 'işaretleyin')
+                && str_contains($body, '>Seç<')
+                && str_contains($body, 'class="tick"')
+                && str_contains($body, 'class="blank"')
+                && ! str_contains($body, '20 adet')
+                && ! str_contains($body, '104,00')
                 && ! str_contains($body, 'name="landscape"')
                 && str_contains($body, 'marginTop')
                 && str_contains($body, '10mm')
@@ -746,7 +776,6 @@ class QuoteManagementTest extends TestCase
             'internal_notes' => 'GIZLI-NOT-XYZ',
             'items' => [[
                 'product_id' => $product->id,
-                'quantity' => 20,
                 'options' => [
                     'monthly_commitment' => ['enabled' => '1', 'birim_satis' => '5.50'],
                     'monthly_no_commitment' => ['enabled' => '1', 'birim_satis' => '6.20'],

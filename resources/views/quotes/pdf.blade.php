@@ -15,14 +15,16 @@
     .label { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #64748b; }
     .name { margin-top: 6px; font-weight: 700; }
     .line { margin-top: 3px; }
-    .product { margin-top: 18px; font-size: 13px; font-weight: 700; }
-    .qty { display: inline-block; margin-right: 6px; padding: 1px 6px; background: #e2e8f0; font-size: 13px; font-weight: 800; }
-    .compare { margin-top: 8px; }
-    .compare th, .compare td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: top; }
-    .compare thead th { text-align: right; font-size: 11px; }
-    .compare thead th:first-child { width: 18%; }
-    .compare tbody th { text-align: left; font-weight: 500; color: #6b7280; }
+    .intro { margin: 16px 0 0; }
+    .compare { margin-top: 10px; }
+    .compare th, .compare td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: middle; }
+    .compare thead th { text-align: right; font-size: 11px; font-weight: 700; }
+    .compare thead th.pick, .compare td.pick { width: 36px; text-align: center; }
+    .compare thead th.qty, .compare td.qty { width: 64px; text-align: center; }
+    .compare thead th.product, .compare tbody th { text-align: left; font-weight: 700; color: #111827; }
     .compare td { text-align: right; }
+    .tick { display: inline-block; width: 12px; height: 12px; border: 1px solid #111827; }
+    .blank { display: inline-block; width: 46px; height: 16px; border: 1px solid #9ca3af; }
     .pay { display: block; margin-top: 2px; font-size: 10px; font-weight: 400; color: #6b7280; }
     .lines { margin-top: 16px; }
     .lines th, .lines td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; }
@@ -132,38 +134,35 @@
             </tr>
         </table>
     @else
-        @foreach ($quote->items as $item)
-            <h2 class="product"><span class="qty">{{ $item->quantity }} adet</span> - {{ $item->product_name }}</h2>
-            <table class="compare">
-                <thead>
+        <p class="intro">{{ \App\Automation\QuotePlaceholders::optionalPdfIntro() }}</p>
+        <table class="compare">
+            <thead>
+                <tr>
+                    <th class="pick">Seç</th>
+                    <th class="product">Ürün</th>
+                    <th class="qty">Adet</th>
+                    @foreach (\App\Models\Quote::COMMITMENTS as $tip)
+                        <th>
+                            {{ \App\Models\Quote::commitmentLabel($tip) }}
+                            <span class="pay">{{ $paymentHints[$tip] }}</span>
+                        </th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($quote->items as $item)
                     <tr>
-                        <th></th>
-                        @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                            <th>
-                                {{ \App\Models\Quote::commitmentLabel($tip) }}
-                                <span class="pay">{{ $paymentHints[$tip] }}</span>
-                            </th>
-                        @endforeach
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <th>Birim fiyat</th>
+                        <td class="pick"><span class="tick"></span></td>
+                        <th>{{ $item->product_name }}</th>
+                        <td class="qty"><span class="blank"></span></td>
                         @foreach (\App\Models\Quote::COMMITMENTS as $tip)
                             @php $option = $item->options->firstWhere('taahhut_tipi', $tip); @endphp
                             <td>{{ $option ? $quote->formatMoney($option->birim_satis) : '—' }}</td>
                         @endforeach
                     </tr>
-                    <tr>
-                        <th>Tutar</th>
-                        @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                            @php $option = $item->options->firstWhere('taahhut_tipi', $tip); @endphp
-                            <td><strong>{{ $option ? $quote->formatMoney($option->saleTotal()) : '—' }}</strong></td>
-                        @endforeach
-                    </tr>
-                </tbody>
-            </table>
-        @endforeach
+                @endforeach
+            </tbody>
+        </table>
         <p class="line" style="margin-top: 12px;">Birim fiyatlara KDV dahil değildir.</p>
     @endif
 

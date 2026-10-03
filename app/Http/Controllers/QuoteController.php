@@ -484,11 +484,11 @@ class QuoteController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['nullable', 'integer'],
             'items.*.product_id' => ['required', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
         ];
 
         if ($type === Quote::TYPE_FIRM) {
             $rules['vat_rate'] = ['required', 'numeric', 'min:0', 'max:100'];
+            $rules['items.*.quantity'] = ['required', 'integer', 'min:1', 'max:1000000'];
             $rules['items.*.taahhut_tipi'] = ['required', 'string', 'in:'.implode(',', Quote::COMMITMENTS)];
             $rules['items.*.birim_satis'] = ['nullable', 'numeric', 'min:0'];
         } else {

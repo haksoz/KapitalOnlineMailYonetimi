@@ -45,7 +45,13 @@ class QuoteItemOption extends Model
 
     public function profitRate(): ?string
     {
-        return QuoteMath::rate($this->profitAmount(), $this->costTotal());
+        $sale = QuoteMath::unit($this->birim_satis);
+        $cost = QuoteMath::unit($this->birim_alis);
+        if ($sale === null || $cost === null) {
+            return null;
+        }
+
+        return QuoteMath::rate(QuoteMath::sub($sale, $cost), $cost);
     }
 
     public function commitmentLabel(): string

@@ -6,39 +6,31 @@
     ];
 @endphp
 
-@foreach ($quote->items as $item)
-    <section class="mb-8">
-        <h2 class="mb-3 text-base font-semibold text-gray-900"><span class="quote-qty">{{ $item->quantity }} adet</span> - {{ $item->product_name }}</h2>
-        <table class="quote-compare">
-            <thead>
-                <tr>
-                    <th></th>
-                    @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                        <th>
-                            {{ \App\Models\Quote::commitmentLabel($tip) }}
-                            <span class="quote-pay">{{ $paymentHints[$tip] }}</span>
-                        </th>
-                    @endforeach
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <th scope="row">Birim fiyat</th>
-                    @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                        @php $option = $item->options->firstWhere('taahhut_tipi', $tip); @endphp
-                        <td>{{ $option ? $quote->formatMoney($option->birim_satis) : '—' }}</td>
-                    @endforeach
-                </tr>
-                <tr>
-                    <th scope="row">Tutar</th>
-                    @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                        @php $option = $item->options->firstWhere('taahhut_tipi', $tip); @endphp
-                        <td><strong>{{ $option ? $quote->formatMoney($option->saleTotal()) : '—' }}</strong></td>
-                    @endforeach
-                </tr>
-            </tbody>
-        </table>
-    </section>
-@endforeach
+<p class="mb-4 text-sm leading-relaxed text-gray-700">{{ \App\Automation\QuotePlaceholders::optionalIntro() }}</p>
 
-<p class="text-sm text-gray-700">Birim fiyatlara KDV dahil değildir.</p>
+<table class="quote-compare">
+    <thead>
+        <tr>
+            <th></th>
+            @foreach (\App\Models\Quote::COMMITMENTS as $tip)
+                <th>
+                    {{ \App\Models\Quote::commitmentLabel($tip) }}
+                    <span class="quote-pay">{{ $paymentHints[$tip] }}</span>
+                </th>
+            @endforeach
+        </tr>
+    </thead>
+    <tbody>
+        @foreach ($quote->items as $item)
+            <tr>
+                <th scope="row">{{ $item->product_name }}</th>
+                @foreach (\App\Models\Quote::COMMITMENTS as $tip)
+                    @php $option = $item->options->firstWhere('taahhut_tipi', $tip); @endphp
+                    <td>{{ $option ? $quote->formatMoney($option->birim_satis) : '—' }}</td>
+                @endforeach
+            </tr>
+        @endforeach
+    </tbody>
+</table>
+
+<p class="mt-3 text-sm text-gray-700">Birim fiyatlara KDV dahil değildir.</p>

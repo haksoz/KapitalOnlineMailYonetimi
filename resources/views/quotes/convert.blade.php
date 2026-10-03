@@ -14,7 +14,7 @@
         <p class="text-sm text-gray-600">
             {{ $quote->quote_number }} · {{ $quote->customerCari?->name }} · {{ $quote->currencyLabel() }}
         </p>
-        <p class="text-xs text-gray-500">Satış fiyatı, birim fiyat teklifindeki kopyadan gelir. İsterseniz dönüşüm sırasında yeniden değiştirebilirsiniz. Alış fiyatı katalogdan tekrar okunmaz.</p>
+        <p class="text-xs text-gray-500">Satış fiyatı, birim fiyat teklifindeki kopyadan gelir. Adet burada girilir. İsterseniz dönüşüm sırasında fiyatı yeniden değiştirebilirsiniz. Alış fiyatı katalogdan tekrar okunmaz.</p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -60,7 +60,9 @@
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="font-medium text-gray-900">{{ $item->product_name }}</p>
-                            <p class="text-xs text-gray-500">Birim fiyat teklifi adedi: {{ $item->quantity }}</p>
+                            @if ($item->hasQuantity())
+                                <p class="text-xs text-gray-500">Birim fiyat teklifi adedi: {{ $item->quantity }}</p>
+                            @endif
                         </div>
                         <label class="inline-flex items-center gap-2 text-sm">
                             <input type="checkbox" name="lines[{{ $index }}][include]" value="1" class="rounded border-gray-300 text-slate-600 focus:ring-slate-500" @checked(! session()->hasOldInput() || old('lines.'.$index.'.include'))>
@@ -76,7 +78,12 @@
                                         <input type="radio" name="lines[{{ $index }}][taahhut_tipi]" value="{{ $tip }}" class="border-gray-300 text-slate-600 focus:ring-slate-500" @checked(old('lines.'.$index.'.taahhut_tipi', $firstTip) === $tip) @click="pick('{{ $tip }}')">
                                         {{ $option->commitmentLabel() }}
                                     </span>
-                                    <span class="text-gray-600">{{ $quote->formatMoney($option->birim_satis) }} · {{ $item->quantity }} adet = {{ $quote->formatMoney($option->saleTotal()) }}</span>
+                                    <span class="text-gray-600">
+                                        {{ $quote->formatMoney($option->birim_satis) }}
+                                        @if ($item->hasQuantity())
+                                            · {{ $item->quantity }} adet = {{ $quote->formatMoney($option->saleTotal()) }}
+                                        @endif
+                                    </span>
                                 </label>
                             @endif
                         @endforeach

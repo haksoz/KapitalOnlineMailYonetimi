@@ -323,7 +323,7 @@
             <h2 class="text-sm font-semibold text-gray-800">Kalemler</h2>
             <button type="button" class="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-700 uppercase tracking-widest hover:bg-gray-50" @click="addLine()">Kalem ekle</button>
         </div>
-        <p x-show="type === 'optional'" class="text-xs text-gray-500">Taahhüt seçenekleri ayrı fiyatlanır. Adet, her taahhütün tutarını göstermek içindir. KDV ve genel toplam kesin teklifte hesaplanır.</p>
+        <p x-show="type === 'optional'" class="text-xs text-gray-500">Taahhüt seçenekleri ayrı birim fiyatlanır. Adet kesin teklife geçerken girilir. KDV ve genel toplam kesin teklifte hesaplanır.</p>
         <p x-show="formError" x-text="formError" class="text-sm text-red-700"></p>
 
         <template x-for="(line, index) in lines" :key="line.key">
@@ -333,7 +333,7 @@
                     <p class="text-xs font-semibold text-gray-500" x-text="'Kalem ' + (index + 1)"></p>
                     <button type="button" class="text-xs font-semibold text-red-700 hover:text-red-900" x-show="lines.length > 1" @click="removeLine(index)">Kaldır</button>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4" :class="type === 'firm' ? 'sm:grid-cols-2' : ''">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Ürün *</label>
                         <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" :name="`items[${index}][product_id]`" x-effect="syncSelect($el, line.product_id)" @change="onProductChange(line, $event.target.value)">
@@ -343,10 +343,12 @@
                             </template>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Adet *</label>
-                        <input type="number" min="1" step="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" :name="`items[${index}][quantity]`" x-model="line.quantity">
-                    </div>
+                    <template x-if="type === 'firm'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Adet *</label>
+                            <input type="number" min="1" step="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" :name="`items[${index}][quantity]`" x-model="line.quantity">
+                        </div>
+                    </template>
                 </div>
 
                 <template x-if="type === 'firm'">
@@ -405,8 +407,6 @@
                             <p class="text-xs text-gray-500">
                                 Katalog alış:
                                 <span x-text="catalogAlis(line, tip) ? format(catalogAlis(line, tip)) : '—'"></span>
-                                · Müşteri tutarı:
-                                <span x-text="!line.options[tip].enabled || lineTotal(line.options[tip].birim_satis, line.quantity) === null ? '—' : format(lineTotal(line.options[tip].birim_satis, line.quantity))"></span>
                                 · Kâr:
                                 <span :class="profitClass(catalogAlis(line, tip), line.options[tip].birim_satis)" x-text="profitLabel(catalogAlis(line, tip), line.options[tip].birim_satis)"></span>
                             </p>

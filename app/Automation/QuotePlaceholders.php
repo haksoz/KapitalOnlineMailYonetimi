@@ -27,7 +27,7 @@ final class QuotePlaceholders
             '{satici}' => self::seller($quote),
             '{cari_unvani}' => (string) ($cari?->name ?: '—'),
             '{alici}' => self::buyer($quote),
-            '{kalemler}' => $htmlLines && $quote->isFirm() ? self::firmLinesHtml($quote) : self::lines($quote),
+            '{kalemler}' => $htmlLines ? self::linesHtml($quote) : self::lines($quote),
             '{dinamik_kosullar}' => self::warnings($quote),
             '{not}' => trim((string) $quote->notes),
             '{kosullar}' => self::terms(),
@@ -40,7 +40,7 @@ final class QuotePlaceholders
     public static function renderPreview(string $template, Quote $quote): string
     {
         $replacements = self::forQuote($quote, htmlLines: true);
-        $htmlTokens = $quote->isFirm() ? ['{kalemler}'] : [];
+        $htmlTokens = ['{kalemler}'];
         $slots = [];
         foreach ($htmlTokens as $index => $token) {
             $slot = '%%HTMLTOKEN'.$index.'%%';
@@ -88,6 +88,16 @@ final class QuotePlaceholders
     public static function eventFor(Quote $quote): EventType
     {
         return $quote->isFirm() ? EventType::QuoteFirmSent : EventType::QuoteOptionalSent;
+    }
+
+    public static function optionalIntro(): string
+    {
+        return 'İhtiyaç duyduğunuz ürünleri ve adet bilgilerini bizimle paylaşmanız halinde, seçiminize uygun kesin teklifimizi hazırlayarak tarafınıza iletebiliriz.';
+    }
+
+    public static function optionalPdfIntro(): string
+    {
+        return 'Aşağıdaki tabloda satın almak istediğiniz ürünü işaretleyin ve adedini yazın. Buna göre size son fiyat teklifimizi göndeririz.';
     }
 
     public static function documentBody(): string
@@ -168,6 +178,9 @@ final class QuotePlaceholders
     private static function lines(Quote $quote): string
     {
         $blocks = [];
+        if ($quote->isOptional()) {
+            $blocks[] = self::optionalIntro();
+        }
         foreach ($quote->items as $item) {
             $blocks[] = $quote->isFirm()
                 ? self::firmLine($quote, $item)
@@ -188,16 +201,51 @@ final class QuotePlaceholders
 
     private static function optionalLine(Quote $quote, QuoteItem $item): string
     {
-        $lines = [$item->quantity.' adet - '.trim($item->product_name)];
+        $lines = [trim($item->product_name)];
         foreach (Quote::COMMITMENTS as $tip) {
             $option = $item->options->firstWhere('taahhut_tipi', $tip);
-            $lines[] = '';
-            $lines[] = Quote::commitmentLabel($tip).' — '.self::paymentHint($tip);
-            $lines[] = 'Birim fiyat: '.($option ? $quote->formatMoney($option->birim_satis) : '—');
-            $lines[] = 'Tutar: '.($option ? $quote->formatMoney($option->saleTotal()) : '—');
+            $price = $option ? $quote->formatMoney($option->birim_satis) : '—';
+            $lines[] = Quote::commitmentLabel($tip).' — '.self::paymentHint($tip).': '.$price;
         }
 
         return implode("\n", $lines);
+    }
+
+    private static function linesHtml(Quote $quote): string
+    {
+        return $quote->isFirm() ? self::firmLinesHtml($quote) : self::optionalLinesHtml($quote);
+    }
+
+    private static function optionalLinesHtml(Quote $quote): string
+    {
+        $cell = 'padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;vertical-align:top;';
+        $head = 'padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700;color:#111827;text-align:right;vertical-align:bottom;';
+        $hint = 'display:block;margin-top:3px;font-size:12px;font-weight:400;color:#6b7280;';
+
+        $headers = '<th style="'.$head.'text-align:left;width:28%;"></th>';
+        foreach (Quote::COMMITMENTS as $tip) {
+            $headers .= '<th align="right" style="'.$head.'">'.e(Quote::commitmentLabel($tip))
+                .'<span style="'.$hint.'">'.e(self::paymentHint($tip)).'</span></th>';
+        }
+
+        $rows = '';
+        foreach ($quote->items as $item) {
+            $rows .= '<tr><th align="left" style="'.$cell.'font-weight:600;text-align:left;">'.e(trim($item->product_name)).'</th>';
+            foreach (Quote::COMMITMENTS as $tip) {
+                $option = $item->options->firstWhere('taahhut_tipi', $tip);
+                $rows .= '<td align="right" style="'.$cell.'text-align:right;">'
+                    .e($option ? $quote->formatMoney($option->birim_satis) : '—')
+                    .'</td>';
+            }
+            $rows .= '</tr>';
+        }
+
+        return '<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#374151;">'.e(self::optionalIntro()).'</p>'
+            .'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">'
+            .'<tr>'.$headers.'</tr>'
+            .$rows
+            .'</table>'
+            .'<p style="margin:12px 0 0;font-size:14px;color:#374151;">Birim fiyatlara KDV dahil değildir.</p>';
     }
 
     private static function firmLine(Quote $quote, QuoteItem $item): string

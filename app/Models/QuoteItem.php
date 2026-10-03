@@ -52,6 +52,11 @@ class QuoteItem extends Model
         return $this->hasMany(QuoteItemOption::class);
     }
 
+    public function hasQuantity(): bool
+    {
+        return $this->quantity !== null;
+    }
+
     public function saleTotal(): string
     {
         return QuoteMath::money($this->birim_satis, (int) $this->quantity);

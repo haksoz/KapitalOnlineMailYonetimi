@@ -91,35 +91,28 @@
                                         </tr>
                                     </table>
                                 @else
-                                    @foreach ($quote->items as $item)
-                                        <div style="margin:0 0 8px;font-size:16px;font-weight:700;"><span style="display:inline-block;margin-right:6px;padding:2px 8px;border-radius:6px;background:#e2e8f0;font-size:15px;">{{ $item->quantity }} adet</span> - {{ $item->product_name }}</div>
-                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:24px;">
+                                    <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#374151;">{{ \App\Automation\QuotePlaceholders::optionalIntro() }}</p>
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                        <tr>
+                                            <th style="{{ $cell }}width:28%;"></th>
+                                            @foreach (\App\Models\Quote::COMMITMENTS as $tip)
+                                                <th align="right" style="{{ $cell }}font-weight:700;text-align:right;">
+                                                    {{ \App\Models\Quote::commitmentLabel($tip) }}
+                                                    <div style="margin-top:3px;font-size:12px;font-weight:400;{{ $muted }}">{{ $paymentHints[$tip] }}</div>
+                                                </th>
+                                            @endforeach
+                                        </tr>
+                                        @foreach ($quote->items as $item)
                                             <tr>
-                                                <th style="{{ $cell }}width:18%;"></th>
-                                                @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                                                    <th align="right" style="{{ $cell }}font-weight:700;">
-                                                        {{ \App\Models\Quote::commitmentLabel($tip) }}
-                                                        <div style="margin-top:3px;font-size:12px;font-weight:400;{{ $muted }}">{{ $paymentHints[$tip] }}</div>
-                                                    </th>
-                                                @endforeach
-                                            </tr>
-                                            <tr>
-                                                <th align="left" style="{{ $cell }}font-weight:500;{{ $muted }}">Birim fiyat</th>
-                                                @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                                                    @php $option = $item->options->firstWhere('taahhut_tipi', $tip); @endphp
-                                                    <td align="right" style="{{ $cell }}">{{ $option ? $quote->formatMoney($option->birim_satis) : '—' }}</td>
-                                                @endforeach
-                                            </tr>
-                                            <tr>
-                                                <th align="left" style="{{ $cell }}font-weight:500;{{ $muted }}">Tutar</th>
+                                                <th align="left" style="{{ $cell }}font-weight:600;text-align:left;">{{ $item->product_name }}</th>
                                                 @foreach (\App\Models\Quote::COMMITMENTS as $tip)
                                                     @php $option = $item->options->firstWhere('taahhut_tipi', $tip); @endphp
-                                                    <td align="right" style="{{ $cell }}font-weight:700;">{{ $option ? $quote->formatMoney($option->saleTotal()) : '—' }}</td>
+                                                    <td align="right" style="{{ $cell }}text-align:right;">{{ $option ? $quote->formatMoney($option->birim_satis) : '—' }}</td>
                                                 @endforeach
                                             </tr>
-                                        </table>
-                                    @endforeach
-                                    <div style="font-size:14px;color:#374151;">Birim fiyatlara KDV dahil değildir.</div>
+                                        @endforeach
+                                    </table>
+                                    <div style="margin-top:12px;font-size:14px;color:#374151;">Birim fiyatlara KDV dahil değildir.</div>
                                 @endif
                             </div>
 

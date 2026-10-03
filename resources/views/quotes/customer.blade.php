@@ -6,8 +6,8 @@
         .quote-compare { width: 100%; border-collapse: collapse; }
         .quote-compare th, .quote-compare td { border-bottom: 1px solid #e5e7eb; padding: 0.6rem 0.75rem; vertical-align: top; }
         .quote-compare thead th { font-size: 0.8125rem; font-weight: 650; color: #111827; text-align: right; }
-        .quote-compare thead th:first-child { width: 18%; }
-        .quote-compare tbody th { text-align: left; font-weight: 500; color: #6b7280; font-size: 0.875rem; }
+        .quote-compare thead th:first-child { width: 28%; text-align: left; }
+        .quote-compare tbody th { text-align: left; font-weight: 600; color: #111827; font-size: 0.875rem; }
         .quote-compare td { text-align: right; font-size: 0.875rem; color: #111827; }
         .quote-pay { display: block; margin-top: 0.2rem; font-size: 0.75rem; font-weight: 400; color: #6b7280; }
         .quote-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-top: 1rem; }
@@ -16,7 +16,6 @@
         .quote-summary-figures .quote-gross { font-size: 1rem; font-weight: 700; color: #111827; }
         .quote-notices { margin-top: 1.5rem; border-top: 1px solid #e5e7eb; padding-top: 1rem; font-size: 0.875rem; line-height: 1.45; color: #374151; }
         .quote-notices div + div { margin-top: 0.25rem; }
-        .quote-qty { display: inline-block; margin-right: 0.35rem; padding: 0.1rem 0.5rem; border-radius: 0.375rem; background: #e2e8f0; font-size: 1rem; font-weight: 800; color: #0f172a; letter-spacing: 0.01em; }
         @media print {
             aside, header, .no-print { display: none !important; }
             .lg\:ml-64 { margin-left: 0 !important; }
@@ -44,7 +43,11 @@
                 <button type="button" onclick="window.print()" class="inline-flex items-center justify-center min-h-[40px] px-3 py-2 bg-slate-800 rounded-lg text-xs font-semibold text-white uppercase tracking-widest">Yazdır</button>
             </x-slot>
         </x-page-toolbar>
-        <p class="text-xs text-gray-500 mb-4">Bu görünüm müşteriye verilir. Alış fiyatı, kâr ve iç not burada yoktur.</p>
+        @if ($quote->isOptional())
+            <p class="text-xs text-gray-500 mb-4">Bu belge birim fiyat bilgilendirmesidir. Müşteri PDF üzerinde ürünü işaretleyip adedi yazar. Adet ve son fiyat, kesin teklifte belirlenir. Alış, kâr ve iç not burada yoktur.</p>
+        @else
+            <p class="text-xs text-gray-500 mb-4">Bu görünüm müşteriye verilir. Alış fiyatı, kâr ve iç not burada yoktur.</p>
+        @endif
     </div>
 
     <div class="bg-white rounded-xl shadow-sm p-6 max-w-6xl">
