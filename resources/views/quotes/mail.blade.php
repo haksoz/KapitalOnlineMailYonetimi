@@ -92,22 +92,22 @@
                                     </table>
                                 @else
                                     <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#374151;">{{ \App\Automation\QuotePlaceholders::optionalIntro() }}</p>
-                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;table-layout:fixed;">
                                         <tr>
-                                            <th style="{{ $cell }}width:22%;"></th>
+                                            <th align="left" width="46%" style="{{ $cell }}width:46%;"></th>
                                             @foreach (\App\Models\Quote::COMMITMENTS as $tip)
-                                                <th align="right" width="26%" style="{{ $cell }}width:26%;padding:10px 14px;font-weight:700;text-align:right;">
+                                                <th align="right" width="18%" style="{{ $cell }}width:18%;padding:8px 6px;font-weight:700;text-align:right;">
                                                     {{ \App\Models\Quote::commitmentLabel($tip) }}<br>
-                                                    <span style="display:block;margin-top:4px;font-size:13px;line-height:1.35;font-weight:400;text-align:right;{{ $muted }}">{{ $paymentHints[$tip] }}</span>
+                                                    <span style="display:block;margin-top:4px;font-size:12px;line-height:1.35;font-weight:400;text-align:right;{{ $muted }}">{{ $paymentHints[$tip] }}</span>
                                                 </th>
                                             @endforeach
                                         </tr>
                                         @foreach ($quote->items as $item)
                                             <tr>
-                                                <th align="left" style="{{ $cell }}font-weight:600;text-align:left;">{{ $item->product_name }}</th>
+                                                <th align="left" width="46%" style="{{ $cell }}width:46%;font-weight:600;text-align:left;">{{ $item->product_name }}</th>
                                                 @foreach (\App\Models\Quote::COMMITMENTS as $tip)
                                                     @php $option = $item->options->firstWhere('taahhut_tipi', $tip); @endphp
-                                                    <td align="right" style="{{ $cell }}text-align:right;">{{ $option ? $quote->formatMoney($option->birim_satis) : '—' }}</td>
+                                                    <td align="right" width="18%" style="{{ $cell }}width:18%;padding:8px 6px;text-align:right;white-space:nowrap;">{{ $option ? $quote->formatMoney($option->birim_satis) : '—' }}</td>
                                                 @endforeach
                                             </tr>
                                         @endforeach

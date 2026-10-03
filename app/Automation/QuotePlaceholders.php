@@ -218,22 +218,23 @@ final class QuotePlaceholders
 
     private static function optionalLinesHtml(Quote $quote): string
     {
-        $cell = 'padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;vertical-align:top;';
-        $head = 'padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700;color:#111827;text-align:right;vertical-align:bottom;';
-        $hint = 'display:block;margin-top:4px;font-size:13px;line-height:1.35;font-weight:400;color:#6b7280;text-align:right;';
+        $name = 'padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;vertical-align:top;text-align:left;width:46%;';
+        $head = 'padding:8px 6px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700;color:#111827;text-align:right;vertical-align:bottom;width:18%;';
+        $hint = 'display:block;margin-top:4px;font-size:12px;line-height:1.35;font-weight:400;color:#6b7280;text-align:right;';
+        $price = 'padding:8px 6px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;text-align:right;white-space:nowrap;width:18%;';
 
-        $headers = '<th style="'.$head.'text-align:left;width:22%;"></th>';
+        $headers = '<th align="left" width="46%" style="'.$name.'"></th>';
         foreach (Quote::COMMITMENTS as $tip) {
-            $headers .= '<th align="right" width="26%" style="'.$head.'width:26%;">'.e(Quote::commitmentLabel($tip))
+            $headers .= '<th align="right" width="18%" style="'.$head.'">'.e(Quote::commitmentLabel($tip))
                 .'<br><span style="'.$hint.'">'.e(self::paymentHint($tip)).'</span></th>';
         }
 
         $rows = '';
         foreach ($quote->items as $item) {
-            $rows .= '<tr><th align="left" style="'.$cell.'font-weight:600;text-align:left;">'.e(trim($item->product_name)).'</th>';
+            $rows .= '<tr><th align="left" width="46%" style="'.$name.'font-weight:600;">'.e(trim($item->product_name)).'</th>';
             foreach (Quote::COMMITMENTS as $tip) {
                 $option = $item->options->firstWhere('taahhut_tipi', $tip);
-                $rows .= '<td align="right" style="'.$cell.'text-align:right;">'
+                $rows .= '<td align="right" width="18%" style="'.$price.'">'
                     .e($option ? $quote->formatMoney($option->birim_satis) : '—')
                     .'</td>';
             }
@@ -241,7 +242,7 @@ final class QuotePlaceholders
         }
 
         return '<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#374151;">'.e(self::optionalIntro()).'</p>'
-            .'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">'
+            .'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;table-layout:fixed;">'
             .'<tr>'.$headers.'</tr>'
             .$rows
             .'</table>'
