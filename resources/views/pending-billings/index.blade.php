@@ -345,6 +345,12 @@
                                             <input type="hidden" name="status" value="{{ $currentStatus }}">
                                             <button type="submit" class="text-emerald-700 hover:text-emerald-900 font-medium whitespace-nowrap">Geri al</button>
                                         </form>
+                                        <form action="{{ route('pending-billings.force-destroy', $pb->id) }}" method="POST" class="inline" onsubmit="return confirm('Bu sipariş ve bağlı bekleyen bildirimleri kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <input type="hidden" name="status" value="deleted">
+                                            <button type="submit" class="text-red-700 hover:text-red-900 font-medium whitespace-nowrap">Kalıcı sil</button>
+                                        </form>
                                     @endif
                                     @if ($pb->status !== 'cancelled' && $actualAlis === null)
                                         <a href="{{ route('pending-billings.supplier-invoice', [$pb, 'status' => $currentStatus ?? 'pending']) }}" class="text-slate-600 hover:text-slate-900 font-medium whitespace-nowrap">Alış gir</a>

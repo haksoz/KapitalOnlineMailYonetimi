@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Automation\JobStatus;
+use App\Models\AutomationJob;
 use App\Models\Cari;
 use App\Models\ExchangeRate;
 use App\Models\PendingBilling;
@@ -155,6 +157,32 @@ class PendingBillingController extends Controller
         return redirect()
             ->route('pending-billings.index', ['status' => $backStatus])
             ->with('success', 'Sipariş geri alındı.');
+    }
+
+    public function forceDestroy(Request $request, int $pending_billing_id): RedirectResponse
+    {
+        $backStatus = $request->get('status', 'deleted');
+
+        $pb = PendingBilling::query()->withDeleted()->findOrFail($pending_billing_id);
+        if (! $pb->is_deleted) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $backStatus])
+                ->with('error', 'Kalıcı silme yalnızca silinen siparişler için kullanılabilir.');
+        }
+
+        $pb->loadMissing(['salesInvoiceLine', 'expenseSettlementLine']);
+        if ($pb->salesInvoiceLine !== null || $pb->expenseSettlementLine !== null) {
+            return redirect()
+                ->route('pending-billings.index', ['status' => $backStatus])
+                ->with('error', 'Faturalanmış veya giderleştirilmiş sipariş kalıcı olarak silinemez.');
+        }
+
+        $this->deleteOrderLinks($pb);
+        $pb->delete();
+
+        return redirect()
+            ->route('pending-billings.index', ['status' => 'deleted'])
+            ->with('success', 'Sipariş kalıcı olarak silindi.');
     }
 
     public function refreshAmounts(PendingBilling $pending_billing, PendingBillingService $pendingBillingService): RedirectResponse
@@ -316,10 +344,43 @@ class PendingBillingController extends Controller
         }
 
         $pending_billing->update(['is_deleted' => true]);
+        $this->cancelPendingOrderJobs($pending_billing);
 
         return redirect()
             ->route('pending-billings.index', ['status' => $backStatus])
-            ->with('success', 'Sipariş silindi.');
+            ->with('success', 'Sipariş silindi. Silinenler sekmesinden geri alabilir veya kalıcı olarak silebilirsiniz.');
+    }
+
+    private function cancelPendingOrderJobs(PendingBilling $pendingBilling): void
+    {
+        AutomationJob::query()
+            ->where('subject_type', $pendingBilling->getMorphClass())
+            ->where('subject_id', $pendingBilling->id)
+            ->where('status', JobStatus::Pending)
+            ->update([
+                'status' => JobStatus::Cancelled->value,
+                'error_message' => 'Sipariş silindi.',
+            ]);
+    }
+
+    private function deleteOrderLinks(PendingBilling $pendingBilling): void
+    {
+        $jobIds = AutomationJob::query()
+            ->where('subject_type', $pendingBilling->getMorphClass())
+            ->where('subject_id', $pendingBilling->id)
+            ->pluck('id');
+
+        if ($jobIds->isEmpty()) {
+            return;
+        }
+
+        AutomationJob::query()
+            ->whereIn('parent_job_id', $jobIds)
+            ->update(['parent_job_id' => null]);
+
+        AutomationJob::query()
+            ->whereIn('id', $jobIds)
+            ->delete();
     }
 
     public function bulkPostpone(Request $request): RedirectResponse

@@ -193,19 +193,6 @@ class PendingBillingService
             ->first();
 
         if ($existing !== null) {
-            if ($existing->is_deleted) {
-                $existing->update([
-                    'is_deleted' => false,
-                    'status' => PendingBilling::STATUS_PENDING,
-                ]);
-                $restored = $existing->fresh(['subscription.customerCari']);
-                if ($restored !== null) {
-                    $this->emitOrderCreated($restored);
-                }
-
-                return $restored ?? $existing->fresh();
-            }
-
             return null;
         }
 
@@ -327,12 +314,7 @@ class PendingBillingService
                 continue;
             }
 
-            // Aynı abonelik için aynı yıl/ayda zaten bir sipariş varsa ikinciyi oluşturma.
-            $exists = PendingBilling::where('subscription_id', $subscription->id)
-                ->whereYear('period_start', $periodStart->year)
-                ->whereMonth('period_start', $periodStart->month)
-                ->exists();
-            if ($exists) {
+            if ($this->periodOrderExists($subscription->id, $periodStart)) {
                 continue;
             }
 
@@ -387,11 +369,7 @@ class PendingBillingService
                     continue;
                 }
 
-                // Aynı abonelik ve yıl/ay için zaten bir sipariş varsa ikinciyi oluşturma.
-                $exists = PendingBilling::where('subscription_id', $subscription->id)
-                    ->whereYear('period_start', $cursor->year)
-                    ->whereMonth('period_start', $cursor->month)
-                    ->exists();
+                $exists = $this->periodOrderExists($subscription->id, $cursor);
                 if ($exists) {
                     $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
                     continue;
@@ -450,10 +428,7 @@ class PendingBillingService
                     continue;
                 }
 
-                $exists = PendingBilling::where('subscription_id', $subscription->id)
-                    ->whereYear('period_start', $cursor->year)
-                    ->whereMonth('period_start', $cursor->month)
-                    ->exists();
+                $exists = $this->periodOrderExists($subscription->id, $cursor);
                 if ($exists) {
                     $this->advancePeriodCursor($cursor, $subscription->faturalama_periyodu, $billingDay);
                     continue;
@@ -481,6 +456,19 @@ class PendingBillingService
         }
 
         return $added;
+    }
+
+    /**
+     * Silinen sipariş de bu dönem için vardır. Yeniden oluşturulmaz.
+     */
+    private function periodOrderExists(int $subscriptionId, Carbon $periodStart): bool
+    {
+        return PendingBilling::query()
+            ->withDeleted()
+            ->where('subscription_id', $subscriptionId)
+            ->whereYear('period_start', $periodStart->year)
+            ->whereMonth('period_start', $periodStart->month)
+            ->exists();
     }
 
     /**

@@ -122,6 +122,37 @@ class SubscriptionMonitorPeriodTest extends TestCase
         $response->assertDontSee('Bu ay için siparişleri oluştur');
     }
 
+    public function test_deleted_order_is_not_listed_as_a_missing_period(): void
+    {
+        Carbon::setTestNow('2026-10-01');
+        $user = $this->makeUser();
+        $subscription = $this->makeSubscription(
+            shortName: 'Silinen Donem',
+            taxNumber: '1110000005',
+            baslangic: '2025-09-09',
+            bitis: '2026-10-09',
+            durum: Subscription::DURUM_ACTIVE,
+            autoRenew: false,
+        );
+
+        PendingBilling::create([
+            'subscription_id' => $subscription->id,
+            'period_start' => '2026-09-09',
+            'period_end' => '2026-10-08',
+            'status' => PendingBilling::STATUS_PENDING,
+            'is_deleted' => true,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('subscription-monitor.index', [
+            'year' => 2026,
+            'month' => 9,
+        ]));
+
+        $response->assertOk();
+        $response->assertDontSee('Silinen Donem');
+        $response->assertSee('Seçilen ay için aktif aboneliği olan cari bulunamadı.');
+    }
+
     private function makeUser(): User
     {
         return User::factory()->create([

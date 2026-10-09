@@ -293,4 +293,49 @@ class PendingBillingServiceTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_enqueue_does_not_recreate_a_deleted_period(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-15'));
+
+        $customerCari = Cari::create([
+            'name' => 'Musteri Silinen',
+            'short_name' => 'Musteri Silinen',
+            'cari_type' => 'customer',
+            'tax_number' => '8888888888',
+        ]);
+
+        $subscription = Subscription::create([
+            'customer_cari_id' => $customerCari->id,
+            'provider_cari_id' => $customerCari->id,
+            'sozlesme_no' => 'SOZ-DEL-001',
+            'baslangic_tarihi' => '2026-09-01',
+            'bitis_tarihi' => '2027-09-01',
+            'taahhut_tipi' => Subscription::TAAHHUT_MONTHLY_COMMITMENT,
+            'faturalama_periyodu' => Subscription::FATURALAMA_MONTHLY,
+            'durum' => Subscription::DURUM_ACTIVE,
+            'quantity' => 1,
+            'currency' => Subscription::CURRENCY_TRY,
+            'usd_birim_alis' => 0,
+            'usd_birim_satis' => 500,
+            'vat_rate' => 20,
+        ]);
+
+        $deleted = PendingBilling::create([
+            'subscription_id' => $subscription->id,
+            'period_start' => '2026-09-01',
+            'period_end' => '2026-09-30',
+            'status' => PendingBilling::STATUS_PENDING,
+            'is_deleted' => true,
+        ]);
+
+        $service = new PendingBillingService();
+        $added = $service->enqueueMissingPeriodsUpTo(Carbon::parse('2026-09-15'));
+
+        $this->assertSame(0, $added);
+        $this->assertTrue($deleted->fresh()->is_deleted);
+        $this->assertSame(1, PendingBilling::query()->withDeleted()->where('subscription_id', $subscription->id)->count());
+
+        Carbon::setTestNow();
+    }
 }

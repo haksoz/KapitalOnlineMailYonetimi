@@ -70,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('pending-billings/{pending_billing}/refresh-amounts', [PendingBillingController::class, 'refreshAmounts'])->name('pending-billings.refresh-amounts');
     Route::delete('pending-billings/{pending_billing}', [PendingBillingController::class, 'destroy'])->name('pending-billings.destroy');
     Route::post('pending-billings/{pending_billing_id}/restore', [PendingBillingController::class, 'restore'])->whereNumber('pending_billing_id')->name('pending-billings.restore');
+    Route::delete('pending-billings/{pending_billing_id}/force', [PendingBillingController::class, 'forceDestroy'])->whereNumber('pending_billing_id')->name('pending-billings.force-destroy');
     Route::get('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'showSupplierInvoice'])->name('pending-billings.supplier-invoice');
     Route::post('pending-billings/{pending_billing}/supplier-invoice', [PendingBillingController::class, 'storeSupplierInvoice'])->name('pending-billings.store-supplier-invoice');
     Route::post('pending-billings/{pending_billing}/clear-supplier-invoice', [PendingBillingController::class, 'clearSupplierInvoice'])->name('pending-billings.clear-supplier-invoice');

@@ -65,6 +65,17 @@ class SubscriptionMonitorController extends Controller
 
             $pendingBySubscription = $pendingForMonth->groupBy('subscription_id');
 
+            // Geri dönüşümdeki sipariş bu dönem için bilinçli kapatmadır.
+            // Abone takipte eksik sipariş gibi görünmez ve yeniden açılmaz.
+            $deletedBySubscription = PendingBilling::query()
+                ->onlyDeleted()
+                ->whereBetween('period_start', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->whereHas('subscription', function ($q) use ($customerIds) {
+                    $q->whereIn('customer_cari_id', $customerIds);
+                })
+                ->get()
+                ->groupBy('subscription_id');
+
             /** @var \Illuminate\Support\Collection<int, SalesInvoiceLine> $invoiceLinesForMonth */
             $invoiceLinesForMonth = SalesInvoiceLine::query()
                 ->whereIn('pending_billing_id', $pendingForMonth->pluck('id')->all())
@@ -97,14 +108,16 @@ class SubscriptionMonitorController extends Controller
                 // İptal edilmiş ve o ayda dönemi olmayan kayıt eksik sipariş sayılmaz.
                 // Otomatik yenilemesi açık aktif abonelik, bitişi bu ay sonuna uzatılınca
                 // dönem açılacaksa listede kalır; "Bu ay için siparişleri oluştur" bunu yapar.
-                $effectiveSubs = $subs->filter(function (Subscription $sub) use ($year, $month, $pendingBySubscription, $pendingBillingService, $renewalService): bool {
+                $effectiveSubs = $subs->filter(function (Subscription $sub) use ($year, $month, $pendingBySubscription, $deletedBySubscription, $pendingBillingService, $renewalService): bool {
                     $hasOrderInMonth = $pendingBySubscription->has($sub->id);
+                    $periodWasDeleted = $deletedBySubscription->has($sub->id);
 
                     return $this->subscriptionIsExpectedInMonth(
                         $sub,
                         $year,
                         $month,
                         $hasOrderInMonth,
+                        $periodWasDeleted,
                         $pendingBillingService,
                         $renewalService,
                     );
@@ -315,9 +328,14 @@ class SubscriptionMonitorController extends Controller
         int $year,
         int $month,
         bool $hasOrderInMonth,
+        bool $periodWasDeleted,
         PendingBillingService $pendingBillingService,
         SubscriptionRenewalService $renewalService,
     ): bool {
+        if (! $hasOrderInMonth && $periodWasDeleted) {
+            return false;
+        }
+
         if ($hasOrderInMonth || $pendingBillingService->expectsPeriodInMonth($subscription, $year, $month)) {
             return true;
         }
