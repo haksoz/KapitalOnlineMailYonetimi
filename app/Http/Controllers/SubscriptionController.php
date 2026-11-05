@@ -11,12 +11,14 @@ use App\Models\Subscription;
 use App\Models\SubscriptionQuantityChange;
 use App\Models\SubscriptionQuantityHistory;
 use App\Services\PendingBillingService;
+use App\Services\QuoteSubscriptionService;
 use App\Services\SubscriptionProjectionService;
 use App\Services\SubscriptionRenewalService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class SubscriptionController extends Controller
@@ -87,8 +89,11 @@ class SubscriptionController extends Controller
         $query->orderBy('subscriptions.id');
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $request->validate(['quote_item_id' => ['nullable', 'integer', 'exists:quote_items,id']]);
+        $quoteItem = $request->filled('quote_item_id') ? app(QuoteSubscriptionService::class)->item((int) $request->input('quote_item_id')) : null;
+        $quoteDefaults = $quoteItem ? app(QuoteSubscriptionService::class)->defaults($quoteItem) : [];
         $customerCaris = Cari::whereIn('cari_type', ['customer', 'both'])
             ->orderBy('name')
             ->get(['id', 'name', 'short_name']);
@@ -103,11 +108,12 @@ class SubscriptionController extends Controller
             'alis_usd_yearly_commitment', 'satis_usd_yearly_commitment',
         ]);
 
-        return view('subscriptions.create', compact('customerCaris', 'providerCaris', 'serviceProviders', 'products'));
+        return view('subscriptions.create', compact('customerCaris', 'providerCaris', 'serviceProviders', 'products', 'quoteItem', 'quoteDefaults'));
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $request->validate(['quote_item_id' => ['nullable', 'integer', 'exists:quote_items,id']]);
         $validated = $request->validate([
             'customer_cari_id' => ['required', 'exists:caris,id'],
             'provider_cari_id' => ['nullable', 'exists:caris,id'],
@@ -157,6 +163,17 @@ class SubscriptionController extends Controller
             )->format('Y-m-d');
         }
 
+        if ($request->filled('quote_item_id')) {
+            $subscription = app(QuoteSubscriptionService::class)->save((int) $request->input('quote_item_id'), $validated, null, function ($data) {
+                $subscription = Subscription::create($data);
+                $this->pendingBillingService->addFirstPeriodForSubscription($subscription);
+                DB::afterCommit(fn () => app(DomainEvents::class)->subscriptionCreated($subscription->fresh(['customerCari'])));
+
+                return $subscription;
+            });
+
+            return redirect()->route('subscriptions.show', $subscription)->with('success', 'Yeni abonelik oluşturuldu; teklif işlemi kaydedildi.');
+        }
         $subscription = Subscription::create($validated);
         $this->pendingBillingService->addFirstPeriodForSubscription($subscription);
         app(DomainEvents::class)->subscriptionCreated($subscription->fresh(['customerCari']) ?? $subscription);
@@ -262,8 +279,14 @@ class SubscriptionController extends Controller
             ->with('success', 'Ürün adeti güncellendi.');
     }
 
-    public function edit(Subscription $subscription): View
+    public function edit(Request $request, Subscription $subscription): View
     {
+        $request->validate(['quote_item_id' => ['nullable', 'integer', 'exists:quote_items,id']]);
+        $quoteItem = $request->filled('quote_item_id') ? app(QuoteSubscriptionService::class)->item((int) $request->input('quote_item_id')) : null;
+        if ($quoteItem) {
+            abort_unless((int) app(QuoteSubscriptionService::class)->source($quoteItem)?->id === (int) $subscription->id, 422, 'Teklif bu aboneliğe ait değil.');
+            $subscription->fill(array_merge(app(QuoteSubscriptionService::class)->defaults($quoteItem), ['auto_renew' => true]));
+        }
         $customerCaris = Cari::whereIn('cari_type', ['customer', 'both'])
             ->orderBy('name')
             ->get(['id', 'name', 'short_name']);
@@ -278,11 +301,12 @@ class SubscriptionController extends Controller
             'alis_usd_yearly_commitment', 'satis_usd_yearly_commitment',
         ]);
 
-        return view('subscriptions.edit', compact('subscription', 'customerCaris', 'providerCaris', 'serviceProviders', 'products'));
+        return view('subscriptions.edit', compact('subscription', 'customerCaris', 'providerCaris', 'serviceProviders', 'products', 'quoteItem'));
     }
 
     public function update(Request $request, Subscription $subscription): RedirectResponse
     {
+        $request->validate(['quote_item_id' => ['nullable', 'integer', 'exists:quote_items,id']]);
         $validated = $request->validate([
             'customer_cari_id' => ['required', 'exists:caris,id'],
             'provider_cari_id' => ['nullable', 'exists:caris,id'],
@@ -329,6 +353,29 @@ class SubscriptionController extends Controller
                 Carbon::parse($validated['baslangic_tarihi']),
                 $validated['taahhut_tipi']
             )->format('Y-m-d');
+        }
+
+        if ($request->filled('quote_item_id')) {
+            $quantity = $request->validate(['quantity' => ['required', 'integer', 'min:1']]);
+            $validated['quantity'] = $quantity['quantity'];
+            app(QuoteSubscriptionService::class)->save((int) $request->input('quote_item_id'), $validated, $subscription, function ($data, $existing) {
+                $quantityHistory = null;
+                if ((int) $existing->quantity !== (int) $data['quantity']) {
+                    $quantityHistory = SubscriptionQuantityHistory::create([
+                        'subscription_id' => $existing->id, 'previous_quantity' => $existing->quantity,
+                        'new_quantity' => $data['quantity'], 'effective_date' => now('Europe/Istanbul')->toDateString(),
+                        'changed_by' => auth()->id(), 'reason' => 'Onaylı tekliften abonelik yenilemesi',
+                    ]);
+                }
+                $existing->update($data);
+                if ($quantityHistory) {
+                    DB::afterCommit(fn () => app(DomainEvents::class)->subscriptionQuantityChanged($existing->fresh(['customerCari']), $quantityHistory));
+                }
+
+                return $existing;
+            });
+
+            return redirect()->route('subscriptions.show', $subscription)->with('success', 'Mevcut abonelik yenilemesi kaydedildi. Bitiş tarihi otomatik yenileme sürecinde ilerleyecek.');
         }
 
         if ($validated['auto_renew'] === true) {

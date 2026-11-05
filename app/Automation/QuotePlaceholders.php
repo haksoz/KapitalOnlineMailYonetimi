@@ -28,6 +28,11 @@ final class QuotePlaceholders
             '{cari_unvani}' => (string) ($cari?->name ?: '—'),
             '{alici}' => self::buyer($quote),
             '{kalemler}' => $htmlLines ? self::linesHtml($quote) : self::lines($quote),
+            '{yenileme_aciklamasi}' => $quote->renewalText(),
+            '{abonelik_urun}' => (string) ($quote->renewal_context['product_name'] ?? ''),
+            '{abonelik_lisans_adedi}' => (string) ($quote->renewal_context['quantity'] ?? ''),
+            '{abonelik_bitis_tarihi}' => isset($quote->renewal_context['end_date']) ? \Carbon\Carbon::parse($quote->renewal_context['end_date'])->format('d.m.Y') : '',
+            '{abonelik_otomatik_yenileme}' => $quote->renewal_context ? ($quote->renewal_context['auto_renew'] ? 'Açık' : 'Kapalı') : '',
             '{dinamik_kosullar}' => self::warnings($quote),
             '{not}' => trim((string) $quote->notes),
             '{kosullar}' => self::terms(),
@@ -87,6 +92,10 @@ final class QuotePlaceholders
 
     public static function eventFor(Quote $quote): EventType
     {
+        if ($quote->renewal_context) {
+            return $quote->isFirm() ? EventType::QuoteRenewalFirmSent : EventType::QuoteRenewalOptionalSent;
+        }
+
         return $quote->isFirm() ? EventType::QuoteFirmSent : EventType::QuoteOptionalSent;
     }
 

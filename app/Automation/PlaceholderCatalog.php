@@ -57,6 +57,16 @@ final class PlaceholderCatalog
                 ],
             ],
             [
+                'group' => 'Yenileme teklifi',
+                'items' => [
+                    ['token' => '{yenileme_aciklamasi}', 'hint' => 'Bitiş ve otomatik yenileme durumuna uygun açıklama'],
+                    ['token' => '{abonelik_urun}', 'hint' => 'Yenilenecek ürün'],
+                    ['token' => '{abonelik_lisans_adedi}', 'hint' => 'Mevcut lisans adedi'],
+                    ['token' => '{abonelik_bitis_tarihi}', 'hint' => 'Yenilenecek dönemin bitiş tarihi'],
+                    ['token' => '{abonelik_otomatik_yenileme}', 'hint' => 'Açık veya Kapalı'],
+                ],
+            ],
+            [
                 'group' => 'Sipariş',
                 'items' => [
                     ['token' => '{donem_baslangic}', 'hint' => 'Dönem başlangıcı'],

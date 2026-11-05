@@ -40,7 +40,7 @@ final class EmailActionHandler implements ActionHandler
             $cari = $job->cari_id ? Cari::query()->find($job->cari_id) : null;
         }
 
-        if (in_array($job->event_type, [EventType::QuoteSent, EventType::QuoteOptionalSent, EventType::QuoteFirmSent], true)) {
+        if (in_array($job->event_type, [EventType::QuoteSent, EventType::QuoteOptionalSent, EventType::QuoteFirmSent, EventType::QuoteRenewalOptionalSent, EventType::QuoteRenewalFirmSent], true)) {
             return $this->sendQuote($job, $template, $cari);
         }
 
@@ -134,6 +134,8 @@ final class EmailActionHandler implements ActionHandler
                 unlink($pdf['path']);
             }
         }
+
+        $quote->workTask?->recordQuoteDelivery($quote);
 
         return ActionResult::success(implode(', ', $recipients));
     }

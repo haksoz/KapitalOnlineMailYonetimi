@@ -77,6 +77,25 @@ final class QuoteMath
         return ($negative ? '-' : '').$formatted;
     }
 
+    public static function profitPercentage(mixed $cost, mixed $sale): ?string
+    {
+        if ($cost === null || $cost === '' || $sale === null || $sale === '') {
+            return null;
+        }
+
+        return self::rate((string) BigDecimal::of((string) $sale)->minus((string) $cost), (string) $cost);
+    }
+
+    public static function saleKeepingProfit(mixed $newCost, mixed $oldCost, mixed $oldSale): ?string
+    {
+        if ($newCost === null || $newCost === '' || $oldCost === null || $oldCost === '' || $oldSale === null || $oldSale === '' || BigDecimal::of((string) $oldCost)->isLessThanOrEqualTo('0')) {
+            return null;
+        }
+
+        return (string) BigDecimal::of((string) $newCost)->multipliedBy((string) $oldSale)
+            ->dividedBy((string) $oldCost, 4, RoundingMode::HALF_UP);
+    }
+
     public static function displayRate(?string $rate): string
     {
         if ($rate === null || $rate === '') {

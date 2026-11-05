@@ -62,7 +62,7 @@
                             <td class="px-3 py-3 text-sm text-gray-900">{{ $quote->customerCari?->name ?? '—' }}</td>
                             <td class="px-3 py-3 text-sm text-gray-700">{{ \App\Models\Quote::typeLabel($quote->type) }}</td>
                             <td class="px-3 py-3 text-sm text-gray-700">
-                                <div>{{ \App\Models\Quote::statusLabel($quote->status) }}</div>
+                                <x-quote-status :status="$quote->status" />
                                 @if ($quote->sent_at)
                                     <div class="text-xs text-gray-500 whitespace-nowrap">Gönderim {{ $quote->sent_at->timezone('Europe/Istanbul')->format('d.m.Y H:i') }}</div>
                                 @endif

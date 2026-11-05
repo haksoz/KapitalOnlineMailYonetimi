@@ -12,18 +12,34 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Subscription extends Model
 {
+    public function quoteRecords(): HasMany
+    {
+        return $this->hasMany(QuoteSubscriptionRecord::class);
+    }
+
+    public function replacementRecords(): HasMany
+    {
+        return $this->hasMany(QuoteSubscriptionRecord::class, 'previous_subscription_id')->where('mode', 'new');
+    }
+
     public const DURUM_ACTIVE = 'active';
+
     public const DURUM_CANCELLED = 'cancelled';
+
     public const DURUM_PENDING = 'pending';
 
     public const TAAHHUT_MONTHLY_COMMITMENT = 'monthly_commitment';
+
     public const TAAHHUT_MONTHLY_NO_COMMITMENT = 'monthly_no_commitment';
+
     public const TAAHHUT_ANNUAL_COMMITMENT = 'annual_commitment';
 
     public const FATURALAMA_MONTHLY = 'monthly';
+
     public const FATURALAMA_YEARLY = 'yearly';
 
     public const CURRENCY_USD = 'USD';
+
     public const CURRENCY_TRY = 'TRY';
 
     protected $fillable = [
@@ -184,7 +200,7 @@ class Subscription extends Model
                 return;
             }
 
-            $service = new PendingBillingService();
+            $service = new PendingBillingService;
 
             PendingBilling::query()
                 ->where('subscription_id', $subscription->id)

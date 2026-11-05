@@ -20,6 +20,8 @@ enum EventType: string
     case QuoteSent = 'quote.sent';
     case QuoteOptionalSent = 'quote.optional_sent';
     case QuoteFirmSent = 'quote.firm_sent';
+    case QuoteRenewalOptionalSent = 'quote.renewal_optional_sent';
+    case QuoteRenewalFirmSent = 'quote.renewal_firm_sent';
 
     public function label(): string
     {
@@ -40,6 +42,8 @@ enum EventType: string
             self::QuoteSent => 'Teklif gönderildi',
             self::QuoteOptionalSent => 'Birim fiyat teklifi gönderildi',
             self::QuoteFirmSent => 'Kesin teklif gönderildi',
+            self::QuoteRenewalOptionalSent => 'Yenileme birim fiyat teklifi gönderildi',
+            self::QuoteRenewalFirmSent => 'Yenileme kesin teklifi gönderildi',
         };
     }
 
@@ -78,7 +82,9 @@ enum EventType: string
             self::InvoicePaid,
             self::QuoteSent,
             self::QuoteOptionalSent,
-            self::QuoteFirmSent => true,
+            self::QuoteFirmSent,
+            self::QuoteRenewalOptionalSent,
+            self::QuoteRenewalFirmSent => true,
             default => false,
         };
     }
@@ -108,7 +114,9 @@ enum EventType: string
             self::OrderPaymentDueApproaching => 'Sipariş',
             self::QuoteSent,
             self::QuoteOptionalSent,
-            self::QuoteFirmSent => 'Teklif',
+            self::QuoteFirmSent,
+            self::QuoteRenewalOptionalSent,
+            self::QuoteRenewalFirmSent => 'Teklif',
             default => 'Fatura',
         };
     }
@@ -123,6 +131,8 @@ enum EventType: string
             self::QuoteSent => 54,
             self::QuoteOptionalSent => 55,
             self::QuoteFirmSent => 56,
+            self::QuoteRenewalOptionalSent => 57,
+            self::QuoteRenewalFirmSent => 58,
             self::OrderCreated => 50,
             self::InvoiceIssued => 60,
             self::InvoiceDueApproaching => 70,
@@ -172,7 +182,9 @@ enum EventType: string
             self::InvoicePaid,
             self::QuoteSent,
             self::QuoteOptionalSent,
-            self::QuoteFirmSent => [DedupePolicy::PerOccurrenceKey],
+            self::QuoteFirmSent,
+            self::QuoteRenewalOptionalSent,
+            self::QuoteRenewalFirmSent => [DedupePolicy::PerOccurrenceKey],
             default => [DedupePolicy::Once, DedupePolicy::PerOccurrenceKey],
         };
     }
@@ -206,7 +218,9 @@ enum EventType: string
             self::InvoicePaid => 'Her ödemede bir kez',
             self::QuoteSent,
             self::QuoteOptionalSent,
-            self::QuoteFirmSent => 'Her gönderimde bir kez',
+            self::QuoteFirmSent,
+            self::QuoteRenewalOptionalSent,
+            self::QuoteRenewalFirmSent => 'Her gönderimde bir kez',
             default => $policy->label(),
         };
     }
@@ -223,7 +237,9 @@ enum EventType: string
             self::InvoicePaid => 'Her ödeme bildirimi ayrı gider.',
             self::QuoteSent,
             self::QuoteOptionalSent,
-            self::QuoteFirmSent => 'Teklif her gönderildiğinde ve tekrar gönderildiğinde ayrı bir e-posta gider.',
+            self::QuoteFirmSent,
+            self::QuoteRenewalOptionalSent,
+            self::QuoteRenewalFirmSent => 'Teklif her gönderildiğinde ve tekrar gönderildiğinde ayrı bir e-posta gider.',
             default => 'Bir kez: bu kayda bir daha gitmez. Pencere başına: pencerede kaldığı sürece aralık kadar günde bir tekrarlar.',
         };
     }

@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Quote;
 use App\Models\QuoteItem;
 use App\Models\Subscription;
+use App\Models\WorkTask;
 use App\Services\QuoteMath;
 use App\Services\QuotePdf;
 use App\Services\QuoteService;
@@ -54,14 +55,34 @@ class QuoteController extends Controller
         return view('quotes.index', compact('quotes'));
     }
 
-    public function create(Request $request): View
+    public function create(Request $request): View|RedirectResponse
     {
         $type = old('type', $request->query('type', Quote::TYPE_OPTIONAL));
         if (! in_array($type, [Quote::TYPE_OPTIONAL, Quote::TYPE_FIRM], true)) {
             $type = Quote::TYPE_OPTIONAL;
         }
 
-        return view('quotes.create', $this->formViewData($type, $this->oldItems($request), null));
+        $taskId = old('work_task_id', $request->query('work_task_id'));
+        $task = $taskId ? WorkTask::findOrFail($taskId) : null;
+        if ($task?->hasBlockingQuote()) {
+            return redirect()->route('work-tasks.show', $task)->with('error', 'Bu işe bağlı devam eden bir teklif var. Mevcut teklifi kullanın.');
+        }
+        if ($task && (! $task->isOpen() || ! $task->cost_checked_at)) {
+            return redirect()->route('work-tasks.show', $task)->with('error', 'Teklif oluşturmadan önce güncel alış fiyatını doğrulayın. İş açık olmalıdır.');
+        }
+        $items = $this->oldItems($request);
+        if ($task && $items === null) {
+            $snapshot = $task->snapshot;
+            $product = Product::findOrFail($snapshot['product_id']);
+            $options = [];
+            foreach (Quote::COMMITMENTS as $tip) {
+                $sale = $tip === $snapshot['commitment'] ? $task->proposed_sale : $product->pricesForCommitment($tip)['satis'];
+                $options[$tip] = ['enabled' => $sale !== null && $sale !== '' ? '1' : '0', 'birim_satis' => $sale];
+            }
+            $items = [['product_id' => $product->id, 'quantity' => $snapshot['quantity'], 'taahhut_tipi' => $snapshot['commitment'], 'birim_satis' => $task->proposed_sale, 'options' => $options]];
+        }
+
+        return view('quotes.create', $this->formViewData($type, $items, null, $task));
     }
 
     public function store(Request $request): RedirectResponse
@@ -81,6 +102,7 @@ class QuoteController extends Controller
         $quote->load([
             'customerCari',
             'items.options',
+            'items.subscriptionRecord.subscription',
             'items.product:id,name',
             'sourceQuote:id,quote_number,type',
             'derivedQuote:id,quote_number,type,status',
@@ -223,6 +245,9 @@ class QuoteController extends Controller
 
         $recipients = $cari?->fresh()->notificationEmails() ?? [];
         $mail = $this->events->quoteSent($quote->fresh(['customerCari', 'items.options']), $recipients);
+        if ($mail !== 'sent' && $quote->workTask?->isOpen()) {
+            $quote->workTask->record($quote->quote_number.' için e-posta henüz iletilmedi; müşteri bildirimi bekleniyor.', $request->user()->id);
+        }
         $message = $resend ? 'Teklif tekrar gönderildi.' : 'Teklif gönderildi.';
         $message .= match ($mail) {
             'sent' => ' Fiyatlar kilitlendi ve e-posta iletildi.',
@@ -275,7 +300,7 @@ class QuoteController extends Controller
      * @param  array<int, array<string, mixed>>|null  $oldItems
      * @return array<string, mixed>
      */
-    private function formViewData(string $type, ?array $oldItems, ?Quote $quote): array
+    private function formViewData(string $type, ?array $oldItems, ?Quote $quote, ?WorkTask $workTask = null): array
     {
         $products = Product::query()->orderBy('name')->get([
             'id',
@@ -295,12 +320,23 @@ class QuoteController extends Controller
             : ($quote ? $this->linesFromQuote($quote) : [$this->blankLine()]);
 
         $vatRate = old('vat_rate', $quote?->vat_rate ?? ($type === Quote::TYPE_FIRM ? '20' : ''));
+        $workTask ??= $quote?->workTask;
+        $productOptions = $this->productOptions($products);
+        if ($workTask) {
+            foreach ($productOptions as &$productOption) {
+                if ((int) $productOption['id'] === (int) $workTask->snapshot['product_id']) {
+                    $productOption['prices'][$workTask->snapshot['commitment']]['alis'] = $workTask->verified_cost;
+                    $productOption['prices'][$workTask->snapshot['commitment']]['satis'] = $workTask->proposed_sale;
+                }
+            }
+            unset($productOption);
+        }
 
         $formConfig = [
             'type' => $type,
             'lockedType' => $quote !== null,
             'vatRate' => $vatRate === null ? '' : (string) $vatRate,
-            'products' => $this->productOptions($products),
+            'products' => $productOptions,
             'lines' => $lines,
             'commitmentTypes' => Quote::COMMITMENTS,
             'commitmentLabels' => Quote::commitmentLabels(),
@@ -310,12 +346,13 @@ class QuoteController extends Controller
             'type' => $type,
             'isEdit' => $quote !== null,
             'quote' => $quote,
+            'workTask' => $workTask,
             'formConfig' => $formConfig,
             'customerCaris' => Cari::query()
                 ->whereIn('cari_type', ['customer', 'both'])
                 ->orderBy('name')
                 ->get(['id', 'name', 'short_name', 'tax_number', 'email']),
-            'productOptions' => $this->productOptions($products),
+            'productOptions' => $productOptions,
             'lines' => $lines,
             'vatRate' => $formConfig['vatRate'],
             'commitmentTypes' => Quote::COMMITMENTS,
@@ -473,6 +510,7 @@ class QuoteController extends Controller
     private function rules(string $type): array
     {
         $rules = [
+            'work_task_id' => ['nullable', 'integer', 'exists:work_tasks,id'],
             'customer_cari_id' => [
                 'required',
                 Rule::exists('caris', 'id')->where(fn ($query) => $query->whereIn('cari_type', ['customer', 'both'])),

@@ -220,6 +220,14 @@
     }"
 >
     @csrf
+    @if ($workTask ?? null)
+        <input type="hidden" name="work_task_id" value="{{ $workTask->id }}">
+        <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
+            <a class="font-semibold text-blue-700 underline" href="{{ route('work-tasks.show', $workTask) }}">{{ $workTask->purposeLabel() }} · İş #{{ $workTask->id }}</a>
+            <p>{{ $workTask->snapshot['product_name'] }} · {{ $workTask->snapshot['quantity'] }} lisans · Bitiş: {{ $workTask->snapshot['end_date'] }}</p>
+            <p>Mevcut taahhüt tipi için doğrulanmış alış kullanılır. Diğer seçeneklerin alış fiyatları katalogdan gelir; tekliften önce kontrol edin.</p>
+        </div>
+    @endif
     @if ($isEdit)
         @method('PATCH')
     @endif
@@ -293,7 +301,7 @@
                 <select id="customer_cari_id" name="customer_cari_id" x-ref="buyer" @change="sync($event.target)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" required>
                     <option value="">— Seçin —</option>
                     @foreach ($customerCaris as $cari)
-                        <option value="{{ $cari->id }}" data-tax="{{ $cari->tax_number }}" data-email="{{ $cari->email }}" @selected(old('customer_cari_id', $quote?->customer_cari_id) == $cari->id)>
+                        <option value="{{ $cari->id }}" data-tax="{{ $cari->tax_number }}" data-email="{{ $cari->email }}" @selected(old('customer_cari_id', $quote?->customer_cari_id ?? ($workTask?->customer_cari_id ?? null)) == $cari->id)>
                             {{ $cari->name }}@if($cari->short_name) ({{ $cari->short_name }})@endif
                         </option>
                     @endforeach

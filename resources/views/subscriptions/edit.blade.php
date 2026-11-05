@@ -1,5 +1,6 @@
 <x-app-layout>
     <x-flash-messages />
+    <x-input-error :messages="$errors->get('quote_item_id')" class="mb-4" />
 
     <x-page-toolbar title="Abonelik Düzenle">
         <x-slot name="left">
@@ -14,6 +15,10 @@
             endDate: '{{ old('bitis_tarihi', $subscription->bitis_tarihi?->format('Y-m-d')) }}',
             canEnableAutoRenew: true,
             recalcAutoRenew() {
+                if (@js((bool) ($quoteItem ?? null))) {
+                    this.canEnableAutoRenew = true;
+                    return;
+                }
                 if (!this.endDate) {
                     this.canEnableAutoRenew = true;
                     return;
@@ -28,6 +33,10 @@
             }
         }" x-init="recalcAutoRenew()">
             @csrf
+            @if ($quoteItem ?? null)
+                <input type="hidden" name="quote_item_id" value="{{ $quoteItem->id }}">
+                <p class="mb-4 text-sm font-semibold text-blue-700">{{ $quoteItem->quote->quote_number }} · Mevcut abonelik yenilendi</p>
+            @endif
             @method('PATCH')
             <div class="space-y-4">
                 <div>
@@ -69,12 +78,16 @@
                 </div>
                 <div>
                     <x-input-label value="Ürün adeti" />
-                    <p class="mt-1 text-sm font-medium text-gray-900">{{ $subscription->quantity ?? 1 }}</p>
-                    <a href="{{ route('subscriptions.show-update-quantity', $subscription) }}" class="text-sm text-slate-600 hover:text-slate-900 font-medium">Adet güncelle</a>
+                    @if ($quoteItem ?? null)
+                        <x-text-input name="quantity" type="number" min="1" :value="old('quantity', $subscription->quantity)" required class="mt-1 block w-full" />
+                    @else
+                        <p class="mt-1 text-sm font-medium text-gray-900">{{ $subscription->quantity ?? 1 }}</p>
+                        <a href="{{ route('subscriptions.show-update-quantity', $subscription) }}" class="text-sm text-slate-600 hover:text-slate-900 font-medium">Adet güncelle</a>
+                    @endif
                 </div>
                 <div>
                     <x-input-label for="sozlesme_no" value="Sözleşme no (tedarikçi abonelik no) *" />
-                    <x-text-input id="sozlesme_no" name="sozlesme_no" type="text" class="mt-1 block w-full" :value="old('sozlesme_no', $subscription->sozlesme_no)" required />
+                    <x-text-input id="sozlesme_no" name="sozlesme_no" type="text" class="mt-1 block w-full" :value="old('sozlesme_no', $subscription->sozlesme_no)" :readonly="(bool) ($quoteItem ?? null)" required />
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -96,11 +109,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <x-input-label for="baslangic_tarihi" value="Başlangıç tarihi *" />
-                        <x-text-input id="baslangic_tarihi" name="baslangic_tarihi" type="date" class="mt-1 block w-full" :value="old('baslangic_tarihi', $subscription->baslangic_tarihi?->format('Y-m-d'))" required />
+                        <x-text-input id="baslangic_tarihi" name="baslangic_tarihi" type="date" class="mt-1 block w-full" :value="old('baslangic_tarihi', $subscription->baslangic_tarihi?->format('Y-m-d'))" :readonly="(bool) ($quoteItem ?? null)" required />
                     </div>
                     <div>
                         <x-input-label for="bitis_tarihi" value="Bitiş tarihi" />
-                        <x-text-input id="bitis_tarihi" name="bitis_tarihi" type="date" class="mt-1 block w-full" x-model="endDate" @input="recalcAutoRenew()" :value="old('bitis_tarihi', $subscription->bitis_tarihi?->format('Y-m-d'))" />
+                        <x-text-input id="bitis_tarihi" name="bitis_tarihi" type="date" class="mt-1 block w-full" x-model="endDate" @input="recalcAutoRenew()" :value="old('bitis_tarihi', $subscription->bitis_tarihi?->format('Y-m-d'))" :readonly="(bool) ($quoteItem ?? null)" />
                         <p id="bitis_tarihi_onerisi" class="mt-1 text-xs text-gray-500 hidden">Taahhüt tipi ve başlangıç tarihine göre öneri uygulanacak.</p>
                     </div>
                 </div>

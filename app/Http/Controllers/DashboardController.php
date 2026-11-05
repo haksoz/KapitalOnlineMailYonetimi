@@ -154,6 +154,10 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'stats' => $stats,
+            'workTaskCount' => \App\Models\WorkTask::open()->count(),
+            'urgentWorkTasks' => \App\Models\WorkTask::open()->with('customerCari')
+                ->whereDate(\Illuminate\Support\Facades\DB::raw('COALESCE(next_follow_up, due_date)'), '<=', now('Europe/Istanbul')->toDateString())
+                ->orderByRaw('COALESCE(next_follow_up, due_date)')->limit(5)->get(),
         ]);
     }
 
@@ -241,6 +245,7 @@ class DashboardController extends Controller
 
         if ($usd?->forex_selling !== null && $usd->forex_selling !== '') {
             $this->fallbackUsdRate = (float) $usd->forex_selling;
+
             return $this->fallbackUsdRate;
         }
 
@@ -256,4 +261,3 @@ class DashboardController extends Controller
         return $this->fallbackUsdRate;
     }
 }
-

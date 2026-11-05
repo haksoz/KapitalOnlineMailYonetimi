@@ -35,7 +35,7 @@ class NotificationTemplateController extends Controller
             'template' => $template,
             'previewKind' => $quoteType !== null ? 'quote' : 'invoice',
             'previewSamples' => $quoteType !== null
-                ? $this->sampleQuotesForPreview($quoteType)
+                ? $this->sampleQuotesForPreview($quoteType, $this->isRenewalQuoteTemplate($template))
                 : $this->sampleInvoicesForPreview($dispatcher),
             'mailFrom' => $this->resolvedMailFrom(),
         ]);
@@ -146,6 +146,8 @@ class NotificationTemplateController extends Controller
             'quote_optional_sent' => Quote::TYPE_OPTIONAL,
             'quote_sent' => Quote::TYPE_OPTIONAL,
             'quote_firm_sent' => Quote::TYPE_FIRM,
+            'quote_renewal_optional_sent' => Quote::TYPE_OPTIONAL,
+            'quote_renewal_firm_sent' => Quote::TYPE_FIRM,
         ];
         if (isset($byLegacy[$template->legacy_key])) {
             return $byLegacy[$template->legacy_key];
@@ -158,10 +160,10 @@ class NotificationTemplateController extends Controller
             ->filter();
 
         foreach ($events as $event) {
-            if ($event === EventType::QuoteFirmSent) {
+            if (in_array($event, [EventType::QuoteFirmSent, EventType::QuoteRenewalFirmSent], true)) {
                 return Quote::TYPE_FIRM;
             }
-            if ($event === EventType::QuoteOptionalSent || $event === EventType::QuoteSent) {
+            if (in_array($event, [EventType::QuoteOptionalSent, EventType::QuoteSent, EventType::QuoteRenewalOptionalSent], true)) {
                 return Quote::TYPE_OPTIONAL;
             }
         }
@@ -177,7 +179,7 @@ class NotificationTemplateController extends Controller
             'body' => ['nullable', 'string', 'max:20000'],
         ]);
 
-        $quote = $this->findSampleQuote((int) $validated['quote_id']);
+        $quote = $this->findSampleQuote((int) $validated['quote_id'], $template);
         if ($quote === null) {
             if ($request->expectsJson()) {
                 return response()->json([
@@ -227,7 +229,7 @@ class NotificationTemplateController extends Controller
             'body' => ['nullable', 'string', 'max:20000'],
         ]);
 
-        $quote = $this->findSampleQuote((int) $validated['quote_id']);
+        $quote = $this->findSampleQuote((int) $validated['quote_id'], $template);
         if ($quote === null) {
             return redirect()
                 ->route('admin.notifications.templates.edit', $template)
@@ -273,11 +275,12 @@ class NotificationTemplateController extends Controller
     /**
      * @return list<array{id: int, label: string, to: string, replacements: array<string, string>, htmlTokens: list<string>}>
      */
-    private function sampleQuotesForPreview(string $type): array
+    private function sampleQuotesForPreview(string $type, bool $renewal): array
     {
         return Quote::query()
             ->with(['customerCari:id,name,short_name,email', 'items.options'])
             ->where('type', $type)
+            ->when($renewal, fn ($q) => $q->whereNotNull('renewal_context'), fn ($q) => $q->whereNull('renewal_context'))
             ->orderByDesc('id')
             ->limit(100)
             ->get()
@@ -296,12 +299,20 @@ class NotificationTemplateController extends Controller
             ->all();
     }
 
-    private function findSampleQuote(int $id): ?Quote
+    private function findSampleQuote(int $id, NotificationTemplate $template): ?Quote
     {
         return Quote::query()
             ->with(['customerCari', 'items.options'])
             ->whereKey($id)
+            ->where('type', $this->quotePreviewType($template))
+            ->when($this->isRenewalQuoteTemplate($template), fn ($q) => $q->whereNotNull('renewal_context'), fn ($q) => $q->whereNull('renewal_context'))
             ->first();
+    }
+
+    private function isRenewalQuoteTemplate(NotificationTemplate $template): bool
+    {
+        return in_array($template->legacy_key, ['quote_renewal_optional_sent', 'quote_renewal_firm_sent'], true)
+            || $template->actions()->whereHas('rule', fn ($q) => $q->whereIn('event_type', [EventType::QuoteRenewalOptionalSent->value, EventType::QuoteRenewalFirmSent->value]))->exists();
     }
 
     /**

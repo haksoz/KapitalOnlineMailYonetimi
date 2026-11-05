@@ -2,6 +2,10 @@
     <x-page-toolbar title="Dashboard" />
 
     <div class="space-y-4 sm:space-y-6">
+        <section class="rounded-xl bg-white p-4 sm:p-6 shadow-sm">
+            <div class="flex items-center justify-between gap-3"><h2 class="font-semibold">İş Takip · {{ $workTaskCount }} açık iş</h2><a href="{{ route('work-tasks.index') }}" class="text-sm font-semibold text-blue-700 underline">Tüm işleri aç</a></div>
+            <div class="mt-3 space-y-2">@forelse ($urgentWorkTasks as $task)<a href="{{ route('work-tasks.show', $task) }}" class="block rounded-lg bg-gray-50 p-3 text-sm"><strong>{{ $task->customerCari?->short_name ?: $task->customerCari?->name }}</strong> · {{ $task->title }}<span class="block text-gray-600">{{ $task->statusLabel() }} · Takip: {{ ($task->next_follow_up ?? $task->due_date)->format('d.m.Y') }}</span></a>@empty<p class="text-sm text-gray-500">Bugün işlem bekleyen iş bulunmuyor.</p>@endforelse</div>
+        </section>
         {{-- Karşılama ve hızlı kısayollar --}}
         <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6">
             <p class="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6">

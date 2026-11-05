@@ -11,6 +11,11 @@ use Illuminate\Support\Str;
 
 class Cari extends Model
 {
+    public function workTasks(): HasMany
+    {
+        return $this->hasMany(WorkTask::class, 'customer_cari_id');
+    }
+
     protected $table = 'caris';
 
     protected $fillable = [

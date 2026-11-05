@@ -39,6 +39,10 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('work-tasks', [\App\Http\Controllers\WorkTaskController::class, 'index'])->name('work-tasks.index');
+    Route::post('work-tasks/detect', [\App\Http\Controllers\WorkTaskController::class, 'detect'])->name('work-tasks.detect');
+    Route::get('work-tasks/{work_task}', [\App\Http\Controllers\WorkTaskController::class, 'show'])->name('work-tasks.show');
+    Route::patch('work-tasks/{work_task}', [\App\Http\Controllers\WorkTaskController::class, 'update'])->name('work-tasks.update');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

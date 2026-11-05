@@ -57,6 +57,8 @@ class Quote extends Model
         'notes',
         'internal_notes',
         'source_quote_id',
+        'work_task_id',
+        'renewal_context',
         'created_by',
         'sent_at',
         'approved_at',
@@ -66,6 +68,8 @@ class Quote extends Model
     protected function casts(): array
     {
         return [
+            'renewal_context' => 'array',
+            'work_task_id' => 'integer',
             'vat_rate' => 'decimal:2',
             'valid_until' => 'date',
             'sent_at' => 'datetime',
@@ -95,6 +99,30 @@ class Quote extends Model
     public function customerCari(): BelongsTo
     {
         return $this->belongsTo(Cari::class, 'customer_cari_id');
+    }
+
+    public function workTask(): BelongsTo
+    {
+        return $this->belongsTo(WorkTask::class);
+    }
+
+    public function subscriptionRecords(): HasMany
+    {
+        return $this->hasMany(QuoteSubscriptionRecord::class);
+    }
+
+    public function renewalText(): string
+    {
+        $context = $this->renewal_context;
+        if (! $context) {
+            return '';
+        }
+        $end = \Carbon\Carbon::parse($context['end_date'])->format('d.m.Y');
+        $intro = $context['product_name'].' ürününe ait '.$context['quantity'].' lisanslık aboneliğinizin mevcut dönemi '.$end.' tarihinde sona ermektedir.';
+
+        return $intro.' '.($context['auto_renew']
+            ? 'Aboneliğinizde otomatik yenileme açıktır. Yeni dönem için geçerli olacak fiyat ve ödeme bilgileri aşağıda sunulmuştur.'
+            : 'Aboneliğinizde otomatik yenileme kapalıdır. Yenileme için hazırladığımız fiyat teklifimiz aşağıdadır. Devam kararınızı iletmenizi rica ederiz.');
     }
 
     public function sourceQuote(): BelongsTo

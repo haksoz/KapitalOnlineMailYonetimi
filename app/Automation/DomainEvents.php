@@ -14,9 +14,7 @@ use Illuminate\Support\Facades\Log;
 
 final class DomainEvents
 {
-    public function __construct(private readonly AutomationBus $bus)
-    {
-    }
+    public function __construct(private readonly AutomationBus $bus) {}
 
     public function subscriptionCreated(Subscription $subscription): void
     {
@@ -140,6 +138,7 @@ final class DomainEvents
     {
         $quote->loadMissing(['customerCari', 'items.options']);
         $fingerprint = 'sent:'.($quote->sent_at?->timezone(Automation::TIMEZONE)->format('YmdHis') ?? now()->timezone(Automation::TIMEZONE)->format('YmdHis'));
+        $previousJobId = AutomationJob::max('id') ?? 0;
 
         try {
             $created = $this->bus->emit(new DomainEvent(
@@ -164,6 +163,7 @@ final class DomainEvents
         }
 
         $sent = AutomationJob::query()
+            ->where('id', '>', $previousJobId)
             ->where('event_type', QuotePlaceholders::eventFor($quote))
             ->where('subject_id', $quote->getKey())
             ->where('status', JobStatus::Succeeded)

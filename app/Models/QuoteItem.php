@@ -37,6 +37,11 @@ class QuoteItem extends Model
         return $this->belongsTo(Quote::class);
     }
 
+    public function subscriptionRecord(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(QuoteSubscriptionRecord::class);
+    }
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);

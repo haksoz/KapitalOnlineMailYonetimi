@@ -1,5 +1,7 @@
 <x-app-layout>
     <x-flash-messages />
+    <x-input-error :messages="$errors->get('quote_item_id')" class="mb-4" />
+    @php $value = fn ($field, $default = null) => old($field, $quoteDefaults[$field] ?? $default); @endphp
 
     <x-page-toolbar title="Yeni Abonelik">
         <x-slot name="left">
@@ -12,13 +14,17 @@
     <div class="bg-white rounded-xl shadow-sm p-6 max-w-xl">
         <form action="{{ route('subscriptions.store') }}" method="POST">
             @csrf
+            @if ($quoteItem ?? null)
+                <input type="hidden" name="quote_item_id" value="{{ $quoteItem->id }}">
+                <p class="mb-4 text-sm font-semibold text-blue-700">{{ $quoteItem->quote->quote_number }} · {{ $quoteItem->product_name }} · Yeni sözleşme</p>
+            @endif
             <div class="space-y-4">
                 <div>
                     <x-input-label for="customer_cari_id" value="Müşteri (Cari) *" />
                     <select id="customer_cari_id" name="customer_cari_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" required>
                         <option value="">— Seçin —</option>
                         @foreach ($customerCaris as $c)
-                            <option value="{{ $c->id }}" @selected(old('customer_cari_id') == $c->id)>{{ $c->name }}</option>
+                            <option value="{{ $c->id }}" @selected($value('customer_cari_id') == $c->id)>{{ $c->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -27,7 +33,7 @@
                     <select id="provider_cari_id" name="provider_cari_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
                         <option value="">— Seçin —</option>
                         @foreach ($providerCaris as $c)
-                            <option value="{{ $c->id }}" @selected(old('provider_cari_id') == $c->id)>{{ $c->name }}</option>
+                            <option value="{{ $c->id }}" @selected($value('provider_cari_id') == $c->id)>{{ $c->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -36,13 +42,13 @@
                     <select id="service_provider_id" name="service_provider_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
                         <option value="">— Seçin —</option>
                         @foreach ($serviceProviders as $sp)
-                            <option value="{{ $sp->id }}" @selected(old('service_provider_id') == $sp->id)>{{ $sp->name }} @if($sp->code)({{ $sp->code }})@endif</option>
+                            <option value="{{ $sp->id }}" @selected($value('service_provider_id') == $sp->id)>{{ $sp->name }} @if($sp->code)({{ $sp->code }})@endif</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
                     <x-input-label for="product_id" value="Ürün" />
-                    <x-searchable-product-select :products="$products" :selected="old('product_id')" />
+                    <x-searchable-product-select :products="$products" :selected="$value('product_id')" />
                     <p class="mt-1 text-xs text-gray-500">Yazarak ara; yeni ürünler üstte listelenir.</p>
                 </div>
                 <input type="hidden" id="currency" name="currency" value="{{ old('currency', 'USD') }}">
@@ -53,7 +59,7 @@
                 </div>
                 <div>
                     <x-input-label for="quantity" value="Ürün adeti *" />
-                    <x-text-input id="quantity" name="quantity" type="number" min="1" class="mt-1 block w-full" :value="old('quantity', 1)" required />
+                    <x-text-input id="quantity" name="quantity" type="number" min="1" class="mt-1 block w-full" :value="$value('quantity', 1)" required />
                 </div>
                 <div>
                     <x-input-label for="sozlesme_no" value="Sözleşme no (tedarikçi abonelik no) *" />
@@ -63,16 +69,16 @@
                     <div>
                         <x-input-label for="taahhut_tipi" value="Taahhüt tipi *" />
                         <select id="taahhut_tipi" name="taahhut_tipi" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" required>
-                            <option value="monthly_commitment" @selected(old('taahhut_tipi', 'monthly_commitment') === 'monthly_commitment')>Aylık taahhütlü</option>
-                            <option value="monthly_no_commitment" @selected(old('taahhut_tipi') === 'monthly_no_commitment')>Aylık taahhütsüz</option>
-                            <option value="annual_commitment" @selected(old('taahhut_tipi') === 'annual_commitment')>Yıllık taahhütlü</option>
+                            <option value="monthly_commitment" @selected($value('taahhut_tipi', 'monthly_commitment') === 'monthly_commitment')>Aylık taahhütlü</option>
+                            <option value="monthly_no_commitment" @selected($value('taahhut_tipi') === 'monthly_no_commitment')>Aylık taahhütsüz</option>
+                            <option value="annual_commitment" @selected($value('taahhut_tipi') === 'annual_commitment')>Yıllık taahhütlü</option>
                         </select>
                     </div>
                     <div>
                         <x-input-label for="faturalama_periyodu" value="Faturalama periyodu *" />
                         <select id="faturalama_periyodu" name="faturalama_periyodu" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500" required>
-                            <option value="monthly" @selected(old('faturalama_periyodu', 'monthly') === 'monthly')>Aylık</option>
-                            <option value="yearly" @selected(old('faturalama_periyodu') === 'yearly')>Yıllık</option>
+                            <option value="monthly" @selected($value('faturalama_periyodu', 'monthly') === 'monthly')>Aylık</option>
+                            <option value="yearly" @selected($value('faturalama_periyodu') === 'yearly')>Yıllık</option>
                         </select>
                     </div>
                 </div>
@@ -90,18 +96,18 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <x-input-label for="usd_birim_alis" id="label_birim_alis" value="USD birim alış (sabit)" />
-                        <x-text-input id="usd_birim_alis" name="usd_birim_alis" type="number" step="0.0001" min="0" class="mt-1 block w-full" :value="old('usd_birim_alis')" placeholder="0,0000" />
+                        <x-text-input id="usd_birim_alis" name="usd_birim_alis" type="number" step="0.0001" min="0" class="mt-1 block w-full" :value="$value('usd_birim_alis')" placeholder="0,0000" />
                         <p id="hint_birim_alis" class="mt-1 text-xs text-gray-500">Abonelik oluşturulduğunda sabitlenir; beklenen TL hesabında kullanılır.</p>
                     </div>
                     <div>
                         <x-input-label for="usd_birim_satis" id="label_birim_satis" value="USD birim satış (sabit)" />
-                        <x-text-input id="usd_birim_satis" name="usd_birim_satis" type="number" step="0.0001" min="0" class="mt-1 block w-full" :value="old('usd_birim_satis')" placeholder="0,0000" />
+                        <x-text-input id="usd_birim_satis" name="usd_birim_satis" type="number" step="0.0001" min="0" class="mt-1 block w-full" :value="$value('usd_birim_satis')" placeholder="0,0000" />
                         <p id="hint_birim_satis" class="mt-1 text-xs text-gray-500">Abonelik oluşturulduğunda sabitlenir.</p>
                     </div>
                 </div>
                 <div class="max-w-xs">
                     <x-input-label for="vat_rate" value="KDV (%) *" />
-                    <x-text-input id="vat_rate" name="vat_rate" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full" :value="old('vat_rate', 20)" required />
+                    <x-text-input id="vat_rate" name="vat_rate" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full" :value="$value('vat_rate', 20)" required />
                     <p class="mt-1 text-xs text-gray-500">Ön tanımlı %20; değiştirilebilir. Siparişlerde kullanılır.</p>
                 </div>
                 <div>

@@ -1,6 +1,7 @@
 @props(['mobile' => false])
 
 <nav {{ $attributes->merge(['role' => 'navigation']) }}>
+    <x-sidebar-link :href="route('work-tasks.index')" :active="request()->routeIs('work-tasks.*')" :close-on-click="$mobile">İş Takip</x-sidebar-link>
     <x-sidebar-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" :close-on-click="$mobile">Dashboard</x-sidebar-link>
 
     <x-sidebar-group id="master" label="Master Veriler">

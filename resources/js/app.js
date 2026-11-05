@@ -1,8 +1,10 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
+import renewalPricing from './renewal-pricing';
 
 window.Alpine = Alpine;
+Alpine.data('renewalPricing', renewalPricing);
 
 Alpine.data('appShell', () => ({
     sidebarOpen: false,

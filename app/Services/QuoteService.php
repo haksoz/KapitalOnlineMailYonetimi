@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Quote;
 use App\Models\QuoteItem;
 use App\Models\QuoteItemOption;
+use App\Models\WorkTask;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,10 @@ class QuoteService
             try {
                 return DB::transaction(function () use ($data, $userId): Quote {
                     $normalized = $this->normalizeItems($data['type'], $data['items'], collect(), true);
+                    $task = $this->linkedTask($data, $normalized);
+                    if ($task?->hasBlockingQuote()) {
+                        throw ValidationException::withMessages(['work_task_id' => 'Bu işe bağlı devam eden bir teklif var. Mevcut teklifi kullanın.']);
+                    }
 
                     $quote = new Quote([
                         'quote_number' => $this->nextNumber(),
@@ -36,9 +41,15 @@ class QuoteService
                         'notes' => $data['notes'] ?? null,
                         'internal_notes' => $data['internal_notes'] ?? null,
                         'created_by' => $userId,
+                        'work_task_id' => $task?->id,
+                        'renewal_context' => $task?->snapshot,
                     ]);
                     $quote->save();
                     $this->replaceItems($quote, $normalized['items']);
+                    if ($task) {
+                        $task->update(['status' => 'notification_pending']);
+                        $task->record($quote->quote_number.' numaralı teklif oluşturuldu.', $userId);
+                    }
 
                     return $quote->fresh(['items.options', 'customerCari']);
                 });
@@ -69,6 +80,7 @@ class QuoteService
                 $existing,
                 (bool) ($data['refresh_catalog'] ?? false),
             );
+            $this->linkedTask(array_merge($data, ['work_task_id' => $quote->work_task_id]), $normalized);
 
             $quote->fill([
                 'customer_cari_id' => $data['customer_cari_id'],
@@ -101,9 +113,15 @@ class QuoteService
             }
 
             $items = $this->firmItemsFromOptional($source, $data['lines']);
+            $normalized = ['currency' => $source->currency, 'items' => $items];
+            $this->linkedTask(['work_task_id' => $source->work_task_id, 'customer_cari_id' => $source->customer_cari_id], $normalized);
+            $items = $normalized['items'];
             $firm = $this->saveFirmQuote($source, $data, $userId);
 
             $this->replaceItems($firm, $items);
+            if ($source->workTask) {
+                $source->workTask->record($source->quote_number.' birim fiyat teklifi '.$firm->quote_number.' kesin teklifine dönüştürüldü.', $userId);
+            }
             $source->status = Quote::STATUS_CONVERTED;
             $source->save();
 
@@ -113,6 +131,21 @@ class QuoteService
 
     public function transition(Quote $quote, string $status, ?int $userId = null): Quote
     {
+        if (in_array($status, [Quote::STATUS_SENT, Quote::STATUS_APPROVED], true) && $quote->work_task_id) {
+            $task = $quote->workTask;
+            if (! $task?->isOpen() || ! $task->cost_checked_at) {
+                throw ValidationException::withMessages(['quote' => 'Bağlı iş açık olmalı ve alış kontrolü yapılmış olmalıdır.']);
+            }
+            foreach ($quote->items as $item) {
+                if ((int) $item->product_id !== (int) $task->snapshot['product_id']) {
+                    continue;
+                }
+                $price = $quote->isFirm() ? ($item->taahhut_tipi === $task->snapshot['commitment'] ? $item : null) : $item->options->firstWhere('taahhut_tipi', $task->snapshot['commitment']);
+                if ($price && QuoteMath::unit($price->birim_alis) !== QuoteMath::unit($task->verified_cost)) {
+                    throw ValidationException::withMessages(['quote' => 'Alış kontrolü değişmiş. Teklifi düzenleyip kaydederek güncel doğrulanmış alışı alın.']);
+                }
+            }
+        }
         $allowed = match ($status) {
             Quote::STATUS_SENT => in_array($quote->status, [Quote::STATUS_DRAFT, Quote::STATUS_REJECTED], true),
             Quote::STATUS_APPROVED => $quote->isFirm() && $quote->status === Quote::STATUS_SENT,
@@ -140,6 +173,18 @@ class QuoteService
             $quote->approved_by = $userId;
         }
         $quote->save();
+
+        if ($status === Quote::STATUS_APPROVED && $quote->workTask?->isOpen() && $quote->workTask->notified_at) {
+            $quote->workTask->update(['status' => 'renewal_pending']);
+            $quote->workTask->record($quote->quote_number.' onaylandı; abonelik işlemi bekleniyor.', $userId);
+        }
+        if (in_array($status, [Quote::STATUS_REJECTED, Quote::STATUS_EXPIRED, Quote::STATUS_CANCELLED], true) && $quote->workTask?->isOpen()) {
+            $task = $quote->workTask;
+            if (! $task->hasBlockingQuote()) {
+                $task->update(['status' => $task->cost_checked_at ? 'pricing' : 'cost_pending']);
+            }
+            $task->record($quote->quote_number.' · '.Quote::statusLabel($status).'.', $userId ?? auth()->id());
+        }
 
         return $quote;
     }
@@ -420,6 +465,8 @@ class QuoteService
                 'notes' => $data['notes'] ?? null,
                 'internal_notes' => $data['internal_notes'] ?? null,
                 'source_quote_id' => $source->id,
+                'work_task_id' => $source->work_task_id,
+                'renewal_context' => $source->renewal_context,
                 'created_by' => $userId,
             ]);
 
@@ -457,5 +504,41 @@ class QuoteService
     private function isEnabled(mixed $value): bool
     {
         return $value === true || $value === 1 || $value === '1' || $value === 'on' || $value === 'true';
+    }
+
+    private function linkedTask(array $data, array &$normalized): ?WorkTask
+    {
+        if (empty($data['work_task_id'])) {
+            return null;
+        }
+        $task = WorkTask::whereKey($data['work_task_id'])->lockForUpdate()->firstOrFail();
+        if (! $task->isOpen() || ! $task->cost_checked_at || (int) $data['customer_cari_id'] !== (int) $task->customer_cari_id) {
+            throw ValidationException::withMessages(['work_task_id' => 'İş açık olmalı, güncel alış doğrulanmalı ve müşteri işle aynı olmalıdır.']);
+        }
+        if ($normalized['currency'] !== $task->snapshot['currency']) {
+            throw ValidationException::withMessages(['items' => 'Yenileme teklifinin para birimi abonelikle aynı olmalıdır.']);
+        }
+        $found = false;
+        foreach ($normalized['items'] as &$item) {
+            if ((int) $item['product_id'] !== (int) $task->snapshot['product_id']) {
+                continue;
+            }
+            $found = true;
+            if ($item['taahhut_tipi'] === $task->snapshot['commitment']) {
+                $item['birim_alis'] = $task->verified_cost;
+            }
+            foreach ($item['options'] as &$option) {
+                if ($option['taahhut_tipi'] === $task->snapshot['commitment']) {
+                    $option['birim_alis'] = $task->verified_cost;
+                }
+            }
+            unset($option);
+        }
+        unset($item);
+        if (! $found) {
+            throw ValidationException::withMessages(['items' => 'Yenilenecek aboneliğin ürünü teklifte bulunmalıdır.']);
+        }
+
+        return $task;
     }
 }
