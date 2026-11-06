@@ -153,55 +153,22 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                <div class="flex items-center gap-2" x-data="{ autoRenew: {{ $sub->auto_renew ? 'true' : 'false' }}, busy: false }">
-                                    <button
-                                        type="button"
-                                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                                        :class="autoRenew ? 'bg-emerald-600 focus:ring-emerald-600' : 'bg-red-600 focus:ring-red-600'"
-                                        role="switch"
-                                        :aria-checked="autoRenew ? 'true' : 'false'"
-                                        :title="autoRenew ? 'Açık' : 'Kapalı'"
-                                        :disabled="busy"
-                                        @click="
-                                            if (busy) return;
-                                            if (!confirm('Otomatik yenileme durumu değiştirilsin mi?')) return;
-                                            busy = true;
-                                            const previous = autoRenew;
-                                            fetch('{{ route('subscriptions.toggle-auto-renew', $sub) }}', {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Accept': 'application/json',
-                                                    'X-Requested-With': 'XMLHttpRequest',
-                                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '',
-                                                },
-                                            })
-                                                .then(r => r.ok ? r.json() : r.json().then(j => { throw j; }))
-                                                .then(data => { autoRenew = !!data.auto_renew; })
-                                                .catch((e) => {
-                                                    autoRenew = previous;
-                                                    const msg = (e && e.message) ? e.message : 'İşlem yapılamadı.';
-                                                    alert(msg);
-                                                })
-                                                .finally(() => { busy = false; });
-                                        "
-                                    >
-                                        <span
-                                            class="inline-block h-5 w-5 rounded-full bg-white transition-transform"
-                                            :class="autoRenew ? 'translate-x-5' : 'translate-x-1'"
-                                        ></span>
-                                    </button>
-                                    <span class="text-xs font-medium" :class="autoRenew ? 'text-emerald-700' : 'text-red-700'" x-text="autoRenew ? 'Açık' : 'Kapalı'"></span>
-                                </div>
+                                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full {{ $sub->auto_renew ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800' }}">
+                                    {{ $sub->auto_renew ? 'Açık' : 'Kapalı' }}
+                                </span>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
-                                <a href="{{ route('subscriptions.show', $sub) }}" class="text-slate-600 hover:text-slate-900 font-medium">Detay</a>
-                                <a href="{{ route('subscriptions.edit', $sub) }}" class="ml-3 text-slate-600 hover:text-slate-900 font-medium">Düzenle</a>
-                                @if ($sub->durum === 'active')
-                                    <form action="{{ route('subscriptions.cancel', $sub) }}" method="POST" class="inline-block ml-3" onsubmit="return confirm('Bu aboneliği iptal etmek istediğinize emin misiniz? İptal talimatı, aboneliğin bitiş tarihinde devreye girecek ve otomatik yenileme kapatılacaktır.');">
-                                        @csrf
-                                        <button type="submit" class="text-amber-600 hover:text-amber-800 font-medium">İptal et</button>
-                                    </form>
-                                @endif
+                                <a href="{{ route('subscriptions.show', $sub) }}" class="inline-flex items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2" title="Detay" aria-label="Detay">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                </a>
+                                <a href="{{ route('subscriptions.edit', $sub) }}" class="ml-1 inline-flex items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2" title="Düzenle" aria-label="Düzenle">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </a>
                             </td>
                         </tr>
                     @empty
