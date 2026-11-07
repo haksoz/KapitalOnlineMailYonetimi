@@ -1,18 +1,15 @@
 @props(['mobile' => false])
 
 <nav {{ $attributes->merge(['role' => 'navigation']) }}>
-    <x-sidebar-link :href="route('work-tasks.index')" :active="request()->routeIs('work-tasks.*')" :close-on-click="$mobile">İş Takip</x-sidebar-link>
     <x-sidebar-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" :close-on-click="$mobile">Dashboard</x-sidebar-link>
+    <x-sidebar-link :href="route('work-tasks.index')" :active="request()->routeIs('work-tasks.*')" :close-on-click="$mobile">İş Takip</x-sidebar-link>
+    <x-sidebar-link :href="route('quotes.index')" :active="request()->routeIs('quotes.*')" :close-on-click="$mobile">Teklifler</x-sidebar-link>
 
     <x-sidebar-group id="master" label="Master Veriler">
         <x-sidebar-link :href="route('caris.index')" :active="request()->routeIs('caris.*')" :close-on-click="$mobile">Cariler</x-sidebar-link>
         <x-sidebar-link :href="route('service-providers.index')" :active="request()->routeIs('service-providers.*')" :close-on-click="$mobile">Servis Sağlayıcılar</x-sidebar-link>
         <x-sidebar-link :href="route('products.index')" :active="request()->routeIs('products.*')" :close-on-click="$mobile">Ürünler</x-sidebar-link>
         <x-sidebar-link :href="route('exchange-rates.index')" :active="request()->routeIs('exchange-rates.*')" :close-on-click="$mobile">Kurlar</x-sidebar-link>
-    </x-sidebar-group>
-
-    <x-sidebar-group id="quotes" label="Teklifler">
-        <x-sidebar-link :href="route('quotes.index')" :active="request()->routeIs('quotes.*')" :close-on-click="$mobile">Teklifler</x-sidebar-link>
     </x-sidebar-group>
 
     <x-sidebar-group id="subscriptions" label="Abonelikler">
