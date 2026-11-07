@@ -33,6 +33,23 @@ class WorkTaskTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_list_pricing_can_be_saved_as_json_and_unlocks_grouped_quote_selection(): void
+    {
+        $task = $this->task();
+        $this->actingAs(User::factory()->create(['is_active' => true]));
+        $this->get(route('work-tasks.index'))->assertOk()->assertSee('pricing-'.$task->id)->assertSee('Fiyat kontrolü');
+        $this->patchJson(route('work-tasks.update', $task), ['action' => 'pricing', 'verified_cost' => 9, 'proposed_sale' => 12])->assertUnprocessable()->assertJsonValidationErrors('cost_confirmed');
+        $this->assertNull($task->fresh()->cost_checked_at);
+        $this->patchJson(route('work-tasks.update', $task), ['action' => 'pricing', 'verified_cost' => 9, 'proposed_sale' => 12, 'cost_confirmed' => '1'])->assertOk()->assertJsonStructure(['message']);
+        $this->assertNotNull($task->fresh()->cost_checked_at);
+        $this->assertSame('pricing', $task->fresh()->status);
+        $this->get(route('quotes.create', ['type' => 'firm', 'work_task_ids' => [$task->id]]))->assertOk();
+        $this->actingAs(User::factory()->create(['is_active' => true]));
+        $this->post(route('quotes.store'), $this->payload($task))->assertSessionHasNoErrors();
+        $this->patchJson(route('work-tasks.update', $task), ['action' => 'pricing', 'verified_cost' => 10, 'proposed_sale' => 13, 'cost_confirmed' => '1'])->assertUnprocessable();
+        $this->assertSame('9.0000', $task->fresh()->verified_cost);
+    }
+
     public function test_detection_obeys_all_six_commitment_and_auto_renew_combinations(): void
     {
         foreach (Quote::COMMITMENTS as $commitment) {
@@ -199,7 +216,9 @@ class WorkTaskTest extends TestCase
         $complete = ['action' => 'complete', 'note' => 'Yenileme ve fiyatlar doğrulandı'];
         $this->patch(route('work-tasks.update', $task), $complete)->assertSessionHasErrors('task');
         $this->review($task);
-        $this->patch(route('work-tasks.update', $task), ['action' => 'stage', 'status' => 'renewal_pending'])->assertSessionHasErrors('task');
+        $this->get(route('work-tasks.show', $task))->assertOk()->assertDontSee('Aşamayı güncelle')->assertDontSee('Bildirim ve sonuç');
+        $this->patch(route('work-tasks.update', $task), ['action' => 'stage', 'status' => 'renewal_pending'])->assertSessionHasErrors('action');
+        $this->assertSame('pricing', $task->fresh()->status);
         $this->patch(route('work-tasks.update', $task), ['action' => 'notify', 'note' => '04.11.2026 telefon ile bildirildi'])->assertSessionHasNoErrors();
         $this->assertSame('renewal_pending', $task->fresh()->status);
         $this->patch(route('work-tasks.update', $task), $complete)->assertSessionHasErrors('task');
@@ -219,7 +238,7 @@ class WorkTaskTest extends TestCase
         $this->post(route('quotes.store'), $this->payload($task))->assertSessionHasNoErrors();
         $quote = Quote::firstOrFail();
         \App\Models\AutomationRule::where('legacy_key', 'quote_renewal_firm_sent')->update(['is_enabled' => false]);
-        $this->post(route('quotes.send', $quote), ['email' => 'customer@example.test'])->assertSessionHasNoErrors();
+        $this->post(route('quotes.send', $quote), ['recipients' => ['customer@example.test']])->assertSessionHasNoErrors();
         $this->assertNull($task->fresh()->notified_at);
         $this->assertSame('notification_pending', $task->fresh()->status);
     }
@@ -231,7 +250,7 @@ class WorkTaskTest extends TestCase
         $this->review($task);
         $this->post(route('quotes.store'), $this->payload($task))->assertSessionHasNoErrors();
         $quote = Quote::firstOrFail();
-        $this->post(route('quotes.send', $quote), ['email' => 'customer@example.test'])->assertSessionHasNoErrors();
+        $this->post(route('quotes.send', $quote), ['recipients' => ['customer@example.test']])->assertSessionHasNoErrors();
         $this->assertNotNull($task->fresh()->notified_at);
         $this->assertSame('response_pending', $task->fresh()->status);
         $this->assertSame('2026-11-07', $task->fresh()->next_follow_up->toDateString());
@@ -246,7 +265,7 @@ class WorkTaskTest extends TestCase
         $quote2 = Quote::latest('id')->firstOrFail();
         Http::swap(new \Illuminate\Http\Client\Factory);
         Http::fake(['http://gotenberg.test/*' => Http::response('down', 500)]);
-        $this->post(route('quotes.send', $quote2), ['email' => 'second@example.test'])->assertSessionHasNoErrors();
+        $this->post(route('quotes.send', $quote2), ['recipients' => ['second@example.test']])->assertSessionHasNoErrors();
         $this->assertNull($second->fresh()->notified_at);
         $job = \App\Models\AutomationJob::where('subject_id', $quote2->id)->where('subject_type', $quote2->getMorphClass())->latest('id')->firstOrFail();
         $this->assertSame(\App\Automation\JobStatus::Failed, $job->status);
@@ -389,7 +408,7 @@ class WorkTaskTest extends TestCase
             $plain->renewal_context = null;
             $this->assertSame(view('quotes.pdf', ['quote' => $plain])->render(), view('quotes.pdf', ['quote' => $renewal])->render());
             foreach ([$normal, $renewal] as $quote) {
-                $this->post(route('quotes.send', $quote), ['email' => 'customer@example.test'])->assertSessionHasNoErrors();
+                $this->post(route('quotes.send', $quote), ['recipients' => ['customer@example.test']])->assertSessionHasNoErrors();
                 $jobs = \App\Models\AutomationJob::where('subject_type', $quote->getMorphClass())->where('subject_id', $quote->id)->get();
                 $this->assertCount(1, $jobs);
                 $this->assertSame(QuotePlaceholders::eventFor($quote), $jobs->first()->event_type);
@@ -523,6 +542,190 @@ class WorkTaskTest extends TestCase
         $this->assertSame('completed', $task->fresh()->status);
     }
 
+    public function test_bulk_quote_keeps_each_job_and_same_product_subscription_separate(): void
+    {
+        [$first, $second, $payload] = $this->bulkQuoteFixture();
+        $this->get(route('quotes.create', ['type' => 'firm', 'work_task_ids' => [$first->id, $second->id]]))->assertOk()
+            ->assertViewHas('formConfig', fn ($config) => count($config['lines']) === 2 && $config['lines'][0]['work_task_id'] === $first->id && $config['lines'][1]['verified_cost'] === '10.0000');
+        $this->post(route('quotes.store'), $payload)->assertSessionHasNoErrors();
+        $quote = Quote::latest('id')->firstOrFail();
+        $this->assertNull($quote->work_task_id);
+        $this->assertSame(2, $quote->workTasks()->count());
+        $this->assertSame(1, $first->quotes()->count());
+        $this->assertSame(1, $second->quotes()->count());
+        $this->assertSame([$first->id, $second->id], $quote->items->pluck('work_task_id')->all());
+        $this->assertSame(['9.0000', '10.0000'], $quote->items->pluck('birim_alis')->all());
+        $this->assertSame([$first->snapshot['subscription_id'], $second->snapshot['subscription_id']], $quote->items->map(fn ($item) => $item->renewal_context['subscription_id'])->all());
+        $this->assertStringContainsString($first->snapshot['end_date'], json_encode($quote->renewal_context));
+        $this->get(route('quotes.show', $quote))->assertOk()->assertSee('İş #'.$first->id)->assertSee('İş #'.$second->id);
+        $this->get(route('work-tasks.show', $second))->assertOk()->assertSee($quote->quote_number);
+        $this->post(route('quotes.send', $quote), ['recipients' => ['customer@example.test']])->assertSessionHasNoErrors();
+        $this->assertNotNull($first->fresh()->notified_at);
+        $this->assertNotNull($second->fresh()->notified_at);
+        $this->assertSame('response_pending', $first->fresh()->status);
+        $this->assertSame('response_pending', $second->fresh()->status);
+        $this->assertSame(1, \App\Models\AutomationJob::where('subject_id', $quote->id)->where('subject_type', $quote->getMorphClass())->count());
+        $this->assertSame(2, count($quote->renewalContexts()));
+        $this->post(route('quotes.store'), $payload)->assertSessionHasErrors('work_task_id');
+        $this->assertSame(1, Quote::count());
+    }
+
+    public function test_partial_customer_response_releases_rejected_job_and_only_accepts_approved_subscription(): void
+    {
+        [$first, $second, $payload] = $this->bulkQuoteFixture();
+        $this->post(route('quotes.store'), $payload)->assertSessionHasNoErrors();
+        $quote = Quote::latest('id')->firstOrFail();
+        $this->post(route('quotes.send', $quote), ['recipients' => ['customer@example.test']])->assertSessionHasNoErrors();
+        [$accepted, $rejected] = $quote->items()->get()->all();
+        $this->post(route('quotes.items.response', [$quote, $accepted]), ['decision' => 'approved', 'note' => 'İlk abonelik kabul edildi'])->assertSessionHasNoErrors();
+        $this->assertSame('partially_approved', $quote->fresh()->status);
+        $this->assertSame('renewal_pending', $first->fresh()->status);
+        $this->assertSame('response_pending', $second->fresh()->status);
+        $this->post(route('quotes.items.response', [$quote, $rejected]), ['decision' => 'rejected', 'note' => 'Diğer abonelik için yeni fiyat istendi'])->assertSessionHasNoErrors();
+        $this->assertSame('pricing', $second->fresh()->status);
+        $this->assertFalse($second->hasBlockingQuote());
+        $this->assertTrue($first->hasBlockingQuote());
+        $this->get(route('subscriptions.create', ['quote_item_id' => $rejected->id]))->assertSessionHasErrors('quote_item_id');
+        $this->post(route('quotes.items.response', [$quote, $accepted]), ['decision' => 'rejected'])->assertSessionHasErrors('quote');
+        $data = $this->subscriptionPayload($first, $accepted);
+        $this->patch(route('subscriptions.update', $first->subject), $data)->assertSessionHasNoErrors();
+        $this->assertSame('completed', $first->fresh()->status);
+        $this->assertSame('pricing', $second->fresh()->status);
+        $this->assertSame('9.0000', $first->subject->fresh()->usd_birim_alis);
+        $this->assertSame('7.0000', $second->subject->fresh()->usd_birim_alis);
+        $this->assertSame(1, $quote->subscriptionRecords()->count());
+        $next = $payload;
+        $next['work_task_ids'] = [$second->id];
+        $next['items'] = [$payload['items'][1]];
+        $this->post(route('quotes.store'), $next)->assertSessionHasNoErrors();
+        $this->assertSame(2, $second->quotes()->count());
+        $this->get(route('quotes.show', $quote))->assertOk()->assertSee('Kısmen onaylandı');
+    }
+
+    public function test_grouped_jobs_complete_individually_as_their_subscriptions_are_recorded(): void
+    {
+        [$first, $second, $payload] = $this->bulkQuoteFixture();
+        $this->post(route('quotes.store'), $payload)->assertSessionHasNoErrors();
+        $quote = Quote::latest('id')->firstOrFail();
+        $this->post(route('quotes.send', $quote), ['recipients' => ['customer@example.test']])->assertSessionHasNoErrors();
+        $this->post(route('quotes.approve', $quote))->assertSessionHasNoErrors();
+        foreach ($quote->items()->get() as $index => $item) {
+            $task = $index === 0 ? $first : $second;
+            $this->patch(route('subscriptions.update', $task->subject), $this->subscriptionPayload($task, $item))->assertSessionHasNoErrors();
+            $this->assertSame('completed', $task->fresh()->status);
+            if ($index === 0) {
+                $this->assertSame('renewal_pending', $second->fresh()->status);
+            }
+        }
+    }
+
+    public function test_bulk_selection_rejects_incompatible_or_unready_jobs_without_creating_a_quote(): void
+    {
+        [$first, $second, $payload] = $this->bulkQuoteFixture();
+        $customer = Cari::create(['name' => 'Farklı müşteri', 'cari_type' => 'customer']);
+        $second->update(['customer_cari_id' => $customer->id]);
+        $this->post(route('quotes.store'), $payload)->assertSessionHasErrors('work_task_id');
+        $second->update(['customer_cari_id' => $first->customer_cari_id, 'snapshot' => array_merge($second->snapshot, ['currency' => 'TRY'])]);
+        $this->post(route('quotes.store'), $payload)->assertSessionHasErrors('work_task_id');
+        $second->update(['snapshot' => array_merge($second->snapshot, ['currency' => 'USD', 'vat_rate' => 10])]);
+        $this->post(route('quotes.store'), $payload)->assertSessionHasErrors('work_task_id');
+        $second->update(['snapshot' => array_merge($second->snapshot, ['vat_rate' => 20]), 'cost_checked_at' => null]);
+        $this->post(route('quotes.store'), $payload)->assertSessionHasErrors('work_task_id');
+        $this->assertSame(0, Quote::count());
+    }
+
+    public function test_bulk_edit_preserves_task_mapping_and_prevents_removing_or_swapping_source_lines(): void
+    {
+        [$first, $second, $payload] = $this->bulkQuoteFixture();
+        $this->post(route('quotes.store'), $payload)->assertSessionHasNoErrors();
+        $quote = Quote::latest('id')->firstOrFail();
+        foreach ($quote->items as $index => $item) {
+            $payload['items'][$index]['id'] = $item->id;
+        }
+        $payload['items'][1]['birim_satis'] = 16;
+        $this->patch(route('quotes.update', $quote), $payload)->assertSessionHasNoErrors();
+        $this->assertSame([$first->id, $second->id], $quote->fresh()->items->pluck('work_task_id')->all());
+        $bad = $payload;
+        $bad['items'] = [$bad['items'][0]];
+        $this->patch(route('quotes.update', $quote), $bad)->assertSessionHasErrors('items');
+        $this->assertSame(2, $quote->fresh()->items->count());
+    }
+
+    public function test_remaining_reply_can_be_recorded_after_the_accepted_job_is_completed(): void
+    {
+        [$first, $second, $payload] = $this->bulkQuoteFixture();
+        $this->post(route('quotes.store'), $payload)->assertSessionHasNoErrors();
+        $quote = Quote::latest('id')->firstOrFail();
+        $this->post(route('quotes.send', $quote), ['recipients' => ['customer@example.test']])->assertSessionHasNoErrors();
+        [$one, $two] = $quote->items()->get()->all();
+        $this->post(route('quotes.items.response', [$quote, $one]), ['decision' => 'approved'])->assertSessionHasNoErrors();
+        $this->patch(route('subscriptions.update', $first->subject), $this->subscriptionPayload($first, $one))->assertSessionHasNoErrors();
+        $this->assertSame('completed', $first->fresh()->status);
+        $this->post(route('quotes.reject', $quote))->assertSessionHasNoErrors();
+        $this->assertSame('approved', $one->fresh()->response_status);
+        $this->assertSame('rejected', $two->fresh()->response_status);
+        $this->assertSame('pricing', $second->fresh()->status);
+        $this->assertSame('partially_approved', $quote->fresh()->status);
+        $this->post(route('quotes.cancel', $quote))->assertSessionHasErrors('quote');
+        $this->assertSame('completed', $first->fresh()->status);
+    }
+
+    public function test_grouped_unit_quote_conversion_keeps_selected_job_and_releases_omitted_job(): void
+    {
+        [$first, $second, $payload] = $this->bulkQuoteFixture();
+        $payload['type'] = 'optional';
+        foreach ($payload['items'] as &$row) {
+            $row['options'] = ['monthly_commitment' => ['enabled' => '1', 'birim_satis' => $row['birim_satis']]];
+        }
+        unset($row);
+        $this->post(route('quotes.store'), $payload)->assertSessionHasNoErrors();
+        $source = Quote::latest('id')->firstOrFail();
+        $line = $source->items->first();
+        $this->post(route('quotes.convert.store', $source), ['vat_rate' => 20, 'lines' => [['include' => '1', 'quote_item_id' => $line->id, 'taahhut_tipi' => 'monthly_commitment', 'quantity' => 20]]])->assertSessionHasNoErrors();
+        $firm = Quote::where('source_quote_id', $source->id)->firstOrFail();
+        $this->assertSame([$first->id], $firm->workTasks->pluck('id')->all());
+        $this->assertSame($first->id, $firm->items->first()->work_task_id);
+        $this->assertTrue($first->hasBlockingQuote());
+        $this->assertFalse($second->hasBlockingQuote());
+        $this->assertSame('pricing', $second->fresh()->status);
+    }
+
+    public function test_item_response_cannot_be_applied_to_another_quote(): void
+    {
+        [$first, $second, $payload] = $this->bulkQuoteFixture();
+        $this->post(route('quotes.store'), $payload)->assertSessionHasNoErrors();
+        $quote = Quote::latest('id')->firstOrFail();
+        $otherData = $payload;
+        unset($otherData['work_task_ids']);
+        foreach ($otherData['items'] as &$row) {
+            unset($row['work_task_id']);
+        }
+        unset($row);
+        $this->post(route('quotes.store'), $otherData)->assertSessionHasNoErrors();
+        $other = Quote::latest('id')->firstOrFail();
+        $item = $other->items->first();
+        $this->post(route('quotes.items.response', [$quote, $item]), ['decision' => 'approved'])->assertNotFound();
+        $this->assertSame('pending', $item->fresh()->response_status);
+    }
+
+    private function bulkQuoteFixture(): array
+    {
+        $this->actingAs(User::factory()->create(['is_active' => true]));
+        $first = $this->task(['auto_renew' => false]);
+        $source = $this->subscription(['auto_renew' => false, 'customer_cari_id' => $first->customer_cari_id, 'product_id' => $first->snapshot['product_id'], 'quantity' => 8, 'bitis_tarihi' => '2026-11-15']);
+        app(RenewalWorkTaskService::class)->detect();
+        $second = WorkTask::where('subject_id', $source->id)->firstOrFail();
+        $this->review($first);
+        $this->patch(route('work-tasks.update', $second), ['action' => 'pricing', 'verified_cost' => 10, 'proposed_sale' => 15, 'cost_confirmed' => '1'])->assertSessionHasNoErrors();
+        $second->refresh();
+        $payload = ['type' => 'firm', 'customer_cari_id' => $first->customer_cari_id, 'vat_rate' => 20, 'work_task_ids' => [$first->id, $second->id], 'items' => []];
+        foreach ([$first, $second] as $task) {
+            $payload['items'][] = ['work_task_id' => $task->id, 'product_id' => $task->snapshot['product_id'], 'quantity' => $task->snapshot['quantity'], 'taahhut_tipi' => $task->snapshot['commitment'], 'birim_satis' => $task->proposed_sale];
+        }
+
+        return [$first, $second, $payload];
+    }
+
     private function approvedSubscriptionQuote(bool $multiple = false): array
     {
         $this->actingAs(User::factory()->create(['is_active' => true]));
@@ -567,7 +770,7 @@ class WorkTaskTest extends TestCase
         $subscription = $this->subscription($overrides);
         app(RenewalWorkTaskService::class)->detect();
 
-        return WorkTask::where('subject_id', $subscription->id)->firstOrFail();
+        return WorkTask::where('type', WorkTask::TYPE_RENEWAL)->where('subject_id', $subscription->id)->firstOrFail();
     }
 
     private function review(WorkTask $task): void

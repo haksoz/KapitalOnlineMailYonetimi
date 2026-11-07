@@ -16,6 +16,7 @@ class QuoteItem extends Model
         'stock_code',
         'sort_order',
         'source_quote_item_id',
+        'work_task_id', 'renewal_context', 'response_status', 'response_note', 'responded_at', 'responded_by',
         'quantity',
         'taahhut_tipi',
         'birim_alis',
@@ -25,6 +26,7 @@ class QuoteItem extends Model
     protected function casts(): array
     {
         return [
+            'work_task_id' => 'integer', 'renewal_context' => 'array', 'responded_at' => 'datetime',
             'quantity' => 'integer',
             'sort_order' => 'integer',
             'birim_alis' => 'decimal:4',
@@ -35,6 +37,27 @@ class QuoteItem extends Model
     public function quote(): BelongsTo
     {
         return $this->belongsTo(Quote::class);
+    }
+
+    public function workTask(): BelongsTo
+    {
+        return $this->belongsTo(WorkTask::class);
+    }
+
+    public function renewalContext(): ?array
+    {
+        if ($this->renewal_context) {
+            return $this->renewal_context;
+        }
+        $context = $this->quote->renewal_context;
+
+        return isset($context['product_id']) && (int) $context['product_id'] === (int) $this->product_id ? $context : null;
+    }
+
+    public function isAccepted(): bool
+    {
+        return $this->response_status === 'approved'
+            || ($this->response_status === 'pending' && $this->quote->status === Quote::STATUS_APPROVED);
     }
 
     public function subscriptionRecord(): \Illuminate\Database\Eloquent\Relations\HasOne

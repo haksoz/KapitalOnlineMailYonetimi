@@ -9,6 +9,11 @@ class QuoteSubscriptionRecord extends Model
 {
     protected $guarded = ['id'];
 
+    public function quoteItem(): BelongsTo
+    {
+        return $this->belongsTo(QuoteItem::class);
+    }
+
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);

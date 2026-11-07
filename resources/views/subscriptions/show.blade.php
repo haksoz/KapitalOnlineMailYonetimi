@@ -1,9 +1,9 @@
 <x-app-layout>
     <x-flash-messages />
-    @foreach ($subscription->quoteRecords()->with(['quote.workTask', 'previousSubscription'])->get() as $record)
+    @foreach ($subscription->quoteRecords()->with(['quote', 'quoteItem.workTask', 'previousSubscription'])->get() as $record)
         <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
             <a href="{{ route('quotes.show', $record->quote) }}" class="font-semibold text-blue-700 underline">{{ $record->quote->quote_number }}</a>
-            @if ($record->quote->workTask) · <a href="{{ route('work-tasks.show', $record->quote->workTask) }}" class="text-blue-700 underline">İş #{{ $record->quote->work_task_id }}</a>@endif
+            @if ($record->quoteItem?->workTask) · <a href="{{ route('work-tasks.show', $record->quoteItem->workTask) }}" class="text-blue-700 underline">İş #{{ $record->quoteItem->work_task_id }}</a>@endif
             @if ($record->mode === 'new' && $record->previousSubscription) · Önceki abonelik: <a href="{{ route('subscriptions.show', $record->previousSubscription) }}" class="text-blue-700 underline">{{ $record->previousSubscription->sozlesme_no }}</a>@endif
         </div>
     @endforeach

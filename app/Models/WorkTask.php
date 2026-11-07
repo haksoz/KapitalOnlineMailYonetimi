@@ -11,6 +11,8 @@ class WorkTask extends Model
 {
     public const TYPE_RENEWAL = 'subscription_renewal';
 
+    public const TYPE_QUOTE = 'quote_follow_up';
+
     public const STATUSES = [
         'cost_pending' => 'Yeni dönem fiyat kontrolü bekleniyor',
         'pricing' => 'Teklif oluşturulması bekleniyor',
@@ -58,9 +60,9 @@ class WorkTask extends Model
         return $this->hasMany(WorkTaskActivity::class)->latest('id');
     }
 
-    public function quotes(): HasMany
+    public function quotes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->hasMany(Quote::class)->latest('id');
+        return $this->belongsToMany(Quote::class, 'quote_work_task')->latest('quotes.id');
     }
 
     public function isOpen(): bool
@@ -68,10 +70,12 @@ class WorkTask extends Model
         return ! in_array($this->status, ['completed', 'cancelled'], true);
     }
 
-    public function hasBlockingQuote(): bool
+    public function hasBlockingQuote(?int $exceptQuoteId = null): bool
     {
         return $this->quotes()
-            ->whereIn('status', [Quote::STATUS_DRAFT, Quote::STATUS_SENT, Quote::STATUS_APPROVED])
+            ->when($exceptQuoteId, fn ($q) => $q->where('quotes.id', '!=', $exceptQuoteId))
+            ->whereIn('status', [Quote::STATUS_DRAFT, Quote::STATUS_SENT, Quote::STATUS_APPROVED, Quote::STATUS_PARTIALLY_APPROVED])
+            ->whereHas('items', fn ($q) => $q->where('work_task_id', $this->id)->where('response_status', '!=', 'rejected'))
             ->exists();
     }
 
@@ -99,16 +103,16 @@ class WorkTask extends Model
     {
         \Illuminate\Support\Facades\DB::transaction(function () use ($quote) {
             $task = self::whereKey($this->id)->lockForUpdate()->firstOrFail();
-            if (! $task->isOpen()) {
+            if (! $task->isOpen() || $task->hasBlockingQuote($quote->id)) {
                 return;
             }
             $today = now('Europe/Istanbul')->startOfDay();
             $followUp = $today->copy()->addDays(3)->min($task->due_date)->max($today);
-            $task->update([
-                'notified_at' => now(),
-                'status' => ($quote->renewal_context['auto_renew'] ?? false) ? 'renewal_pending' : 'response_pending',
-                'next_follow_up' => $followUp->toDateString(),
-            ]);
+            $values = ['notified_at' => now()];
+            if (! $quote->items()->where('work_task_id', $task->id)->where('response_status', '!=', 'pending')->exists()) {
+                $values += ['status' => ($task->snapshot['auto_renew'] ?? false) ? 'renewal_pending' : 'response_pending', 'next_follow_up' => $followUp->toDateString()];
+            }
+            $task->update($values);
             $task->record($quote->quote_number.' müşteriye e-posta ile iletildi.', $quote->created_by);
         });
     }

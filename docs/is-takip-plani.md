@@ -23,7 +23,13 @@ Yenileme bağlamı yalnızca iç bağlantıda ve e-posta şablonlarında kullan�
 
 Otomatik tarih uzaması tek başına işi kapatmaz. Notlar, atamalar, aşamalar ve fiyat kontrolü geçmişte tutulur. Liste; sorumlu, müşteri, aşama, tür ve takip tarihine göre filtrelenir. Dashboard acil işlere ulaşım sağlar.
 
-## Sonraki türler
+## Toplu teklif ve kalem yanıtları
+
+İş Takip tablosundan aynı müşterinin fiyat kontrolü tamamlanmış, devam eden teklifi olmayan işleri birlikte seçilebilir. Para birimi ve KDV oranı aynı olmalıdır. Her iş ayrı kalemdir; aynı ürünün farklı sözleşmeleri birleştirilmez. Teklif–iş bağlantısı çokludur; kaynak abonelik görüntüsü kalem üzerinde korunur.
+
+Kesin teklifte her kalem için onay/ret ve yanıt notu kaydedilir. Toplu onay/ret yalnızca henüz yanıtı olmayan kalemlere uygulanır. Bir bölümü kabul edilmiş teklif “Kısmen onaylandı” görünür. Reddedilen iş yeniden fiyat/teklif hazırlamaya açılır. Abonelik işlemleri sadece kabul edilen kalemlerde yapılabilir ve ilgili iş bağımsız kapanır. Birim fiyat teklifinden kesin teklife geçerken alınmayan işlerin kilidi kaldırılır.
+
+## Sonraki iş türleri
 
 - Alış faturası girilmiş fakat satış faturası düzenlenmemiş sipariş: fatura düzenleme işi.
 - Gönderim tarihinden itibaren belirlenen sürede yanıt alınmamış teklif: müşteri yanıt takibi işi.

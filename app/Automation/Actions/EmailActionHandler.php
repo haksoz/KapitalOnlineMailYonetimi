@@ -135,7 +135,9 @@ final class EmailActionHandler implements ActionHandler
             }
         }
 
-        $quote->workTask?->recordQuoteDelivery($quote);
+        foreach ($quote->workTasks()->get() as $task) {
+            $task->recordQuoteDelivery($quote);
+        }
 
         return ActionResult::success(implode(', ', $recipients));
     }
@@ -164,9 +166,8 @@ final class EmailActionHandler implements ActionHandler
                 }
                 $clean[strtolower($email)] = $email;
             }
-            if ($clean !== []) {
-                return array_values($clean);
-            }
+
+            return array_values($clean);
         }
 
         return $cari?->notificationEmails() ?? [];

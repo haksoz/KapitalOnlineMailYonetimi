@@ -184,6 +184,7 @@
             line.birim_satis = price && price.satis != null && price.satis !== '' ? this.moneyInput(price.satis) : '';
         },
         catalogAlis(line, tip) {
+            if (line.work_task_id && tip === line.source_commitment) return line.verified_cost;
             const alis = this.productOf(line)?.prices?.[tip]?.alis;
             if (alis === null || alis === undefined || alis === '') return '';
             return String(alis);
@@ -223,9 +224,10 @@
     @if ($workTask ?? null)
         <input type="hidden" name="work_task_id" value="{{ $workTask->id }}">
         <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
-            <a class="font-semibold text-blue-700 underline" href="{{ route('work-tasks.show', $workTask) }}">{{ $workTask->purposeLabel() }} · İş #{{ $workTask->id }}</a>
-            <p>{{ $workTask->snapshot['product_name'] }} · {{ $workTask->snapshot['quantity'] }} lisans · Bitiş: {{ $workTask->snapshot['end_date'] }}</p>
-            <p>Mevcut taahhüt tipi için doğrulanmış alış kullanılır. Diğer seçeneklerin alış fiyatları katalogdan gelir; tekliften önce kontrol edin.</p>
+            @foreach ($workTasks as $linkedTask)
+                <input type="hidden" name="work_task_ids[]" value="{{ $linkedTask->id }}">
+                <p><a class="font-semibold text-blue-700 underline" href="{{ route('work-tasks.show', $linkedTask) }}">{{ $linkedTask->purposeLabel() }} · İş #{{ $linkedTask->id }}</a> · {{ $linkedTask->snapshot['product_name'] }} · {{ $linkedTask->snapshot['quantity'] }} lisans · {{ $linkedTask->snapshot['end_date'] }}</p>
+            @endforeach
         </div>
     @endif
     @if ($isEdit)
@@ -337,6 +339,8 @@
         <template x-for="(line, index) in lines" :key="line.key">
             <div class="border border-gray-200 rounded-xl p-4 space-y-4">
                 <input type="hidden" :name="`items[${index}][id]`" :value="line.id">
+                <input type="hidden" :name="`items[${index}][work_task_id]`" :value="line.work_task_id || ''">
+                <p x-show="line.task_label" x-text="line.task_label" class="text-xs font-semibold text-blue-700"></p>
                 <div class="flex items-start justify-between gap-3">
                     <p class="text-xs font-semibold text-gray-500" x-text="'Kalem ' + (index + 1)"></p>
                     <button type="button" class="text-xs font-semibold text-red-700 hover:text-red-900" x-show="lines.length > 1" @click="removeLine(index)">Kaldır</button>

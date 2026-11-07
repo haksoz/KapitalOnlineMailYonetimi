@@ -15,3 +15,15 @@ Schedule::command('exchange-rates:fetch')->daily()->withoutOverlapping()->sendOu
 Schedule::command('pending-billings:refresh-amounts')->daily()->withoutOverlapping()->sendOutputTo(storage_path('logs/pending-billings-refresh-amounts.log'))->emailOutputOnFailure('haksoz@kapital-online.net');
 Schedule::command('notifications:dispatch')->everyFiveMinutes()->weekdays()->timezone('Europe/Istanbul')->withoutOverlapping()->sendOutputTo(storage_path('logs/notifications-dispatch.log'))->emailOutputOnFailure('haksoz@kapital-online.net');
 
+
+Artisan::command('work-tasks:sync-quotes', function () {
+    \App\Models\Quote::whereDoesntHave('workTasks')->chunkById(100, function ($quotes) {
+        foreach ($quotes as $quote) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($quote) {
+                $locked = \App\Models\Quote::whereKey($quote->id)->lockForUpdate()->first();
+                if ($locked) app(\App\Services\QuoteFollowUpService::class)->sync($locked);
+            });
+        }
+    });
+    $this->info('Teklif takip işleri güncellendi.');
+})->purpose('Bağımsız tekliflerin takip işlerini oluşturur veya günceller');

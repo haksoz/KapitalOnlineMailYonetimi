@@ -23,6 +23,8 @@ class Quote extends Model
 
     public const STATUS_APPROVED = 'approved';
 
+    public const STATUS_PARTIALLY_APPROVED = 'partially_approved';
+
     public const STATUS_REJECTED = 'rejected';
 
     public const STATUS_EXPIRED = 'expired';
@@ -40,6 +42,7 @@ class Quote extends Model
         self::STATUS_SENT,
         self::STATUS_CONVERTED,
         self::STATUS_APPROVED,
+        self::STATUS_PARTIALLY_APPROVED,
         self::STATUS_REJECTED,
         self::STATUS_EXPIRED,
         self::STATUS_CANCELLED,
@@ -86,6 +89,7 @@ class Quote extends Model
         });
 
         static::deleting(function (Quote $quote): void {
+            WorkTask::where('occurrence_key', 'quote:'.$quote->id)->delete();
             $itemIds = $quote->items()->pluck('id');
             if ($itemIds->isEmpty()) {
                 return;
@@ -101,9 +105,28 @@ class Quote extends Model
         return $this->belongsTo(Cari::class, 'customer_cari_id');
     }
 
+    public function followUpTask(): \Illuminate\Database\Eloquent\Relations\MorphOne
+    {
+        return $this->morphOne(WorkTask::class, 'subject')->where('type', WorkTask::TYPE_QUOTE);
+    }
+
     public function workTask(): BelongsTo
     {
         return $this->belongsTo(WorkTask::class);
+    }
+
+    public function workTasks(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(WorkTask::class, 'quote_work_task');
+    }
+
+    public function renewalContexts(): array
+    {
+        if (! $this->renewal_context) {
+            return [];
+        }
+
+        return $this->renewal_context['subscriptions'] ?? [$this->renewal_context];
     }
 
     public function subscriptionRecords(): HasMany
@@ -113,6 +136,14 @@ class Quote extends Model
 
     public function renewalText(): string
     {
+        if (isset($this->renewal_context['subscriptions'])) {
+            return implode("\n\n", array_map(function ($context) {
+                $copy = clone $this;
+                $copy->renewal_context = $context;
+
+                return $copy->renewalText();
+            }, $this->renewal_context['subscriptions']));
+        }
         $context = $this->renewal_context;
         if (! $context) {
             return '';
@@ -238,6 +269,7 @@ class Quote extends Model
             self::STATUS_SENT => 'Gönderildi',
             self::STATUS_CONVERTED => 'Kesin teklife dönüştürüldü',
             self::STATUS_APPROVED => 'Onaylandı',
+            self::STATUS_PARTIALLY_APPROVED => 'Kısmen onaylandı',
             self::STATUS_REJECTED => 'Reddedildi',
             self::STATUS_EXPIRED => 'Süresi doldu',
             self::STATUS_CANCELLED => 'İptal',

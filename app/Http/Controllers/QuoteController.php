@@ -62,6 +62,7 @@ class QuoteController extends Controller
             $type = Quote::TYPE_OPTIONAL;
         }
 
+        $request->validate(['work_task_ids' => ['nullable', 'array', 'max:50'], 'work_task_ids.*' => ['integer', 'exists:work_tasks,id']]);
         $taskId = old('work_task_id', $request->query('work_task_id'));
         $task = $taskId ? WorkTask::findOrFail($taskId) : null;
         if ($task?->hasBlockingQuote()) {
@@ -70,19 +71,24 @@ class QuoteController extends Controller
         if ($task && (! $task->isOpen() || ! $task->cost_checked_at)) {
             return redirect()->route('work-tasks.show', $task)->with('error', 'Teklif oluşturmadan önce güncel alış fiyatını doğrulayın. İş açık olmalıdır.');
         }
+        $ids = old('work_task_ids', $request->query('work_task_ids', $task ? [$task->id] : []));
+        $tasks = app(\App\Services\QuoteWorkTaskService::class)->selected((array) $ids);
         $items = $this->oldItems($request);
-        if ($task && $items === null) {
-            $snapshot = $task->snapshot;
-            $product = Product::findOrFail($snapshot['product_id']);
-            $options = [];
-            foreach (Quote::COMMITMENTS as $tip) {
-                $sale = $tip === $snapshot['commitment'] ? $task->proposed_sale : $product->pricesForCommitment($tip)['satis'];
-                $options[$tip] = ['enabled' => $sale !== null && $sale !== '' ? '1' : '0', 'birim_satis' => $sale];
+        if ($tasks->isNotEmpty() && $items === null) {
+            $items = [];
+            foreach ($tasks as $task) {
+                $snapshot = $task->snapshot;
+                $product = Product::findOrFail($snapshot['product_id']);
+                $options = [];
+                foreach (Quote::COMMITMENTS as $tip) {
+                    $sale = $tip === $snapshot['commitment'] ? $task->proposed_sale : $product->pricesForCommitment($tip)['satis'];
+                    $options[$tip] = ['enabled' => $sale !== null && $sale !== '' ? '1' : '0', 'birim_satis' => $sale];
+                }
+                $items[] = ['work_task_id' => $task->id, 'product_id' => $product->id, 'quantity' => $snapshot['quantity'], 'taahhut_tipi' => $snapshot['commitment'], 'birim_satis' => $task->proposed_sale, 'options' => $options];
             }
-            $items = [['product_id' => $product->id, 'quantity' => $snapshot['quantity'], 'taahhut_tipi' => $snapshot['commitment'], 'birim_satis' => $task->proposed_sale, 'options' => $options]];
         }
 
-        return view('quotes.create', $this->formViewData($type, $items, null, $task));
+        return view('quotes.create', $this->formViewData($type, $items, null, $tasks));
     }
 
     public function store(Request $request): RedirectResponse
@@ -103,6 +109,7 @@ class QuoteController extends Controller
             'customerCari',
             'items.options',
             'items.subscriptionRecord.subscription',
+            'workTasks', 'items.workTask',
             'items.product:id,name',
             'sourceQuote:id,quote_number,type',
             'derivedQuote:id,quote_number,type,status',
@@ -223,30 +230,27 @@ class QuoteController extends Controller
     {
         $quote->load('customerCari');
         $cari = $quote->customerCari;
-        $registered = $cari?->notificationEmails() ?? [];
-        $email = null;
-
-        if ($registered === []) {
-            $email = $request->validate([
-                'email' => ['required', 'email', 'max:255'],
-            ], [
-                'email.required' => 'E-posta adresi gerekli.',
-                'email.email' => 'Geçerli bir e-posta adresi girin.',
-            ])['email'];
+        if (is_array($request->input('recipients'))) {
+            $request->merge(['recipients' => array_map(fn ($email) => is_string($email) ? trim($email) : $email, $request->input('recipients'))]);
         }
+        $data = $request->validate([
+            'recipients' => ['required', 'array', 'min:1', 'max:50'],
+            'recipients.*' => ['required', 'string', 'email', 'max:254'],
+        ], [
+            'recipients.required' => 'En az bir e-posta adresi seçin.',
+            'recipients.min' => 'En az bir e-posta adresi seçin.',
+            'recipients.*.email' => 'Geçerli bir e-posta adresi girin.',
+        ]);
+        $recipients = collect($data['recipients'])->unique(fn ($email) => strtolower($email))->values()->all();
 
         $resend = $quote->status === Quote::STATUS_REJECTED;
         $this->quotes->transition($quote, Quote::STATUS_SENT);
 
-        if ($email !== null && $cari !== null) {
-            $cari->email = Cari::normalizeEmailList($email);
-            $cari->save();
-        }
-
-        $recipients = $cari?->fresh()->notificationEmails() ?? [];
         $mail = $this->events->quoteSent($quote->fresh(['customerCari', 'items.options']), $recipients);
-        if ($mail !== 'sent' && $quote->workTask?->isOpen()) {
-            $quote->workTask->record($quote->quote_number.' için e-posta henüz iletilmedi; müşteri bildirimi bekleniyor.', $request->user()->id);
+        if ($mail !== 'sent') {
+            foreach ($quote->workTasks()->open()->get() as $task) {
+                $task->record($quote->quote_number.' için e-posta henüz iletilmedi; müşteri bildirimi bekleniyor.', $request->user()->id);
+            }
         }
         $message = $resend ? 'Teklif tekrar gönderildi.' : 'Teklif gönderildi.';
         $message .= match ($mail) {
@@ -263,6 +267,15 @@ class QuoteController extends Controller
         $this->quotes->transition($quote, Quote::STATUS_APPROVED, (int) $request->user()->id);
 
         return redirect()->route('quotes.show', $quote)->with('success', 'Kesin teklif onaylandı.');
+    }
+
+    public function respondItem(Request $request, Quote $quote, QuoteItem $item): RedirectResponse
+    {
+        abort_unless((int) $item->quote_id === (int) $quote->id, 404);
+        $data = $request->validate(['decision' => ['required', 'in:approved,rejected'], 'note' => ['nullable', 'string', 'max:5000']]);
+        app(\App\Services\QuoteResponseService::class)->save($quote, $item->id, $data['decision'], $data['note'] ?? null, $request->user()->id);
+
+        return back()->with('success', 'Kalem için müşteri yanıtı kaydedildi.');
     }
 
     public function reject(Quote $quote): RedirectResponse
@@ -300,7 +313,7 @@ class QuoteController extends Controller
      * @param  array<int, array<string, mixed>>|null  $oldItems
      * @return array<string, mixed>
      */
-    private function formViewData(string $type, ?array $oldItems, ?Quote $quote, ?WorkTask $workTask = null): array
+    private function formViewData(string $type, ?array $oldItems, ?Quote $quote, WorkTask|\Illuminate\Support\Collection|null $workTask = null): array
     {
         $products = Product::query()->orderBy('name')->get([
             'id',
@@ -319,8 +332,18 @@ class QuoteController extends Controller
             ? $this->linesFromOld($oldItems)
             : ($quote ? $this->linesFromQuote($quote) : [$this->blankLine()]);
 
-        $vatRate = old('vat_rate', $quote?->vat_rate ?? ($type === Quote::TYPE_FIRM ? '20' : ''));
-        $workTask ??= $quote?->workTask;
+        $workTasks = $workTask instanceof WorkTask ? collect([$workTask]) : ($workTask ?? $quote?->workTasks ?? collect());
+        $workTask = $workTasks->first();
+        $vatRate = old('vat_rate', $quote?->vat_rate ?? ($type === Quote::TYPE_FIRM ? ($workTask ? app(\App\Services\QuoteWorkTaskService::class)->vat($workTask) : '20') : ''));
+        foreach ($lines as &$line) {
+            $linked = $workTasks->firstWhere('id', (int) ($line['work_task_id'] ?? 0));
+            if ($linked) {
+                $line['verified_cost'] = $linked->verified_cost;
+                $line['source_commitment'] = $linked->snapshot['commitment'];
+                $line['task_label'] = 'İş #'.$linked->id.' · Bitiş: '.$linked->snapshot['end_date'];
+            }
+        }
+        unset($line);
         $productOptions = $this->productOptions($products);
         if ($workTask) {
             foreach ($productOptions as &$productOption) {
@@ -347,6 +370,7 @@ class QuoteController extends Controller
             'isEdit' => $quote !== null,
             'quote' => $quote,
             'workTask' => $workTask,
+            'workTasks' => $workTasks,
             'formConfig' => $formConfig,
             'customerCaris' => Cari::query()
                 ->whereIn('cari_type', ['customer', 'both'])
@@ -409,6 +433,7 @@ class QuoteController extends Controller
             return [
                 'key' => 'item-'.$item->id,
                 'id' => $item->id,
+                'work_task_id' => $item->work_task_id,
                 'product_id' => (string) $item->product_id,
                 'quantity' => $item->quantity,
                 'taahhut_tipi' => $item->taahhut_tipi ?? Subscription::TAAHHUT_MONTHLY_COMMITMENT,
@@ -442,6 +467,7 @@ class QuoteController extends Controller
             $lines[] = [
                 'key' => 'old-'.$index,
                 'id' => $row['id'] ?? '',
+                'work_task_id' => $row['work_task_id'] ?? '',
                 'product_id' => (string) ($row['product_id'] ?? ''),
                 'quantity' => $row['quantity'] ?? 1,
                 'taahhut_tipi' => $row['taahhut_tipi'] ?? Subscription::TAAHHUT_MONTHLY_COMMITMENT,
@@ -511,6 +537,8 @@ class QuoteController extends Controller
     {
         $rules = [
             'work_task_id' => ['nullable', 'integer', 'exists:work_tasks,id'],
+            'work_task_ids' => ['nullable', 'array', 'max:50'],
+            'work_task_ids.*' => ['integer', 'distinct', 'exists:work_tasks,id'],
             'customer_cari_id' => [
                 'required',
                 Rule::exists('caris', 'id')->where(fn ($query) => $query->whereIn('cari_type', ['customer', 'both'])),
@@ -521,6 +549,7 @@ class QuoteController extends Controller
             'refresh_catalog' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['nullable', 'integer'],
+            'items.*.work_task_id' => ['nullable', 'integer', 'exists:work_tasks,id'],
             'items.*.product_id' => ['required', 'exists:products,id'],
         ];
 

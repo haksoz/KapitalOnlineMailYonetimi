@@ -14,17 +14,17 @@ class QuoteSubscriptionService
 {
     public function item(int $id): QuoteItem
     {
-        $item = QuoteItem::with(['quote.workTask', 'subscriptionRecord'])->findOrFail($id);
-        $this->check($item->quote->isFirm() && $item->quote->status === Quote::STATUS_APPROVED, 'Yalnızca onaylı kesin tekliften abonelik işlemi yapılabilir.');
+        $item = QuoteItem::with(['quote', 'workTask', 'subscriptionRecord'])->findOrFail($id);
+        $this->check($item->quote->isFirm() && in_array($item->quote->status, ['approved', 'partially_approved'], true) && $item->isAccepted(), 'Yalnızca onaylı kesin teklif kaleminden abonelik işlemi yapılabilir.');
         $this->check(! $item->subscriptionRecord, 'Bu teklif kaleminin abonelik işlemi zaten kaydedilmiş.');
-        $this->check(! $item->quote->workTask || $item->quote->workTask->isOpen(), 'Bağlı iş sonuçlandırılmış.');
+        $this->check(! $item->workTask || $item->workTask->isOpen(), 'Bağlı iş sonuçlandırılmış.');
 
         return $item;
     }
 
     public function source(QuoteItem $item): ?Subscription
     {
-        $context = $item->quote->renewal_context;
+        $context = $item->renewalContext();
         if (! $context || (int) $context['product_id'] !== (int) $item->product_id) {
             return null;
         }
@@ -54,7 +54,7 @@ class QuoteSubscriptionService
             $item = QuoteItem::findOrFail($itemId);
             Quote::whereKey($item->quote_id)->lockForUpdate()->firstOrFail();
             $item = $this->item($itemId);
-            $task = $item->quote->work_task_id ? WorkTask::whereKey($item->quote->work_task_id)->lockForUpdate()->firstOrFail() : null;
+            $task = $item->work_task_id ? WorkTask::whereKey($item->work_task_id)->lockForUpdate()->firstOrFail() : null;
             $this->check(! $task || $task->isOpen(), 'Bağlı iş sonuçlandırılmış.');
             $source = $this->source($item);
             $defaults = $this->defaults($item);
@@ -88,11 +88,10 @@ class QuoteSubscriptionService
             ]);
             if ($task) {
                 $task->record($item->quote->quote_number.' · '.($existing ? 'Mevcut abonelik yenilendi: ' : 'Yeni abonelik oluşturuldu: ').$subscription->sozlesme_no, auth()->id(), ['subscription_id' => $subscription->id, 'previous_subscription_id' => $source?->id]);
-                if (! $item->quote->items()->whereDoesntHave('subscriptionRecord')->exists()) {
-                    $task->update(['status' => 'completed', 'completed_at' => now(), 'result' => 'Onaylı teklifin abonelik işlemleri kaydedildi.']);
-                    $task->record('Abonelik işlemleri tamamlandı; iş kapatıldı.', auth()->id());
-                }
+                app(QuoteWorkTaskService::class)->refresh($item->quote);
             }
+
+            app(QuoteFollowUpService::class)->sync($item->quote);
 
             return $subscription;
         });

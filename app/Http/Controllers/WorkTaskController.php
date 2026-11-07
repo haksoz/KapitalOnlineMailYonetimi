@@ -20,7 +20,7 @@ class WorkTaskController extends Controller
     public function index(Request $request)
     {
         $today = now('Europe/Istanbul')->toDateString();
-        $query = WorkTask::query()->with(['customerCari', 'assignee']);
+        $query = WorkTask::query()->with(['customerCari', 'assignee', 'subject']);
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
         } elseif (! $request->boolean('closed')) {
@@ -59,6 +59,10 @@ class WorkTaskController extends Controller
     public function show(WorkTask $workTask)
     {
         $workTask->load(['customerCari', 'assignee', 'costChecker', 'activities.user', 'quotes.items.subscriptionRecord.subscription', 'subject']);
+        if ($workTask->type === WorkTask::TYPE_QUOTE) {
+            $workTask->subject?->load('items.subscriptionRecord');
+            return view('work-tasks.quote', ['task' => $workTask, 'quote' => $workTask->subject, 'users' => User::where('is_active', true)->orderBy('name')->get()]);
+        }
         $catalog = $workTask->subject instanceof Subscription
             ? $workTask->subject->product?->pricesForCommitment($workTask->snapshot['commitment']) : null;
 
@@ -80,18 +84,18 @@ class WorkTaskController extends Controller
     public function update(Request $request, WorkTask $workTask)
     {
         $data = $request->validate([
-            'action' => ['required', Rule::in(['assign', 'note', 'pricing', 'stage', 'notify', 'complete', 'cancel'])],
+            'action' => ['required', Rule::in(['assign', 'note', 'pricing', 'notify', 'complete', 'cancel'])],
             'assigned_to' => ['nullable', Rule::exists('users', 'id')->where('is_active', true)],
             'next_follow_up' => ['nullable', 'date_format:Y-m-d'],
             'note' => ['nullable', 'string', 'max:10000'],
             'verified_cost' => ['required_if:action,pricing', 'nullable', 'numeric', 'min:0', 'max:99999999999999', 'decimal:0,4'],
             'proposed_sale' => ['required_if:action,pricing', 'nullable', 'numeric', 'min:0', 'max:99999999999999', 'decimal:0,4'],
             'cost_confirmed' => ['accepted_if:action,pricing'],
-            'status' => ['required_if:action,stage', 'nullable', Rule::in(['pricing', 'notification_pending', 'response_pending', 'renewal_pending'])],
         ]);
         DB::transaction(function () use ($workTask, $data, $request) {
             $task = WorkTask::whereKey($workTask->id)->lockForUpdate()->firstOrFail();
             $this->require($task->isOpen(), 'Tamamlanan veya iptal edilen iş değiştirilemez.');
+            $this->require($task->type !== WorkTask::TYPE_QUOTE || in_array($data['action'], ['assign', 'note'], true), 'Teklifin durumunu ilgili teklif üzerinden güncelleyin.');
             $before = $task->only(['assigned_to', 'status', 'next_follow_up', 'verified_cost', 'proposed_sale']);
             $note = trim($data['note'] ?? '');
             $message = '';
@@ -129,14 +133,6 @@ class WorkTaskController extends Controller
                         $message .= ' Ürünün '.Quote::commitmentLabel($task->snapshot['commitment']).' alış fiyatı güncellendi.';
                     }
                     break;
-                case 'stage':
-                    $this->require($task->cost_checked_at !== null, 'Önce güncel alış fiyatını doğrulayın.');
-                    if (in_array($data['status'], ['response_pending', 'renewal_pending'])) {
-                        $this->require($task->notified_at !== null, 'Önce müşteriye gönderimi veya harici bildirimi kaydedin.');
-                    }
-                    $task->status = $data['status'];
-                    $message = 'İş aşaması güncellendi.';
-                    break;
                 case 'notify':
                     $this->require($task->cost_checked_at !== null && $note !== '', 'Alış fiyatını doğrulayın ve bildirimin tarihini / kanalını açıklayın.');
                     $task->notified_at = now();
@@ -165,6 +161,10 @@ class WorkTaskController extends Controller
             $task->save();
             $task->record($message.($note !== '' ? ' '.$note : ''), $request->user()->id, ['before' => $before, 'after' => $task->only(array_keys($before))]);
         });
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Fiyat kontrolü kaydedildi.']);
+        }
 
         return back()->with('success', 'İş güncellendi.');
     }

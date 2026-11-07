@@ -1,10 +1,16 @@
+import workTaskSelection from './work-task-selection';
+import renewalPricingModal from './renewal-pricing-modal';
 import './bootstrap';
 
 import Alpine from 'alpinejs';
 import renewalPricing from './renewal-pricing';
+import quoteRecipients from './quote-recipients';
 
 window.Alpine = Alpine;
 Alpine.data('renewalPricing', renewalPricing);
+Alpine.data('renewalPricingModal', renewalPricingModal);
+Alpine.data('workTaskSelection', workTaskSelection);
+Alpine.data('quoteRecipients', quoteRecipients);
 
 Alpine.data('appShell', () => ({
     sidebarOpen: false,

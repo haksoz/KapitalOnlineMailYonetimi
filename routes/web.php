@@ -57,6 +57,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('quotes/{quote}/convert', [QuoteController::class, 'convertStore'])->name('quotes.convert.store');
     Route::post('quotes/{quote}/send', [QuoteController::class, 'send'])->name('quotes.send');
     Route::post('quotes/{quote}/approve', [QuoteController::class, 'approve'])->name('quotes.approve');
+    Route::post('quotes/{quote}/items/{item}/response', [QuoteController::class, 'respondItem'])->name('quotes.items.response');
     Route::post('quotes/{quote}/reject', [QuoteController::class, 'reject'])->name('quotes.reject');
     Route::post('quotes/{quote}/expire', [QuoteController::class, 'expire'])->name('quotes.expire');
     Route::post('quotes/{quote}/cancel', [QuoteController::class, 'cancel'])->name('quotes.cancel');

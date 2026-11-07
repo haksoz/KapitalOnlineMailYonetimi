@@ -34,6 +34,30 @@ class QuoteManagementTest extends TestCase
         ]);
     }
 
+    public function test_two_line_quote_has_one_follow_up_task_and_tracks_responses(): void
+    {
+        [$user, $cari, $product] = $this->fixtures();
+        $payload = ['type' => 'firm', 'customer_cari_id' => $cari->id, 'vat_rate' => '20', 'items' => [['product_id' => $product->id, 'quantity' => 2, 'taahhut_tipi' => 'annual_commitment', 'birim_satis' => '5.20']]];
+        $payload['items'][] = $payload['items'][0];
+        $this->actingAs($user)->post(route('quotes.store'), $payload)->assertSessionHasNoErrors();
+        $quote = Quote::firstOrFail();
+        $task = \App\Models\WorkTask::where('type', 'quote_follow_up')->sole();
+        $this->assertSame('notification_pending', $task->status);
+        $this->assertSame(2, $task->snapshot['item_count']);
+        $service = app(\App\Services\QuoteService::class);
+        $service->transition($quote, 'sent', $user->id);
+        $this->assertSame('response_pending', $task->fresh()->status);
+        $items = $quote->items()->get();
+        app(\App\Services\QuoteResponseService::class)->save($quote, $items[0]->id, 'approved', null, $user->id);
+        $this->assertSame('response_pending', $task->fresh()->status);
+        app(\App\Services\QuoteResponseService::class)->save($quote, $items[1]->id, 'rejected', null, $user->id);
+        $this->assertSame('renewal_pending', $task->fresh()->status);
+        $this->get(route('work-tasks.index'))->assertOk()->assertSee($quote->quote_number);
+        $this->get(route('work-tasks.show', $task))->assertOk()->assertSee('Onaylandı')->assertSee('Reddedildi');
+        $this->patch(route('work-tasks.update', $task), ['action' => 'note', 'note' => 'Müşteri aranacak', 'next_follow_up' => '2026-12-01'])->assertSessionHasNoErrors();
+        $this->assertSame('2026-12-01', $task->fresh()->next_follow_up->toDateString());
+    }
+
     public function test_guest_is_redirected_from_quotes(): void
     {
         $this->get(route('quotes.index'))->assertRedirect(route('login'));
@@ -280,7 +304,7 @@ class QuoteManagementTest extends TestCase
         NotificationTemplate::query()->where('legacy_key', 'quote_firm_sent')->update([
             'body' => "Merhaba,\n\n{cari_unvani} için hazırladığımız {teklif_no} numaralı teklifimizi aşağıda ve ekte bilgilerinize sunarız.\n\n{kalemler}\n{dinamik_kosullar}\n\nİyi çalışmalar dileriz.",
         ]);
-        $this->actingAs($user)->post(route('quotes.send', $quote))->assertRedirect(route('quotes.show', $quote));
+        $this->actingAs($user)->post(route('quotes.send', $quote), ['recipients' => $cari->notificationEmails()])->assertRedirect(route('quotes.show', $quote));
         $transport = Mail::mailer()->getSymfonyTransport();
         $this->assertInstanceOf(ArrayTransport::class, $transport);
         $sent = $transport->messages()->last()?->getOriginalMessage();
@@ -369,11 +393,11 @@ class QuoteManagementTest extends TestCase
 
         $show = $this->actingAs($user)->get(route('quotes.show', $quote));
         $show->assertOk();
-        $show->assertSee('Kayıtlı e-posta');
+        $show->assertSee('Alıcılar');
         $show->assertSee('musteri@example.com');
         $show->assertSee('Birim fiyat teklifi gönderildi');
 
-        $this->actingAs($user)->post(route('quotes.send', $quote))
+        $this->actingAs($user)->post(route('quotes.send', $quote), ['recipients' => $cari->notificationEmails()])
             ->assertRedirect(route('quotes.show', $quote))
             ->assertSessionHas('success');
         $quote->refresh();
@@ -442,7 +466,7 @@ class QuoteManagementTest extends TestCase
         $quote = Quote::query()->first();
         $cari->update(['email' => 'musteri@example.com']);
 
-        $this->actingAs($user)->post(route('quotes.send', $quote));
+        $this->actingAs($user)->post(route('quotes.send', $quote), ['recipients' => $cari->notificationEmails()]);
         $this->actingAs($user)->post(route('quotes.reject', $quote));
         $quote->refresh();
         $this->assertSame(Quote::STATUS_REJECTED, $quote->status);
@@ -460,11 +484,11 @@ class QuoteManagementTest extends TestCase
         $this->assertSame(Quote::STATUS_REJECTED, $quote->status);
         $this->assertSame('Revize müşteri notu', $quote->notes);
 
-        $this->actingAs($user)->post(route('quotes.send', $quote))->assertRedirect(route('quotes.show', $quote));
+        $this->actingAs($user)->post(route('quotes.send', $quote), ['recipients' => $cari->notificationEmails()])->assertRedirect(route('quotes.show', $quote));
         $this->assertSame(Quote::STATUS_SENT, $quote->fresh()->status);
     }
 
-    public function test_send_asks_for_email_when_customer_has_none_and_stores_it(): void
+    public function test_send_requires_selected_recipients_and_does_not_change_customer_email(): void
     {
         [$user, $cari, $product] = $this->fixtures();
         $this->actingAs($user)->post(route('quotes.store'), $this->optionalPayload($cari, $product));
@@ -479,17 +503,71 @@ class QuoteManagementTest extends TestCase
             ->from(route('quotes.show', $quote))
             ->post(route('quotes.send', $quote))
             ->assertRedirect(route('quotes.show', $quote))
-            ->assertSessionHasErrors('email');
+            ->assertSessionHasErrors('recipients');
         $this->assertSame(Quote::STATUS_DRAFT, $quote->fresh()->status);
 
         $this->actingAs($user)
-            ->post(route('quotes.send', $quote), ['email' => 'yeni@example.com'])
+            ->post(route('quotes.send', $quote), ['recipients' => ['yeni@example.com']])
             ->assertRedirect(route('quotes.show', $quote));
 
         $cari->refresh();
-        $this->assertSame('yeni@example.com', $cari->email);
+        $this->assertNull($cari->email);
         $this->assertFalse($cari->notifications_enabled);
         $this->assertSame(Quote::STATUS_SENT, $quote->fresh()->status);
+    }
+
+    public function test_quote_is_sent_only_to_selected_registered_and_one_off_recipients(): void
+    {
+        [$user, $cari, $product] = $this->fixtures();
+        $cari->update(['email' => 'first@example.com, second@example.com, third@example.com']);
+        $originalEmails = $cari->email;
+        $this->actingAs($user)->post(route('quotes.store'), $this->optionalPayload($cari, $product));
+        $quote = Quote::firstOrFail();
+        $show = $this->get(route('quotes.show', $quote))->assertOk();
+        foreach ($cari->notificationEmails() as $email) {
+            $show->assertSee($email);
+        }
+        $show->assertSee('name="recipients[]"', false)->assertSee('Bu gönderime özel e-posta ekle');
+        $this->post(route('quotes.send', $quote), ['recipients' => ['second@example.com', 'temporary@example.com', ' SECOND@example.com ']])->assertSessionHasNoErrors();
+        $job = AutomationJob::where('subject_id', $quote->id)->where('subject_type', $quote->getMorphClass())->firstOrFail();
+        $this->assertSame(['second@example.com', 'temporary@example.com'], $job->context['recipients']);
+        $sent = Mail::mailer()->getSymfonyTransport()->messages()->last()->getOriginalMessage();
+        $this->assertSame(['second@example.com', 'temporary@example.com'], array_map(fn ($address) => $address->getAddress(), $sent->getTo()));
+        $this->assertSame($originalEmails, $cari->fresh()->email);
+    }
+
+    public function test_recipient_validation_does_not_fall_back_to_customer_addresses(): void
+    {
+        [$user, $cari, $product] = $this->fixtures();
+        $cari->update(['email' => 'registered@example.com']);
+        $this->actingAs($user)->post(route('quotes.store'), $this->optionalPayload($cari, $product));
+        $quote = Quote::firstOrFail();
+        $this->from(route('quotes.show', $quote))->post(route('quotes.send', $quote), ['_quote_send' => '1', 'recipients' => []])->assertSessionHasErrors('recipients');
+        $this->assertSame(Quote::STATUS_DRAFT, $quote->fresh()->status);
+        $this->post(route('quotes.send', $quote), ['recipients' => ['invalid-address']])->assertSessionHasErrors('recipients.0');
+        $this->assertSame(Quote::STATUS_DRAFT, $quote->fresh()->status);
+        $this->assertSame(0, AutomationJob::where('subject_type', $quote->getMorphClass())->where('subject_id', $quote->id)->count());
+        $this->assertSame('registered@example.com', $cari->fresh()->email);
+    }
+
+    public function test_retry_uses_the_selected_addresses_even_after_customer_email_changes(): void
+    {
+        [$user, $cari, $product] = $this->fixtures();
+        $cari->update(['email' => 'registered@example.com']);
+        $this->actingAs($user)->post(route('quotes.store'), $this->optionalPayload($cari, $product));
+        $quote = Quote::firstOrFail();
+        Http::swap(new Factory);
+        Http::fake(['http://gotenberg.test/*' => Http::response('down', 500)]);
+        $this->post(route('quotes.send', $quote), ['recipients' => ['selected@example.com']])->assertSessionHasNoErrors();
+        $job = AutomationJob::where('subject_type', $quote->getMorphClass())->where('subject_id', $quote->id)->firstOrFail();
+        $this->assertSame(JobStatus::Failed, $job->status);
+        $cari->update(['email' => 'changed@example.com']);
+        Http::swap(new Factory);
+        Http::fake(['http://gotenberg.test/*' => Http::response('%PDF-1.4', 200, ['Content-Type' => 'application/pdf'])]);
+        app(\App\Automation\JobRunner::class)->retry($job);
+        $this->assertSame(JobStatus::Succeeded, $job->fresh()->status);
+        $sent = Mail::mailer()->getSymfonyTransport()->messages()->last()->getOriginalMessage();
+        $this->assertSame(['selected@example.com'], array_map(fn ($address) => $address->getAddress(), $sent->getTo()));
     }
 
     public function test_quote_mail_template_preview_uses_quotes(): void

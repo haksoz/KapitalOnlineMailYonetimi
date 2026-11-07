@@ -109,16 +109,6 @@
             </section>
             @if ($task->isOpen())
                 <section class="bg-white rounded-xl shadow-sm p-5 space-y-3"><h2 class="font-semibold">Not / sonraki takip</h2><form method="POST" action="{{ route('work-tasks.update', $task) }}" class="space-y-3">@csrf @method('PATCH')<input type="hidden" name="action" value="note"><label class="block text-sm">Takip tarihi<input type="date" name="next_follow_up" value="{{ old('next_follow_up', $task->next_follow_up?->toDateString()) }}" class="block w-full rounded-md border-gray-300"></label><label class="block text-sm">Not<textarea name="note" rows="3" class="block w-full rounded-md border-gray-300">{{ old('note') }}</textarea></label><x-primary-button>Kaydet</x-primary-button></form></section>
-                <section class="bg-white rounded-xl shadow-sm p-5 space-y-3"><h2 class="font-semibold">Aşama</h2><form method="POST" action="{{ route('work-tasks.update', $task) }}" class="space-y-3">@csrf @method('PATCH')<input type="hidden" name="action" value="stage"><label class="block text-sm">Yeni aşama<select name="status" class="block w-full rounded-md border-gray-300">@foreach (\App\Models\WorkTask::STATUSES as $value => $label)@if (!in_array($value, ['cost_pending', 'completed', 'cancelled']))<option value="{{ $value }}" @selected($task->status === $value)>{{ $label }}</option>@endif @endforeach</select></label><x-secondary-button type="submit">Aşamayı güncelle</x-secondary-button></form></section>
-                <section class="bg-white rounded-xl shadow-sm p-5 space-y-3">
-                    <h2 class="font-semibold">Bildirim ve sonuç</h2>
-                    <form method="POST" action="{{ route('work-tasks.update', $task) }}" class="space-y-3">
-                        @csrf @method('PATCH')
-                        <label class="block text-sm">İşlem<select name="action" class="block w-full rounded-md border-gray-300"><option value="notify">Harici müşteri bildirimi yapıldı</option>@if ($task->type !== \App\Models\WorkTask::TYPE_RENEWAL)<option value="complete">Tamamlandı</option>@endif<option value="cancel">Yenilenmeyecek / iptal</option></select></label>
-                        <label class="block text-sm">Açıklama<textarea name="note" rows="3" required class="block w-full rounded-md border-gray-300"></textarea></label>
-                        <x-primary-button>Sonucu kaydet</x-primary-button>
-                    </form>
-                </section>
             @else<section class="bg-white rounded-xl shadow-sm p-5"><h2 class="font-semibold">Sonuç</h2><p class="mt-2 text-sm whitespace-pre-line">{{ $task->result }}</p></section>@endif
         </aside>
     </div>

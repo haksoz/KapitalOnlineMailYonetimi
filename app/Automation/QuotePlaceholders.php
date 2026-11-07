@@ -16,6 +16,7 @@ final class QuotePlaceholders
     {
         $quote->loadMissing(['customerCari', 'items.options']);
         $cari = $quote->customerCari;
+        $contexts = collect($quote->renewalContexts());
 
         return [
             '{musteri}' => (string) ($cari?->short_name ?: $cari?->name ?: ''),
@@ -29,10 +30,10 @@ final class QuotePlaceholders
             '{alici}' => self::buyer($quote),
             '{kalemler}' => $htmlLines ? self::linesHtml($quote) : self::lines($quote),
             '{yenileme_aciklamasi}' => $quote->renewalText(),
-            '{abonelik_urun}' => (string) ($quote->renewal_context['product_name'] ?? ''),
-            '{abonelik_lisans_adedi}' => (string) ($quote->renewal_context['quantity'] ?? ''),
-            '{abonelik_bitis_tarihi}' => isset($quote->renewal_context['end_date']) ? \Carbon\Carbon::parse($quote->renewal_context['end_date'])->format('d.m.Y') : '',
-            '{abonelik_otomatik_yenileme}' => $quote->renewal_context ? ($quote->renewal_context['auto_renew'] ? 'Açık' : 'Kapalı') : '',
+            '{abonelik_urun}' => $contexts->pluck('product_name')->implode(', '),
+            '{abonelik_lisans_adedi}' => $contexts->isEmpty() ? '' : (string) $contexts->sum('quantity'),
+            '{abonelik_bitis_tarihi}' => $contexts->map(fn ($context) => \Carbon\Carbon::parse($context['end_date'])->format('d.m.Y'))->unique()->implode(', '),
+            '{abonelik_otomatik_yenileme}' => $contexts->map(fn ($context) => $context['auto_renew'] ? 'Açık' : 'Kapalı')->unique()->implode(', '),
             '{dinamik_kosullar}' => self::warnings($quote),
             '{not}' => trim((string) $quote->notes),
             '{kosullar}' => self::terms(),

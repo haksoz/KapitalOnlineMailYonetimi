@@ -1,8 +1,9 @@
 <x-app-layout>
     <x-flash-messages />
-    @if ($quote->workTask)
-        <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm"><a class="font-semibold text-blue-700 underline" href="{{ route('work-tasks.show', $quote->workTask) }}">{{ $quote->workTask->purposeLabel() }} · İş #{{ $quote->work_task_id }}</a><p>{{ $quote->renewalText() }}</p></div>
-    @endif
+    @if ($quote->followUpTask)<div class="mb-3 rounded-lg bg-blue-50 p-3 text-sm"><a class="text-blue-700 underline" href="{{ route('work-tasks.show', $quote->followUpTask) }}">Teklif takibi · {{ $quote->followUpTask->statusLabel() }}</a></div>@endif
+    @foreach ($quote->workTasks as $linkedTask)
+        <div class="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm"><a class="font-semibold text-blue-700 underline" href="{{ route('work-tasks.show', $linkedTask) }}">{{ $linkedTask->purposeLabel() }} · İş #{{ $linkedTask->id }}</a> · {{ $linkedTask->snapshot['product_name'] }} · {{ $linkedTask->snapshot['end_date'] }}</div>
+    @endforeach
 
     <x-page-toolbar :title="$quote->quote_number">
         <x-slot name="left">
@@ -88,45 +89,54 @@
             @if ($quote->canRevise())
                 @php
                     $recipientEmails = $quote->customerCari?->notificationEmails() ?? [];
+                    $selectedRecipients = old('_quote_send') ? (array) old('recipients', []) : $recipientEmails;
+                    $recipientOptions = array_values(array_unique(array_merge($recipientEmails, array_filter($selectedRecipients, 'is_string'))));
+                    $recipientErrors = collect($errors->getMessages())->filter(fn ($messages, $key) => $key === 'recipients' || str_starts_with($key, 'recipients.'))->flatten()->all();
                     $resend = $quote->status === \App\Models\Quote::STATUS_REJECTED;
                 @endphp
                 <button type="button" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-50" x-data x-on:click="$dispatch('open-modal', 'quote-send')">{{ $resend ? 'Tekrar gönder' : 'Gönder' }}</button>
-                <x-modal name="quote-send" :show="$errors->has('email')" focusable>
-                    <form method="POST" action="{{ route('quotes.send', $quote) }}" class="p-6">
+                <x-modal name="quote-send" :show="count($recipientErrors) > 0" focusable>
+                    <form method="POST" action="{{ route('quotes.send', $quote) }}" class="p-6"
+                        x-data="quoteRecipients(@js(['addresses' => $recipientOptions, 'selected' => $selectedRecipients]))" @submit.prevent="send()">
                         @csrf
+                        <input type="hidden" name="_quote_send" value="1">
                         <h2 class="text-lg font-medium text-gray-900">{{ $resend ? 'Teklifi tekrar gönder' : 'Teklifi gönder' }}</h2>
                         <p class="mt-1 text-sm text-gray-600">{{ $quote->customerCari?->name ?? 'Müşteri' }}</p>
-                        @if ($recipientEmails !== [])
-                            <p class="mt-4 text-sm text-gray-600">Kayıtlı e-posta</p>
-                            <ul class="mt-1 space-y-1 text-sm font-medium text-gray-900">
-                                @foreach ($recipientEmails as $email)
-                                    <li>{{ $email }}</li>
-                                @endforeach
-                            </ul>
-                        @else
-                            <div class="mt-4">
-                                <x-input-label for="quote-send-email" value="E-posta *" />
-                                <x-text-input id="quote-send-email" name="email" type="email" class="mt-1 block w-full" :value="old('email')" required autofocus />
-                                <p class="mt-1 text-xs text-gray-500">Bu müşteride kayıtlı e-posta yok. Girdiğiniz adres müşteri kaydına yazılır.</p>
-                                <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                        <p class="mt-4 text-sm font-semibold text-gray-700">Alıcılar</p>
+                        <div class="mt-2 space-y-2">
+                            <template x-for="address in addresses" :key="address">
+                                <label class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-sm">
+                                    <input type="checkbox" name="recipients[]" :value="address" x-model="selected" class="rounded border-gray-300 text-slate-600 focus:ring-slate-500">
+                                    <span class="break-all" x-text="address"></span>
+                                </label>
+                            </template>
+                        </div>
+                        <div class="mt-4">
+                            <x-input-label for="quote-send-email" value="Bu gönderime özel e-posta ekle" />
+                            <div class="mt-1 flex gap-2">
+                                <x-text-input id="quote-send-email" type="email" maxlength="254" class="block w-full" x-ref="newEmail" x-model="newEmail" @keydown.enter.prevent="addEmail()" />
+                                <x-secondary-button type="button" @click="addEmail()">Ekle</x-secondary-button>
                             </div>
-                        @endif
-                        <p class="mt-4 text-xs text-gray-500">Gönderince fiyatlar kilitlenir. E-posta, Bildirim Yönetimi’ndeki «{{ \App\Automation\QuotePlaceholders::eventFor($quote)->label() }}» şablonuyla bu adrese gider. Alış ve kâr metne yazılmaz.</p>
+                            <p class="mt-2 text-xs text-gray-500">Eklenen adres cari kaydını değiştirmez.</p>
+                        </div>
+                        <p class="mt-2 text-sm text-red-700" role="alert" x-show="error" x-text="error"></p>
+                        <x-input-error :messages="$recipientErrors" class="mt-2" />
+                        <p class="mt-4 text-xs text-gray-500">«{{ \App\Automation\QuotePlaceholders::eventFor($quote)->label() }}» şablonu seçili adreslere gönderilir.</p>
                         <div class="mt-6 flex justify-end gap-3">
                             <x-secondary-button x-on:click="$dispatch('close')">Vazgeç</x-secondary-button>
-                            <x-primary-button>{{ $resend ? 'Tekrar gönder' : 'Gönder' }}</x-primary-button>
+                            <x-primary-button x-bind:disabled="sending">{{ $resend ? 'Tekrar gönder' : 'Gönder' }}</x-primary-button>
                         </div>
                     </form>
                 </x-modal>
             @endif
-            @if ($quote->isFirm() && $quote->status === \App\Models\Quote::STATUS_SENT)
+            @if ($quote->isFirm() && in_array($quote->status, ['sent', 'partially_approved']) && $quote->items->contains('response_status', 'pending'))
                 <p class="pt-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Müşteri yanıtı</p>
-                <form method="POST" action="{{ route('quotes.approve', $quote) }}">@csrf<button class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold bg-green-100 text-green-800 hover:bg-green-200" type="submit">Onaylandı olarak işaretle</button></form>
+                <form method="POST" action="{{ route('quotes.approve', $quote) }}">@csrf<button class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold bg-green-100 text-green-800 hover:bg-green-200" type="submit">{{ $quote->items->count() > 1 ? 'Bekleyen tüm kalemleri onayla' : 'Onaylandı olarak işaretle' }}</button></form>
             @endif
-            @if ($quote->status === \App\Models\Quote::STATUS_SENT)
+            @if (in_array($quote->status, ['sent', 'partially_approved']) && $quote->items->contains('response_status', 'pending'))
                 @if ($quote->isOptional())<p class="pt-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Müşteri yanıtı</p><p class="text-xs text-gray-600">Olumlu yanıtta kesin teklife dönüştürün.</p>@endif
-                <form method="POST" action="{{ route('quotes.reject', $quote) }}">@csrf<button class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold bg-red-100 text-red-800 hover:bg-red-200" type="submit">Reddedildi olarak işaretle</button></form>
-                <form method="POST" action="{{ route('quotes.expire', $quote) }}">@csrf<button class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-50" type="submit">Süresi doldu</button></form>
+                <form method="POST" action="{{ route('quotes.reject', $quote) }}">@csrf<button class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold bg-red-100 text-red-800 hover:bg-red-200" type="submit">{{ $quote->isFirm() && $quote->items->count() > 1 ? 'Bekleyen tüm kalemleri reddet' : 'Reddedildi olarak işaretle' }}</button></form>
+                @if ($quote->status === 'sent')<form method="POST" action="{{ route('quotes.expire', $quote) }}">@csrf<button class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-50" type="submit">Süresi doldu</button></form>@endif
             @endif
             @if (in_array($quote->status, [\App\Models\Quote::STATUS_DRAFT, \App\Models\Quote::STATUS_SENT, \App\Models\Quote::STATUS_APPROVED], true))
                 <form method="POST" action="{{ route('quotes.cancel', $quote) }}">@csrf<button class="w-full text-left px-3 py-2 rounded-lg text-sm text-red-700 hover:bg-red-50" type="submit">İptal et</button></form>
@@ -156,6 +166,7 @@
                             <th class="px-3 py-3 text-right">Satış toplamı</th>
                             <th class="px-3 py-3 text-right">Kâr</th>
                             <th class="px-3 py-3 text-right">Kâr oranı</th>
+                            <th class="px-3 py-3 text-left">Müşteri yanıtı</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -164,6 +175,7 @@
                                 <td class="px-3 py-3">
                                     <div class="font-medium text-gray-900">{{ $item->product_name }}</div>
                                     <div class="text-xs text-gray-500">{{ $item->stock_code ?: '—' }}</div>
+                                    @if ($item->work_task_id)<a class="text-xs text-blue-700 underline" href="{{ route('work-tasks.show', $item->work_task_id) }}">İş #{{ $item->work_task_id }}</a>@endif
                                 </td>
                                 <td class="px-3 py-3">{{ $item->commitmentLabel() }}</td>
                                 <td class="px-3 py-3 text-right">{{ $item->quantity }}</td>
@@ -173,6 +185,18 @@
                                 <td class="px-3 py-3 text-right">{{ $quote->formatMoney($item->saleTotal()) }}</td>
                                 <td class="px-3 py-3 text-right">{{ $quote->formatMoney($item->profitAmount()) }}</td>
                                 <td class="px-3 py-3 text-right">{{ \App\Services\QuoteMath::displayRate($item->profitRate()) }}</td>
+                                <td class="px-3 py-3 min-w-[200px]">
+                                    @if ($item->response_status === 'pending' && in_array($quote->status, ['sent', 'partially_approved']))
+                                        <form method="POST" action="{{ route('quotes.items.response', [$quote, $item]) }}" class="space-y-2">
+                                            @csrf
+                                            <input name="note" maxlength="5000" placeholder="Yanıt notu (isteğe bağlı)" aria-label="Kalem yanıt notu" class="w-full rounded-md border-gray-300 text-xs">
+                                            <div class="flex gap-2"><button name="decision" value="approved" class="rounded bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Onaylandı</button><button name="decision" value="rejected" class="rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Reddedildi</button></div>
+                                        </form>
+                                    @else
+                                        <x-quote-status :status="$item->isAccepted() ? 'approved' : ($item->response_status === 'rejected' ? 'rejected' : 'draft')" />
+                                        @if ($item->response_note)<p class="mt-1 text-xs text-gray-600">{{ $item->response_note }}</p>@endif
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

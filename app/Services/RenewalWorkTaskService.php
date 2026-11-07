@@ -37,6 +37,7 @@ class RenewalWorkTaskService
                             'currency' => $subscription->currency ?? 'USD',
                             'cost' => $subscription->usd_birim_alis,
                             'sale' => $subscription->usd_birim_satis,
+                            'vat_rate' => $subscription->vat_rate ?? '20',
                         ];
                         $task = WorkTask::firstOrCreate([
                             'occurrence_key' => 'subscription-renewal:'.$subscription->id.':'.$snapshot['end_date'],
