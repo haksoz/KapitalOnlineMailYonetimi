@@ -282,6 +282,42 @@ class SubscriptionMonitorPeriodTest extends TestCase
         $this->assertDatabaseCount('pending_billings', 0);
     }
 
+    public function test_contract_search_limits_details_and_totals_and_survives_single_order_repair(): void
+    {
+        Carbon::setTestNow('2026-11-09');
+        $subscription = $this->makeSubscription('Sozlesme Cari', '1150000001', '2026-10-06', '2026-12-06', Subscription::DURUM_ACTIVE, true);
+        $subscription->update(['sozlesme_no' => '2503087060']);
+        $other = $this->makeSubscription('Diger Cari', '1150000002', '2026-10-06', '2026-12-06', Subscription::DURUM_ACTIVE, true);
+        $other->update(['customer_cari_id' => $subscription->customer_cari_id, 'sozlesme_no' => '2210061688']);
+        PendingBilling::create([
+            'subscription_id' => $other->id,
+            'period_start' => '2026-11-06', 'period_end' => '2026-12-05',
+            'status' => PendingBilling::STATUS_PENDING,
+        ]);
+
+        $this->actingAs($this->makeUser());
+        $filters = ['sozlesme_no' => '  308706  ', 'year' => 2026, 'month' => 11];
+        $this->get(route('subscription-monitor.index', $filters))
+            ->assertOk()
+            ->assertSee('Sözleşme: 2503087060')
+            ->assertDontSee('2210061688')
+            ->assertDontSee('Bu ay için siparişleri oluştur')
+            ->assertSee('Bu ayın siparişini oluştur')
+            ->assertViewHas('totals', fn ($totals) => $totals['subscription_count'] === 1 && $totals['pending_count'] === 0)
+            ->assertViewHas('customerSummaries', fn ($rows) => count($rows->first()['details']) === 1);
+
+        $this->post(route('subscription-monitor.enqueue-missing-for-subscription', $subscription), $filters)
+            ->assertSessionHas('success')
+            ->assertRedirect(route('subscription-monitor.index', [
+                'sozlesme_no' => '308706', 'year' => 2026, 'month' => 11,
+            ]));
+
+        $this->get(route('subscription-monitor.index', $filters))
+            ->assertOk()->assertViewHas('totals', fn ($totals) => $totals['subscription_count'] === 1 && $totals['pending_count'] === 1);
+        $this->get(route('subscription-monitor.index', array_merge($filters, ['sozlesme_no' => 'BULUNAMAYAN'])))
+            ->assertOk()->assertViewHas('totals', fn ($totals) => $totals['customer_count'] === 0);
+    }
+
     private function makeUser(): User
     {
         return User::factory()->create([

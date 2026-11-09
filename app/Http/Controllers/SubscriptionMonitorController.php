@@ -22,6 +22,8 @@ class SubscriptionMonitorController extends Controller
 
     public function index(Request $request, PendingBillingService $pendingBillingService, SubscriptionRenewalService $renewalService): View
     {
+        $request->validate(['sozlesme_no' => ['nullable', 'string', 'max:255']]);
+        $contractNumber = trim((string) $request->input('sozlesme_no', ''));
         $year = (int) $request->input('year', Carbon::today()->year);
         $month = (int) $request->input('month', Carbon::today()->month);
         $statusFilter = $request->input('status', '');
@@ -35,6 +37,7 @@ class SubscriptionMonitorController extends Controller
         $isCurrentOrFutureMonth = $monthEnd->gte(Carbon::today()->startOfMonth());
 
         $subscriptions = Subscription::query()
+            ->when($contractNumber !== '', fn ($q) => $q->where('sozlesme_no', 'like', '%'.$contractNumber.'%'))
             ->when($isCurrentOrFutureMonth, function ($q) {
                 $q->where('durum', Subscription::DURUM_ACTIVE);
             }, function ($q) {
@@ -264,6 +267,7 @@ class SubscriptionMonitorController extends Controller
             'monthEnd' => $monthEnd,
             'statusFilter' => $statusFilter,
             'search' => $search,
+            'contractNumber' => $contractNumber,
             'customerSummaries' => $customerSummariesPaginated,
             'totals' => $totals,
         ]);
@@ -331,7 +335,7 @@ class SubscriptionMonitorController extends Controller
             ->locale('tr')->translatedFormat('F Y');
 
         return redirect()->route('subscription-monitor.index', array_merge(
-            $request->only(['status', 'search', 'per_page', 'page']), $validated,
+            $request->only(['status', 'search', 'sozlesme_no', 'per_page', 'page']), $validated,
         ))->with($pending ? 'success' : 'info', $pending
             ? "#{$subscription->id} aboneliği için {$monthLabel} siparişi oluşturuldu."
             : "#{$subscription->id} aboneliği için {$monthLabel} döneminde oluşturulacak eksik sipariş bulunamadı.");

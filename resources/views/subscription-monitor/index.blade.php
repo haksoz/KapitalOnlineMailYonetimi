@@ -45,6 +45,10 @@
             <x-input-label for="search" value="Cari Ara" />
             <input id="search" name="search" type="search" value="{{ $search }}" placeholder="Cari kısa adı veya ünvanı" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
         </div>
+        <div class="min-w-[200px]">
+            <x-input-label for="sozlesme_no" value="Sözleşme numarası" />
+            <input id="sozlesme_no" name="sozlesme_no" type="search" value="{{ $contractNumber }}" maxlength="255" placeholder="Sözleşme numarasıyla ara" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+        </div>
         <div class="pb-1">
             <x-primary-button type="submit">Ara</x-primary-button>
         </div>
@@ -127,7 +131,7 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-2 whitespace-nowrap" @click.stop>
-                                    @if ($row['status'] === 'Eksik sipariş var' && $row['customer']?->id)
+                                    @if ($row['status'] === 'Eksik sipariş var' && $row['customer']?->id && $contractNumber === '')
                                         <form action="{{ route('subscription-monitor.enqueue-missing-for-cari') }}" method="POST" class="inline" onsubmit="return confirm('Seçilen ay ({{ $monthStart->locale('tr')->translatedFormat('F Y') }}) için bu carinin eksik dönem siparişleri oluşturulacak ve gerekiyorsa ilgili aboneliklerin bitiş tarihleri bu ay sonuna kadar güncellenecek. Devam etmek istiyor musunuz?');">
                                             @csrf
                                             <input type="hidden" name="customer_cari_id" value="{{ $row['customer']->id }}">
@@ -177,6 +181,7 @@
                                                 <tr class="border-t border-gray-100">
                                                     <td class="px-3 py-2 text-gray-900">
                                                         <a href="{{ route('subscriptions.show', $sub) }}" class="text-slate-700 hover:underline">#{{ $sub->id }} — {{ $productLabel }}</a>
+                                                        <div class="mt-1 text-xs text-gray-500">Sözleşme: {{ $sub->sozlesme_no }}</div>
                                                     </td>
                                                     <td class="px-3 py-2 text-gray-900">{{ $qty }}</td>
                                                     <td class="px-3 py-2 text-gray-900">
@@ -192,7 +197,7 @@
                                                                     @csrf
                                                                     <input type="hidden" name="year" value="{{ $year }}">
                                                                     <input type="hidden" name="month" value="{{ $month }}">
-                                                                    @foreach (request()->only(['status', 'search', 'per_page', 'page']) as $filterName => $filterValue)
+                                                                    @foreach (request()->only(['status', 'search', 'sozlesme_no', 'per_page', 'page']) as $filterName => $filterValue)
                                                                         <input type="hidden" name="{{ $filterName }}" value="{{ $filterValue }}">
                                                                     @endforeach
                                                                     <button type="submit" class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500" aria-label="#{{ $sub->id }} aboneliğinin seçilen ay siparişini oluştur">
