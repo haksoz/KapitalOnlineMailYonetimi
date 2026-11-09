@@ -17,7 +17,7 @@ class SubscriptionRenewalService
      */
     public function processRenewals(?Carbon $asOfDate = null): array
     {
-        $asOf = $asOfDate ?? Carbon::today();
+        $asOf = $asOfDate ?? Carbon::today('Europe/Istanbul');
 
         $subscriptions = Subscription::query()
             ->where('durum', Subscription::DURUM_ACTIVE)

@@ -317,6 +317,26 @@ class SubscriptionMonitorController extends Controller
             ->with('success', "{$monthLabel} için bu cariye ait eksik dönem siparişleri oluşturuldu. {$added} kayıt eklendi." . $renewalPart);
     }
 
+    public function enqueueMissingForSubscription(Request $request, Subscription $subscription, PendingBillingService $pendingBillingService): RedirectResponse
+    {
+        $validated = $request->validate([
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['required', 'integer', 'min:1', 'max:12'],
+        ]);
+
+        $pending = $pendingBillingService->enqueueMissingPeriodForSubscriptionInMonth(
+            $subscription->id, (int) $validated['year'], (int) $validated['month'],
+        );
+        $monthLabel = Carbon::create((int) $validated['year'], (int) $validated['month'], 1)
+            ->locale('tr')->translatedFormat('F Y');
+
+        return redirect()->route('subscription-monitor.index', array_merge(
+            $request->only(['status', 'search', 'per_page', 'page']), $validated,
+        ))->with($pending ? 'success' : 'info', $pending
+            ? "#{$subscription->id} aboneliği için {$monthLabel} siparişi oluşturuldu."
+            : "#{$subscription->id} aboneliği için {$monthLabel} döneminde oluşturulacak eksik sipariş bulunamadı.");
+    }
+
     /**
      * Abonelik seçilen ayın takip listesine girer mi?
      * Siparişi varsa veya mevcut bitişle dönem açılıyorsa girer.

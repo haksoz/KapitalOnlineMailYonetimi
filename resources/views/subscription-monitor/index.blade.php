@@ -175,7 +175,9 @@
                                                     $kesinlesenTl = $pb && $pb->actual_satis_tl !== null ? (float) $pb->actual_satis_tl : null;
                                                 @endphp
                                                 <tr class="border-t border-gray-100">
-                                                    <td class="px-3 py-2 text-gray-900">{{ $productLabel }}</td>
+                                                    <td class="px-3 py-2 text-gray-900">
+                                                        <a href="{{ route('subscriptions.show', $sub) }}" class="text-slate-700 hover:underline">#{{ $sub->id }} — {{ $productLabel }}</a>
+                                                    </td>
                                                     <td class="px-3 py-2 text-gray-900">{{ $qty }}</td>
                                                     <td class="px-3 py-2 text-gray-900">
                                                         <span>{{ number_format($expectedUsd, 2, ',', '.') }} {{ $sub->currencyLabel() }}</span>
@@ -185,6 +187,19 @@
                                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Var</span>
                                                         @else
                                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Yok</span>
+                                                            @if ($sub->durum === \App\Models\Subscription::DURUM_ACTIVE)
+                                                                <form action="{{ route('subscription-monitor.enqueue-missing-for-subscription', $sub) }}" method="POST" class="mt-2" onsubmit="return confirm('#{{ $sub->id }} aboneliği için {{ $monthStart->locale('tr')->translatedFormat('F Y') }} siparişi oluşturulacak. Gerekiyorsa bu aboneliğin bitiş tarihi ilgili dönemi kapsayacak şekilde uzatılacak. Devam edilsin mi?');">
+                                                                    @csrf
+                                                                    <input type="hidden" name="year" value="{{ $year }}">
+                                                                    <input type="hidden" name="month" value="{{ $month }}">
+                                                                    @foreach (request()->only(['status', 'search', 'per_page', 'page']) as $filterName => $filterValue)
+                                                                        <input type="hidden" name="{{ $filterName }}" value="{{ $filterValue }}">
+                                                                    @endforeach
+                                                                    <button type="submit" class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500" aria-label="#{{ $sub->id }} aboneliğinin seçilen ay siparişini oluştur">
+                                                                        Bu ayın siparişini oluştur
+                                                                    </button>
+                                                                </form>
+                                                            @endif
                                                         @endif
                                                     </td>
                                                     <td class="px-3 py-2 text-gray-600">

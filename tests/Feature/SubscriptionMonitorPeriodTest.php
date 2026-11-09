@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Console\Scheduling\Schedule;
 use Tests\TestCase;
 
 class SubscriptionMonitorPeriodTest extends TestCase
@@ -151,6 +152,134 @@ class SubscriptionMonitorPeriodTest extends TestCase
         $response->assertOk();
         $response->assertDontSee('Silinen Donem');
         $response->assertSee('Seçilen ay için aktif aboneliği olan cari bulunamadı.');
+    }
+
+    public function test_scheduled_renewal_creates_the_new_monthly_order_on_the_same_istanbul_day(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-09 00:00:00', 'Europe/Istanbul'));
+        $subscription = $this->makeSubscription(
+            shortName: 'Aylik Otomatik',
+            taxNumber: '1110000006',
+            baslangic: '2026-10-09',
+            bitis: '2026-11-09',
+            durum: Subscription::DURUM_ACTIVE,
+            autoRenew: true,
+        );
+
+        $start = now();
+        $runs = collect(app(Schedule::class)->events())
+            ->filter(fn ($event) => str_contains($event->command ?? '', 'subscriptions:process-renewals')
+                || str_contains($event->command ?? '', 'pending-billings:enqueue'))
+            ->map(fn ($event) => [
+                'at' => $event->nextRunDate($start, 0, true),
+                'command' => str_contains($event->command, 'subscriptions:process-renewals')
+                    ? 'subscriptions:process-renewals' : 'pending-billings:enqueue',
+            ])
+            ->sortBy(fn ($run) => $run['at']->getTimestamp());
+
+        $this->assertCount(2, $runs);
+        foreach ($runs as $run) {
+            Carbon::setTestNow($run['at']);
+            $this->artisan($run['command'])->assertSuccessful();
+        }
+
+        $this->assertSame('2026-12-09', $subscription->fresh()->bitis_tarihi->toDateString());
+        $order = PendingBilling::where('subscription_id', $subscription->id)->sole();
+        $this->assertSame('2026-11-09', $order->period_start->toDateString());
+        $this->assertSame(PendingBilling::STATUS_PENDING, $order->status);
+
+        $this->artisan('pending-billings:enqueue')->assertSuccessful();
+        $this->assertSame(1, PendingBilling::where('subscription_id', $subscription->id)->count());
+    }
+
+    public function test_single_order_repair_only_creates_the_selected_subscription_and_month(): void
+    {
+        Carbon::setTestNow('2026-11-09');
+        $user = $this->makeUser();
+        $subscription = $this->makeSubscription('Tekli', '1110000007', '2026-04-06', '2026-12-06', Subscription::DURUM_ACTIVE, true);
+        $other = $this->makeSubscription('Diger', '1110000008', '2026-04-06', '2026-12-06', Subscription::DURUM_ACTIVE, true);
+        $other->update(['customer_cari_id' => $subscription->customer_cari_id]);
+
+        $this->actingAs($user)->get(route('subscription-monitor.index', ['year' => 2026, 'month' => 11]))
+            ->assertOk()->assertSee(route('subscription-monitor.enqueue-missing-for-subscription', $subscription));
+
+        $payload = ['status' => 'eksik', 'search' => 'Tekli', 'per_page' => 15, 'page' => 2, 'year' => 2026, 'month' => 11];
+        $route = route('subscription-monitor.enqueue-missing-for-subscription', $subscription);
+        $this->post($route, $payload)->assertSessionHas('success')
+            ->assertRedirect(route('subscription-monitor.index', $payload));
+
+        $order = PendingBilling::sole();
+        $this->assertEquals($subscription->id, $order->subscription_id);
+        $this->assertSame('2026-11-06', $order->period_start->toDateString());
+        $this->assertSame('2026-12-05', $order->period_end->toDateString());
+        $this->assertSame('2026-12-06', $subscription->fresh()->bitis_tarihi->toDateString());
+        $this->assertSame('2026-12-06', $other->fresh()->bitis_tarihi->toDateString());
+
+        $this->post($route, $payload)->assertSessionHas('info');
+        $this->assertSame(1, PendingBilling::count());
+    }
+
+    public function test_single_order_repair_extends_only_the_selected_subscription_when_renewal_was_missed(): void
+    {
+        Carbon::setTestNow('2026-11-09');
+        $subscription = $this->makeSubscription('Geciken', '1110000009', '2026-10-06', '2026-11-06', Subscription::DURUM_ACTIVE, true);
+        $other = $this->makeSubscription('Geciken Diger', '1110000010', '2026-10-06', '2026-11-06', Subscription::DURUM_ACTIVE, true);
+        $other->update(['customer_cari_id' => $subscription->customer_cari_id]);
+
+        $this->actingAs($this->makeUser())->post(route('subscription-monitor.enqueue-missing-for-subscription', $subscription), [
+            'year' => 2026, 'month' => 11,
+        ])->assertSessionHas('success');
+
+        $this->assertSame('2026-12-06', $subscription->fresh()->bitis_tarihi->toDateString());
+        $this->assertSame('2026-11-06', $other->fresh()->bitis_tarihi->toDateString());
+        $this->assertSame(1, PendingBilling::count());
+    }
+
+    public function test_single_order_repair_does_not_duplicate_existing_or_deleted_orders(): void
+    {
+        Carbon::setTestNow('2026-11-09');
+        $this->actingAs($this->makeUser());
+        foreach ([PendingBilling::STATUS_PENDING, PendingBilling::STATUS_INVOICED, PendingBilling::STATUS_POSTPONED, 'deleted'] as $index => $status) {
+            $subscription = $this->makeSubscription('Mevcut '.$index, '112000000'.$index, '2026-10-06', '2026-11-06', Subscription::DURUM_ACTIVE, true);
+            PendingBilling::create([
+                'subscription_id' => $subscription->id,
+                'period_start' => '2026-11-06', 'period_end' => '2026-12-05',
+                'status' => $status === 'deleted' ? PendingBilling::STATUS_PENDING : $status,
+                'is_deleted' => $status === 'deleted',
+            ]);
+
+            $this->post(route('subscription-monitor.enqueue-missing-for-subscription', $subscription), [
+                'year' => 2026, 'month' => 11,
+            ])->assertSessionHas('info');
+
+            $this->assertSame(1, PendingBilling::withDeleted()->where('subscription_id', $subscription->id)->count());
+            $this->assertSame('2026-11-06', $subscription->fresh()->bitis_tarihi->toDateString());
+        }
+    }
+
+    public function test_single_order_repair_does_not_reactivate_or_extend_nonrenewing_subscriptions(): void
+    {
+        Carbon::setTestNow('2026-11-09');
+        $this->actingAs($this->makeUser());
+        foreach ([Subscription::DURUM_ACTIVE, Subscription::DURUM_CANCELLED] as $index => $status) {
+            $subscription = $this->makeSubscription('Yenilenmeyen '.$index, '113000000'.$index, '2026-10-06', '2026-11-06', $status, false);
+            $this->post(route('subscription-monitor.enqueue-missing-for-subscription', $subscription), [
+                'year' => 2026, 'month' => 11,
+            ])->assertSessionHas('info');
+            $this->assertSame('2026-11-06', $subscription->fresh()->bitis_tarihi->toDateString());
+            $this->assertSame($status, $subscription->fresh()->durum);
+        }
+        $this->assertDatabaseCount('pending_billings', 0);
+    }
+
+    public function test_single_order_repair_validates_the_month_and_requires_authentication(): void
+    {
+        $subscription = $this->makeSubscription('Dogrulama', '1140000000', '2026-10-06', '2026-12-06', Subscription::DURUM_ACTIVE, true);
+        $route = route('subscription-monitor.enqueue-missing-for-subscription', $subscription);
+        $this->post($route, ['year' => 2026, 'month' => 11])->assertRedirect(route('login'));
+        $this->actingAs($this->makeUser())->post($route, ['year' => 2026, 'month' => 13])
+            ->assertSessionHasErrors('month');
+        $this->assertDatabaseCount('pending_billings', 0);
     }
 
     private function makeUser(): User

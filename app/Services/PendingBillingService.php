@@ -7,6 +7,7 @@ use App\Models\ExchangeRate;
 use App\Models\PendingBilling;
 use App\Models\Subscription;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class PendingBillingService
 {
@@ -456,6 +457,47 @@ class PendingBillingService
         }
 
         return $added;
+    }
+
+    /** Seçilen abonelik ve ayın tek eksik dönemini tamamlar. */
+    public function enqueueMissingPeriodForSubscriptionInMonth(int $subscriptionId, int $year, int $month): ?PendingBilling
+    {
+        return DB::transaction(function () use ($subscriptionId, $year, $month): ?PendingBilling {
+            $subscription = Subscription::query()->lockForUpdate()->findOrFail($subscriptionId);
+            if ($subscription->durum !== Subscription::DURUM_ACTIVE || $subscription->bitis_tarihi === null) {
+                return null;
+            }
+
+            $periodStart = $this->periodStartInMonth($subscription, $year, $month);
+            if ($periodStart === null || $periodStart->lt($subscription->baslangic_tarihi)
+                || $this->periodOrderExists($subscription->id, $periodStart)) {
+                return null;
+            }
+
+            if ($periodStart->gte($subscription->bitis_tarihi)) {
+                if (! $subscription->auto_renew) {
+                    return null;
+                }
+
+                app(SubscriptionRenewalService::class)->processRenewalsUpToForSubscriptionIds($periodStart, [$subscription->id]);
+                $subscription->refresh();
+            }
+
+            if (! $this->expectsPeriodInMonth($subscription, $year, $month)) {
+                return null;
+            }
+
+            $pending = PendingBilling::create([
+                'subscription_id' => $subscription->id,
+                'period_start' => $periodStart,
+                'period_end' => $this->computePeriodEnd($periodStart, $subscription->faturalama_periyodu),
+                'status' => PendingBilling::STATUS_PENDING,
+            ]);
+            $this->refreshAmountsForRecord($pending->load('subscription'));
+            $this->emitOrderCreated($pending->load('subscription.customerCari'));
+
+            return $pending;
+        });
     }
 
     /**

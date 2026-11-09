@@ -15,7 +15,9 @@ class EnqueuePendingBillingsCommand extends Command
     public function handle(PendingBillingService $pendingBillingService): int
     {
         $dateStr = $this->option('date');
-        $onDate = $dateStr ? \Carbon\Carbon::parse($dateStr) : \Carbon\Carbon::today();
+        $onDate = $dateStr
+            ? \Carbon\Carbon::parse($dateStr, 'Europe/Istanbul')
+            : \Carbon\Carbon::today('Europe/Istanbul');
 
         $added = $pendingBillingService->enqueueDuePeriods($onDate);
 

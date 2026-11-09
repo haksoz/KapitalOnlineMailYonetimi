@@ -17,7 +17,9 @@ class ProcessSubscriptionRenewalsCommand extends Command
     public function handle(SubscriptionRenewalService $renewalService): int
     {
         $dateStr = $this->option('date');
-        $asOf = $dateStr ? \Carbon\Carbon::parse($dateStr) : null;
+        $asOf = $dateStr
+            ? \Carbon\Carbon::parse($dateStr, 'Europe/Istanbul')
+            : \Carbon\Carbon::today('Europe/Istanbul');
 
         Log::info('subscriptions:process-renewals başlatıldı', [
             'as_of_date' => $asOf?->toDateString(),
