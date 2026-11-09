@@ -31,6 +31,9 @@ class SubscriptionController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate(['search' => ['nullable', 'string', 'max:255']]);
+        $search = trim((string) $request->input('search', ''));
+
         $query = Subscription::query()
             ->with([
                 'customerCari:id,name,short_name,uuid',
@@ -44,6 +47,20 @@ class SubscriptionController extends Controller
         }
         if ($request->filled('durum')) {
             $query->where('durum', $request->durum);
+        }
+        if ($request->filled('taahhut_tipi')) {
+            $query->where('taahhut_tipi', $request->taahhut_tipi);
+        }
+
+        if ($search !== '') {
+            $query->where(function (Builder $query) use ($search): void {
+                $query->where('sozlesme_no', 'like', '%'.$search.'%')
+                    ->orWhereHas('customerCari', function (Builder $query) use ($search): void {
+                        $query->where('name', 'like', '%'.$search.'%')
+                            ->orWhere('short_name', 'like', '%'.$search.'%');
+                    })
+                    ->orWhereHas('product', fn (Builder $query) => $query->where('name', 'like', '%'.$search.'%'));
+            });
         }
 
         $this->applyIndexSort($query, $request);

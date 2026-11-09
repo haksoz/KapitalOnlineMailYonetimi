@@ -10,6 +10,10 @@
     </x-page-toolbar>
 
     <form method="GET" action="{{ route('subscriptions.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <x-input-label for="search" value="Ara" />
+            <x-text-input id="search" name="search" type="search" :value="request('search')" maxlength="255" placeholder="Sözleşme no, müşteri veya ürün adı" class="mt-1 block w-full" />
+        </div>
         <div class="min-w-[180px]">
             <x-input-label for="customer_cari_id" value="Müşteri (Cari)" />
             <select id="customer_cari_id" name="customer_cari_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
@@ -28,12 +32,24 @@
                 <option value="pending" @selected(request('durum') === 'pending')>Beklemede</option>
             </select>
         </div>
+        <div class="min-w-[180px]">
+            <x-input-label for="taahhut_tipi" value="Taahhüt tipi" />
+            <select id="taahhut_tipi" name="taahhut_tipi" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                <option value="">— Tümü —</option>
+                <option value="monthly_commitment" @selected(request('taahhut_tipi') === 'monthly_commitment')>Aylık taahhütlü</option>
+                <option value="monthly_no_commitment" @selected(request('taahhut_tipi') === 'monthly_no_commitment')>Aylık taahhütsüz</option>
+                <option value="annual_commitment" @selected(request('taahhut_tipi') === 'annual_commitment')>Yıllık taahhütlü</option>
+            </select>
+        </div>
         @if (request()->filled('sort'))
             <input type="hidden" name="sort" value="{{ request('sort') }}">
             <input type="hidden" name="direction" value="{{ request('direction') === 'desc' ? 'desc' : 'asc' }}">
         @endif
         <div class="pb-1">
             <x-primary-button type="submit">Filtrele</x-primary-button>
+            @if (request()->filled('search'))
+                <a href="{{ route('subscriptions.index', request()->except(['search', 'page'])) }}" class="ml-2 text-sm text-gray-600 hover:underline">Aramayı temizle</a>
+            @endif
         </div>
     </form>
 
