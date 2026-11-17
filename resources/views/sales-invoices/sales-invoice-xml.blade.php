@@ -11,7 +11,7 @@
 
     <div class="mb-4">
         <p class="text-sm text-gray-600">
-            E-fatura XML’ini yükleyin. Sistem, <strong>fatura tarihi</strong> (dönem), <strong>müşteri VKN</strong> ve açıklamadaki <strong>*sözleşme no*</strong> ile fatura numarası henüz verilmemiş kayıtları listeler. KDV hariç toplamları karşılaştırıp doğru faturayı seçerek onaylayın.
+            E-fatura XML’ini yükleyin. Sistem, <strong>müşteri VKN</strong> ve açıklamadaki <strong>*sözleşme no*</strong> ile fatura numarası henüz verilmemiş kayıtları listeler. Bir fatura birden fazla dönemi kapsayabilir; fatura tarihi dönem filtresi olarak kullanılmaz. KDV hariç toplamları karşılaştırıp doğru faturayı seçerek onaylayın.
         </p>
     </div>
 

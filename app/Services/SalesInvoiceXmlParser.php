@@ -29,13 +29,21 @@ class SalesInvoiceXmlParser
         $xmlContent = $this->normalizeXmlString($xmlContent);
 
         $doc = new DOMDocument();
-        $doc->loadXML($xmlContent);
+        $previousErrorHandling = libxml_use_internal_errors(true);
+        try {
+            if ($xmlContent === '' || ! $doc->loadXML($xmlContent, LIBXML_NONET)) {
+                throw new \InvalidArgumentException('Geçerli bir XML içeriği bulunamadı. Lütfen e-fatura XML dosyasını yükleyin veya XML metninin tamamını yapıştırın.');
+            }
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousErrorHandling);
+        }
 
         $xpath = new DOMXPath($doc);
         $xpath->registerNamespace('cbc', self::UBL_CBC);
         $xpath->registerNamespace('cac', self::UBL_CAC);
 
-        $invoiceId = $this->firstNodeValue($xpath->query('//cbc:ID'), 0);
+        $invoiceId = $this->firstNodeValue($xpath->query('/*/cbc:ID'), 0);
         $uuid = $this->firstNodeValue($xpath->query('//cbc:UUID'), 0);
         $issueDate = $this->firstNodeValue($xpath->query('//cbc:IssueDate'), 0);
         $customerVkn = $this->firstNodeValue($xpath->query("//cac:AccountingCustomerParty//cbc:ID[@schemeID='VKN']"), 0);

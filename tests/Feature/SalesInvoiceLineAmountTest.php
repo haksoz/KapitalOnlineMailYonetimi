@@ -64,6 +64,59 @@ class SalesInvoiceLineAmountTest extends TestCase
         return [$customerCari, $subscription, $pendingBilling];
     }
 
+    public function test_invalid_xml_returns_to_input_with_message_and_preserves_text(): void
+    {
+        $this->actingAs($this->makeUser())
+            ->post(route('sales-invoices.store-sales-invoice-xml'), ['xml_content' => 'yanlışlıkla yazılan metin'])
+            ->assertRedirect(route('sales-invoices.sales-invoice-xml'))
+            ->assertSessionHas('error', fn ($message) => str_contains($message, 'Geçerli bir XML'))
+            ->assertSessionHasInput('xml_content', 'yanlışlıkla yazılan metin');
+        $this->assertDatabaseCount('sales_invoices', 0);
+    }
+
+    public function test_xml_matching_includes_multiple_periods_before_invoice_month(): void
+    {
+        [$customer, $subscription, $firstPeriod] = $this->makePendingOrder();
+        $customer->update(['country_code' => 'TR']);
+        $secondPeriod = PendingBilling::create([
+            'subscription_id' => $subscription->id,
+            'period_start' => '2026-09-01',
+            'period_end' => '2026-09-30',
+            'status' => PendingBilling::STATUS_PENDING,
+        ]);
+        $invoice = SalesInvoice::create(['customer_cari_id' => $customer->id, 'total_amount_tl' => 400]);
+        foreach ([$firstPeriod, $secondPeriod] as $period) {
+            $invoice->lines()->create(['pending_billing_id' => $period->id, 'line_amount_tl' => 200]);
+        }
+        $otherCustomer = Cari::create(['name' => 'Other', 'cari_type' => 'customer']);
+        $otherInvoice = SalesInvoice::create(['customer_cari_id' => $otherCustomer->id]);
+        $otherPeriod = $firstPeriod->replicate();
+        $otherPeriod->period_start = '2026-06-01';
+        $otherPeriod->period_end = '2026-06-30';
+        $otherPeriod->save();
+        $otherInvoice->lines()->create(['pending_billing_id' => $otherPeriod->id, 'line_amount_tl' => 200]);
+        $issuedInvoice = SalesInvoice::create(['customer_cari_id' => $customer->id, 'our_invoice_number' => 'ISSUED']);
+        $issuedPeriod = $firstPeriod->replicate();
+        $issuedPeriod->period_start = '2026-07-01';
+        $issuedPeriod->period_end = '2026-07-31';
+        $issuedPeriod->save();
+        $issuedInvoice->lines()->create(['pending_billing_id' => $issuedPeriod->id, 'line_amount_tl' => 200]);
+        $xml = <<<'XML'
+<Invoice xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2">
+    <cbc:ID>TEST-XML</cbc:ID>
+    <cbc:IssueDate>2026-11-13</cbc:IssueDate>
+    <cac:AccountingCustomerParty><cac:Party><cac:PartyIdentification><cbc:ID schemeID="VKN">1122334455</cbc:ID></cac:PartyIdentification></cac:Party></cac:AccountingCustomerParty>
+    <cac:InvoiceLine><cac:Item><cbc:Name>Service *SOZ-FTN-001*</cbc:Name></cac:Item></cac:InvoiceLine>
+    <cac:LegalMonetaryTotal><cbc:TaxExclusiveAmount currencyID="TRY">400.01</cbc:TaxExclusiveAmount></cac:LegalMonetaryTotal>
+</Invoice>
+XML;
+        $this->actingAs($this->makeUser())
+            ->post(route('sales-invoices.store-sales-invoice-xml'), ['xml_content' => $xml])
+            ->assertRedirect(route('sales-invoices.sales-invoice-xml-match-preview'))
+            ->assertSessionHas('sales_invoice_xml_parsed', fn ($data) => array_column($data['candidates'], 'id') === [$invoice->id]);
+        $this->assertNull($invoice->fresh()->our_invoice_number);
+    }
+
     public function test_store_uses_overridden_line_amount_as_actual_satis(): void
     {
         $user = $this->makeUser();

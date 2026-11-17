@@ -25,6 +25,13 @@
 
             <div class="space-y-4">
                 <div>
+                    <x-input-label for="notes" value="Not" />
+                    <textarea id="notes" name="notes" rows="3" maxlength="5000"
+                        class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 text-sm"
+                        placeholder="Örn. Müşteri talebiyle bu ayın faturası ABC Ltd. Şti. adına kesildi.">{{ old('notes', $salesInvoice->notes) }}</textarea>
+                    <x-input-error :messages="$errors->get('notes')" class="mt-1" />
+                </div>
+                <div>
                     <x-input-label for="our_invoice_number" value="Fatura numarası (bizim)" />
                     <x-text-input id="our_invoice_number" name="our_invoice_number" type="text"
                         class="mt-1 block w-full" :value="old('our_invoice_number', $salesInvoice->our_invoice_number)"

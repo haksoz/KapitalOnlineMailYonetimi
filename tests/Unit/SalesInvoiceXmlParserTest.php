@@ -7,6 +7,32 @@ use PHPUnit\Framework\TestCase;
 
 class SalesInvoiceXmlParserTest extends TestCase
 {
+    public function test_it_rejects_invalid_xml_and_restores_libxml_error_handling(): void
+    {
+        $previous = libxml_use_internal_errors();
+        foreach (['yanlışlıkla yazılan metin', '<Invoice><broken></Invoice>', ''] as $xml) {
+            try {
+                (new SalesInvoiceXmlParser())->parse($xml);
+                $this->fail('Invalid XML must be rejected.');
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString('Geçerli bir XML', $e->getMessage());
+            }
+            $this->assertSame($previous, libxml_use_internal_errors());
+        }
+    }
+
+    public function test_it_reads_invoice_number_instead_of_signature_party_id(): void
+    {
+        $xml = <<<'XML'
+<Invoice xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2">
+    <Extensions><cbc:ID>signature-party-id</cbc:ID></Extensions>
+    <cbc:ID>KOA2026000000451</cbc:ID>
+</Invoice>
+XML;
+
+        $this->assertSame('KOA2026000000451', (new SalesInvoiceXmlParser())->parse($xml)['invoice_id']);
+    }
+
     public function test_it_extracts_invoice_totals(): void
     {
         $xml = <<<'XML'

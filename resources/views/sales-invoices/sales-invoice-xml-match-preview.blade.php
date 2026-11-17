@@ -11,7 +11,7 @@
 
     <div class="mb-4">
         <p class="text-sm text-gray-600">
-            Aşağıda XML’den okunan bilgiler ve fatura numarası verilmemiş, dönem + müşteri + sözleşme no ile eşleşen faturalar listeleniyor. <strong>KDV hariç toplam</strong>ları karşılaştırıp doğru faturayı seçin ve <strong>Bu fatura bu</strong> ile onaylayın.
+            Aşağıda XML’den okunan bilgiler ve fatura numarası verilmemiş, müşteri + sözleşme no ile eşleşen faturalar listeleniyor. Fatura tarihi dönemleri kısıtlamaz. <strong>KDV hariç toplam</strong>ları karşılaştırıp doğru faturayı seçin ve <strong>Bu fatura bu</strong> ile onaylayın.
         </p>
     </div>
 
@@ -55,7 +55,7 @@
         @if(empty($candidates))
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
                 <p class="text-sm font-medium text-amber-800">Bu kriterlere uyan fatura numarası verilmemiş fatura bulunamadı.</p>
-                <p class="text-sm text-amber-700 mt-1">Müşteri, dönem ve sözleşme no’ların sistemdeki kayıtlarla uyumlu olduğundan emin olun.</p>
+                <p class="text-sm text-amber-700 mt-1">Müşteri ve sözleşme no’ların sistemdeki kayıtlarla uyumlu olduğundan emin olun.</p>
                 <div class="mt-4">
                     <a href="{{ route('sales-invoices.sales-invoice-xml') }}" class="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg font-semibold text-sm hover:bg-amber-700">Yeni XML yükle</a>
                     <a href="{{ route('sales-invoices.sales-invoice-xml-match-cancel') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-sm text-gray-700 hover:bg-gray-50 ml-2">İptal</a>
@@ -72,6 +72,7 @@
                                 <tr>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seç</th>
                                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sipariş / Takip no</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cari</th>
                                     <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Satır sayısı</th>
                                     <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sistem KDV hariç (₺)</th>
                                     <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">XML KDV hariç (₺)</th>
@@ -92,6 +93,7 @@
                                         <td class="px-4 py-3 text-sm font-medium text-gray-900">
                                             <a href="{{ route('sales-invoices.show', $c['id']) }}" class="text-slate-600 hover:text-slate-800">{{ $c['order_number'] ?? '#' . $c['id'] }}</a>
                                         </td>
+                                        <td class="px-4 py-3 text-sm text-gray-900">{{ $c['cari_name'] ?? ($cariName ?: '—') }}</td>
                                         <td class="px-4 py-3 text-sm text-right text-gray-700">{{ $c['line_count'] }}</td>
                                         <td class="px-4 py-3 text-sm text-right text-gray-900">
                                             {{ $sysTotal !== null ? number_format($sysTotal, 2, ',', '.') : '—' }}

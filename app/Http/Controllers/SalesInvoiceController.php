@@ -89,7 +89,14 @@ class SalesInvoiceController extends Controller
                 ->with('error', 'XML içeriği bulunamadı. Dosya seçin veya XML metnini yapıştırın.');
         }
 
-        $parsed = $parser->parse($xmlContent);
+        try {
+            $parsed = $parser->parse($xmlContent);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()
+                ->route('sales-invoices.sales-invoice-xml')
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
 
         if ($parsed['customer_vkn'] === null || $parsed['customer_vkn'] === '') {
             return redirect()
@@ -140,9 +147,6 @@ class SalesInvoiceController extends Controller
                 $q->whereNull('our_invoice_number')->orWhere('our_invoice_number', '');
             })
             ->where('customer_cari_id', $cari->id)
-            ->whereHas('lines.pendingBilling', function ($q) use ($periodYear, $periodMonth): void {
-                $q->whereYear('period_start', $periodYear)->whereMonth('period_start', $periodMonth);
-            })
             ->whereHas('lines.pendingBilling.subscription', function ($q) use ($sozlesmeNos): void {
                 $q->whereIn('sozlesme_no', $sozlesmeNos);
             })
@@ -157,6 +161,7 @@ class SalesInvoiceController extends Controller
             'candidates' => $candidates->map(fn (SalesInvoice $inv) => [
                 'id' => $inv->id,
                 'order_number' => $inv->order_number,
+                'cari_name' => $inv->customerCari?->short_name ?: $inv->customerCari?->name,
                 'total_amount_tl' => $inv->total_amount_tl !== null ? (float) $inv->total_amount_tl : null,
                 'line_count' => $inv->lines->count(),
                 'sozlesme_nos' => $inv->lines->pluck('pendingBilling.subscription.sozlesme_no')->filter()->unique()->values()->all(),
@@ -581,6 +586,7 @@ class SalesInvoiceController extends Controller
             'invoice_total_net_tl' => ['nullable', 'required_with:invoice_total_gross_tl', 'numeric', 'min:0'],
             'invoice_total_gross_tl' => ['nullable', 'required_with:invoice_total_net_tl', 'numeric', 'min:0', 'gte:invoice_total_net_tl'],
             'invoice_total_diff_reason' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:5000'],
         ], [
             'invoice_total_net_tl.required_with' => 'KDV hariç toplam da girilmelidir.',
             'invoice_total_gross_tl.required_with' => 'KDV dahil toplam da girilmelidir.',
@@ -630,6 +636,7 @@ class SalesInvoiceController extends Controller
             'invoice_total_gross_tl' => $invoiceTotalGross,
             'invoice_total_diff_tl' => $invoiceTotalDiff,
             'invoice_total_diff_reason' => $diffReason,
+            'notes' => array_key_exists('notes', $validated) ? $validated['notes'] : $sales_invoice->notes,
         ]);
 
         if (! empty($validated['due_date'] ?? null)) {
