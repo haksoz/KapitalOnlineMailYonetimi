@@ -16,7 +16,7 @@ class RenewalWorkTaskService
         $created = 0;
         Subscription::query()->where('durum', Subscription::DURUM_ACTIVE)
             ->whereDate('bitis_tarihi', '>=', $today->toDateString())
-            ->whereDate('bitis_tarihi', '<=', $today->copy()->addDays(15)->toDateString())
+            ->whereDate('bitis_tarihi', '<=', $today->copy()->addDays(40)->toDateString())
             ->where(function ($query) {
                 $query->whereIn('taahhut_tipi', [Subscription::TAAHHUT_MONTHLY_COMMITMENT, Subscription::TAAHHUT_ANNUAL_COMMITMENT])
                     ->orWhere(function ($query) {
@@ -50,7 +50,7 @@ class RenewalWorkTaskService
                             'next_follow_up' => $today->toDateString(), 'snapshot' => $snapshot,
                         ]);
                         if ($task->wasRecentlyCreated) {
-                            $task->record('Abonelik bitişine 15 gün veya daha az kaldığı için iş oluşturuldu.');
+                            $task->record('Abonelik bitişine 40 gün veya daha az kaldığı için iş oluşturuldu.');
                             $created++;
                         }
                     });

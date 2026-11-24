@@ -4,9 +4,9 @@ Onaylanan kapsam: genel iş takibi altyapısı ve abonelik yenileme işleri.
 
 ## İş oluşturma
 
-- Aktif aylık taahhütlü ve yıllık taahhütlü aboneliklerde, otomatik yenilemeden bağımsız olarak bitişe 15 gün kala iş açılır.
+- Aktif aylık taahhütlü ve yıllık taahhütlü aboneliklerde, otomatik yenilemeden bağımsız olarak bitişe 40 gün kala iş açılır.
 - Aylık taahhütsüz aboneliklerde yalnızca otomatik yenileme kapalıysa iş açılır.
-- Kaçırılan günlük çalışmalarda kalan 0–15 günlük aralık yakalanır. Aynı abonelik ve bitiş tarihi için tek iş oluşur.
+- Kaçırılan günlük çalışmalarda kalan 0–40 günlük aralık yakalanır. Aynı abonelik ve bitiş tarihi için tek iş oluşur. 40 gün tedarikçiyle uyumlu iç takip eşiğidir; Microsoft işlem süresi kısıtı anlamına gelmez.
 - Müşteri e-posta bildirim tercihi, iç iş oluşturulmasını engellemez.
 - Kaynak ilişki geneldir (polymorphic). Aboneliğin dönem, ürün, adet, fiyat, para birimi ve yenileme koşulları anlık görüntü olarak saklanır.
 

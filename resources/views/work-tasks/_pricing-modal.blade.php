@@ -12,9 +12,15 @@
         @csrf @method('PATCH')
         <input type="hidden" name="action" value="pricing">
         <h2 id="pricing-title-{{ $task->id }}" class="text-lg font-semibold">Yeni dönem fiyat kontrolü</h2>
-        <p class="text-sm text-gray-600">{{ $task->customerCari?->name }} · {{ $snapshot['product_name'] }} · {{ $snapshot['quantity'] }} lisans</p>
-        <p class="text-sm">{{ \App\Models\Quote::commitmentLabel($snapshot['commitment']) }} · {{ $snapshot['currency'] }} · KDV hariç</p>
+        <div class="space-y-1 text-sm text-gray-600">
+            <p><span class="font-semibold">Hesap:</span> {{ $task->customerCari?->name }}</p>
+            <p><span class="font-semibold">Ürün:</span> {{ $snapshot['product_name'] }}</p>
+            <p><span class="font-semibold">Lisans adedi:</span> {{ $snapshot['quantity'] }}</p>
+            <p><span class="font-semibold">Taahhüt:</span> {{ \App\Models\Quote::commitmentLabel($snapshot['commitment']) }}</p>
+            <p><span class="font-semibold">Para birimi:</span> {{ $snapshot['currency'] }} · KDV hariç</p>
+        </div>
         <p class="text-sm text-gray-600">Mevcut alış: {{ \App\Services\QuoteMath::display($snapshot['cost']) }} · Mevcut satış: {{ \App\Services\QuoteMath::display($snapshot['sale']) }}</p>
+        <p class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">Mevcut kâr oranı: <strong>{{ \App\Services\QuoteMath::displayRate(\App\Services\QuoteMath::profitPercentage($snapshot['cost'], $snapshot['sale'])) }}</strong></p>
         <div role="alert" x-show="error" x-cloak x-text="error" class="rounded-lg bg-red-50 p-3 text-sm text-red-800"></div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <label class="text-sm">Yeni alış<input name="verified_cost" type="number" min="0" step="0.0001" required x-model="cost" @input="calculateSale()" class="mt-1 block w-full rounded-md border-gray-300"></label>

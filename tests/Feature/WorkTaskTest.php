@@ -68,7 +68,7 @@ class WorkTaskTest extends TestCase
 
     public function test_detection_catches_missed_days_and_excludes_inactive_outside_window_and_past(): void
     {
-        foreach (['2026-11-04', '2026-11-08', '2026-11-19', '2026-11-20', '2026-11-03'] as $end) {
+        foreach (['2026-11-04', '2026-11-20', '2026-12-14', '2026-12-15', '2026-11-03'] as $end) {
             $this->subscription(['bitis_tarihi' => $end]);
         }
         $this->subscription(['durum' => 'cancelled']);
@@ -76,6 +76,16 @@ class WorkTaskTest extends TestCase
         $this->subscription(['bitis_tarihi' => null]);
         $this->artisan('work-tasks:detect-renewals')->expectsOutput('3 yenileme işi oluşturuldu.')->assertSuccessful();
         $this->assertSame(3, WorkTask::count());
+    }
+
+    public function test_detection_uses_forty_days_across_year_boundary(): void
+    {
+        $included = $this->subscription(['bitis_tarihi' => '2027-01-01']);
+        $excluded = $this->subscription(['bitis_tarihi' => '2027-01-02']);
+
+        $this->assertSame(1, app(RenewalWorkTaskService::class)->detect(Carbon::parse('2026-11-22', 'Europe/Istanbul')));
+        $this->assertDatabaseHas('work_tasks', ['subject_id' => $included->id]);
+        $this->assertDatabaseMissing('work_tasks', ['subject_id' => $excluded->id]);
     }
 
     public function test_snapshot_survives_renewal_and_new_period_gets_its_own_task(): void
