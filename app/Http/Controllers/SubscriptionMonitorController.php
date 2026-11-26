@@ -82,8 +82,11 @@ class SubscriptionMonitorController extends Controller
             /** @var \Illuminate\Support\Collection<int, SalesInvoiceLine> $invoiceLinesForMonth */
             $invoiceLinesForMonth = SalesInvoiceLine::query()
                 ->whereIn('pending_billing_id', $pendingForMonth->pluck('id')->all())
-                ->whereHas('salesInvoice', function ($q) use ($monthStart, $monthEnd): void {
-                    $q->whereBetween('our_invoice_date', [$monthStart->toDateString(), $monthEnd->toDateString()]);
+                ->whereHas('salesInvoice', function ($q): void {
+                    // Hizmet dönemi seçilen aya aittir; fatura daha sonra kesilmiş olabilir.
+                    $q->whereNotNull('our_invoice_date')
+                        ->whereNotNull('our_invoice_number')
+                        ->whereRaw("TRIM(our_invoice_number) <> ''");
                 })
                 ->with('salesInvoice')
                 ->get();

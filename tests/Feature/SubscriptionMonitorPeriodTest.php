@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Cari;
 use App\Models\PendingBilling;
+use App\Models\SalesInvoice;
 use App\Models\Subscription;
 use App\Models\User;
 use Carbon\Carbon;
@@ -14,6 +15,46 @@ use Tests\TestCase;
 class SubscriptionMonitorPeriodTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_combined_invoice_completes_each_service_month_regardless_of_issue_month(): void
+    {
+        Carbon::setTestNow('2026-11-26');
+        $subscription = $this->makeSubscription('Birlesik Fatura', '1190000001', '2026-09-28', '2027-09-28', Subscription::DURUM_ACTIVE, false);
+        $invoice = SalesInvoice::create([
+            'customer_cari_id' => $subscription->customer_cari_id,
+            'our_invoice_number' => 'KOA2026000000451',
+            'our_invoice_date' => '2026-11-13',
+        ]);
+        foreach ([9 => '2026-10-27', 10 => '2026-11-27'] as $month => $end) {
+            $pending = PendingBilling::create([
+                'subscription_id' => $subscription->id,
+                'period_start' => sprintf('2026-%02d-28', $month),
+                'period_end' => $end,
+                'status' => PendingBilling::STATUS_INVOICED,
+            ]);
+            $invoice->lines()->create(['pending_billing_id' => $pending->id, 'line_amount_tl' => 200]);
+        }
+        $this->actingAs($this->makeUser());
+        foreach ([9, 10] as $month) {
+            $this->get(route('subscription-monitor.index', ['year' => 2026, 'month' => $month]))
+                ->assertOk()
+                ->assertViewHas('customerSummaries', fn ($rows) => $rows->first()['status'] === 'Tamamlandı'
+                    && $rows->first()['invoiced_count'] === 1
+                    && $rows->first()['details'][0]['sales_invoiced'])
+                ->assertSee('KOA2026000000451')
+                ->assertSee('13.11.2026');
+        }
+        // Geçmiş ayların faturası, Kasım hizmet siparişinin yerine geçmez.
+        $this->get(route('subscription-monitor.index', ['year' => 2026, 'month' => 11]))
+            ->assertViewHas('customerSummaries', fn ($rows) => $rows->first()['status'] === 'Eksik sipariş var');
+
+        // Sadece satış faturasına bağlamak, kesilmiş e-fatura teyidi değildir.
+        $invoice->update(['our_invoice_number' => null]);
+        $this->get(route('subscription-monitor.index', ['year' => 2026, 'month' => 10]))
+            ->assertOk()
+            ->assertViewHas('customerSummaries', fn ($rows) => $rows->first()['invoiced_count'] === 0
+                && $rows->first()['status'] === 'Faturalandırılmamış siparişler var');
+    }
 
     protected function tearDown(): void
     {

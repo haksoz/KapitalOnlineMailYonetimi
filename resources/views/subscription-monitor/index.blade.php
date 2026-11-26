@@ -8,7 +8,7 @@
     <x-page-toolbar title="Abone Takip" />
 
     <p class="mt-0.5 text-sm text-gray-500">
-        Seçilen ay için carilerin abonelik, sipariş ve fatura durumunu tek ekranda izleyin.
+        Seçilen hizmet ayı için carilerin abonelik, sipariş ve fatura durumunu tek ekranda izleyin. Başka bir ayda kesilen faturalar da bağlı oldukları hizmet dönemlerinde tamamlanmış sayılır.
     </p>
 
     <form method="GET" action="{{ route('subscription-monitor.index') }}" class="mb-4 flex flex-wrap items-end gap-3">
@@ -233,6 +233,11 @@
                                                     <td class="px-3 py-2">
                                                         @if ($d['sales_invoiced'])
                                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Evet</span>
+                                                            @php($salesInvoice = $pb?->salesInvoiceLine?->salesInvoice)
+                                                            @if ($salesInvoice)
+                                                                <a href="{{ route('sales-invoices.show', $salesInvoice) }}" class="block mt-1 text-xs text-slate-700 hover:underline">{{ $salesInvoice->our_invoice_number }}</a>
+                                                                <span class="block text-xs text-gray-500">{{ $salesInvoice->our_invoice_date?->format('d.m.Y') }}</span>
+                                                            @endif
                                                         @elseif ($d['expensed'] ?? false)
                                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800" title="{{ $d['gider_number'] ?? '' }}">
                                                                 {{ $d['gider_number'] ?? 'Giderleştirildi' }}
